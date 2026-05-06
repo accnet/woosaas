@@ -1,0 +1,11 @@
+{
+  "name": "woosaas/plugin",
+  "description": "Development dependencies for the Woosaas WordPress plugin",
+  "type": "project",
+  "require-dev": {
+    "phpunit/phpunit": "^9.6"
+  },
+  "scripts": {
+    "test": "phpunit -c phpunit.xml.dist"
+  }
+}

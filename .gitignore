@@ -1,0 +1,23 @@
+.env
+
+# Dependencies
+node_modules/
+dashboard/node_modules/
+plugin/vendor/
+
+# Build output
+.next/
+dashboard/.next/
+dist/
+build/
+
+# Local PHP tooling
+plugin/composer.phar
+plugin/composer-setup.php
+
+# Logs
+*.log
+
+# OS/editor
+.DS_Store
+*.swp

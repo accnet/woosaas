@@ -1,0 +1,478 @@
+.woosaas-admin {
+    margin: 24px 20px 0 0;
+}
+
+.woosaas-shell {
+    max-width: 1180px;
+}
+
+.woosaas-hero {
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 32px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, #102038 0%, #1a4d5e 52%, #d9efe4 100%);
+    color: #f5fbff;
+    box-shadow: 0 22px 50px rgba(16, 32, 56, 0.18);
+}
+
+.woosaas-hero--compact {
+    padding: 24px 32px;
+}
+
+.woosaas-kicker {
+    display: inline-block;
+    margin-bottom: 10px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.woosaas-hero h1 {
+    margin: 0 0 10px;
+    color: inherit;
+    font-size: 32px;
+    line-height: 1.15;
+}
+
+.woosaas-hero p {
+    margin: 0;
+    max-width: 700px;
+    font-size: 15px;
+    line-height: 1.7;
+    color: rgba(245, 251, 255, 0.88);
+}
+
+.woosaas-hero__meta {
+    display: grid;
+    gap: 12px;
+    align-content: start;
+    min-width: 220px;
+}
+
+.woosaas-badge,
+.woosaas-meta-card,
+.woosaas-step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    padding: 10px 14px;
+    font-weight: 700;
+}
+
+.woosaas-badge.is-success {
+    background: #d7f5d9;
+    color: #155b2c;
+}
+
+.woosaas-badge.is-muted {
+    background: rgba(255, 255, 255, 0.12);
+    color: #f5fbff;
+}
+
+.woosaas-meta-card {
+    justify-content: space-between;
+    gap: 12px;
+    border-radius: 18px;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #f5fbff;
+}
+
+.woosaas-meta-card span {
+    opacity: 0.8;
+    font-weight: 500;
+}
+
+.woosaas-status-grid,
+.woosaas-toggle-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+}
+
+.woosaas-status-card,
+.woosaas-panel {
+    background: #fff;
+    border: 1px solid #d9e4ea;
+    border-radius: 20px;
+    box-shadow: 0 16px 36px rgba(24, 39, 75, 0.08);
+}
+
+.woosaas-status-card {
+    padding: 20px;
+}
+
+.woosaas-status-card__label {
+    display: block;
+    margin-bottom: 8px;
+    color: #55717c;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.woosaas-status-card strong {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 18px;
+    color: #102038;
+}
+
+.woosaas-time-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.woosaas-time-badge.is-fresh {
+    background: #d7f5d9;
+    color: #155b2c;
+}
+
+.woosaas-time-badge.is-warm {
+    background: #fff0cb;
+    color: #8f5e00;
+}
+
+.woosaas-time-badge.is-stale {
+    background: #eef2f5;
+    color: #55717c;
+}
+
+.woosaas-status-card p,
+.woosaas-panel__header p,
+.woosaas-field p,
+.woosaas-inline-note,
+.woosaas-checklist,
+.woosaas-verify-result {
+    color: #55717c;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.woosaas-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.9fr);
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.woosaas-wizard {
+    margin-top: 20px;
+}
+
+.woosaas-wizard__nav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.woosaas-wizard__tab {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    width: 100%;
+    padding: 16px 18px;
+    border: 1px solid #d9e4ea;
+    border-radius: 18px;
+    background: #f7fbfc;
+    color: #102038;
+    cursor: pointer;
+    text-align: left;
+}
+
+.woosaas-wizard__tab span {
+    color: #55717c;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.woosaas-wizard__tab strong {
+    font-size: 16px;
+}
+
+.woosaas-wizard__tab.is-active {
+    border-color: #1a7f68;
+    background: #edf8f3;
+    box-shadow: 0 12px 24px rgba(26, 127, 104, 0.12);
+}
+
+.woosaas-wizard__panel {
+    display: none;
+}
+
+.woosaas-wizard__panel.is-active {
+    display: block;
+}
+
+.woosaas-panel {
+    padding: 24px;
+}
+
+.woosaas-panel__header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.woosaas-panel__header h2 {
+    margin: 0 0 6px;
+    font-size: 22px;
+    color: #102038;
+}
+
+.woosaas-step {
+    background: #edf5f2;
+    color: #155b2c;
+    white-space: nowrap;
+}
+
+.woosaas-form {
+    display: grid;
+    gap: 18px;
+}
+
+.woosaas-stack {
+    display: grid;
+    gap: 14px;
+}
+
+.woosaas-field label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 700;
+    color: #102038;
+}
+
+.woosaas-field input[type="url"],
+.woosaas-field input[type="password"],
+.woosaas-field input[type="text"],
+.woosaas-field textarea {
+    width: 100%;
+    max-width: none;
+    min-height: 46px;
+    border: 1px solid #c6d7de;
+    border-radius: 14px;
+    padding: 0 14px;
+    box-shadow: none;
+}
+
+.woosaas-field textarea {
+    min-height: 148px;
+    padding: 14px;
+    font-family: Consolas, Monaco, monospace;
+    line-height: 1.5;
+    resize: vertical;
+}
+
+.woosaas-field input[type="url"]:focus,
+.woosaas-field input[type="password"]:focus,
+.woosaas-field input[type="text"]:focus,
+.woosaas-field textarea:focus {
+    border-color: #1a7f68;
+}
+
+.woosaas-copy-grid {
+    display: grid;
+    gap: 18px;
+    margin: 20px 0;
+}
+
+.woosaas-copy-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.woosaas-copy-row input {
+    flex: 1;
+}
+
+.woosaas-toggle-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.woosaas-toggle-card {
+    display: flex;
+    gap: 12px;
+    align-items: start;
+    padding: 16px;
+    border: 1px solid #d9e4ea;
+    border-radius: 18px;
+    background: #f9fbfc;
+}
+
+.woosaas-toggle-card input {
+    margin-top: 2px;
+}
+
+.woosaas-toggle-card strong,
+.woosaas-toggle-card small {
+    display: block;
+}
+
+.woosaas-toggle-card small {
+    margin-top: 4px;
+    color: #55717c;
+    line-height: 1.5;
+}
+
+.woosaas-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.woosaas-verify-button {
+    min-height: 42px;
+    padding: 0 18px;
+}
+
+.woosaas-verify-result {
+    margin-top: 14px;
+}
+
+.woosaas-verify-result .notice {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 14px;
+}
+
+.woosaas-response-box {
+    margin: 10px 0 0;
+    padding: 12px;
+    border-radius: 12px;
+    background: #102038;
+    color: #f5fbff;
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-x: auto;
+}
+
+.woosaas-checklist {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.woosaas-checklist li + li {
+    margin-top: 8px;
+}
+
+.woosaas-debug-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.woosaas-facts {
+    margin: 0;
+    padding-left: 18px;
+    color: #55717c;
+}
+
+.woosaas-facts li + li {
+    margin-top: 10px;
+}
+
+.woosaas-panel--history {
+    margin-top: 20px;
+}
+
+.woosaas-history {
+    display: grid;
+    gap: 12px;
+}
+
+.woosaas-history__item,
+.woosaas-history__empty {
+    padding: 16px;
+    border: 1px solid #d9e4ea;
+    border-radius: 16px;
+    background: #f9fbfc;
+}
+
+.woosaas-history__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.woosaas-history__item p,
+.woosaas-history__item time,
+.woosaas-history__empty {
+    margin: 0;
+    color: #55717c;
+}
+
+.woosaas-history__item time {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 12px;
+}
+
+.woosaas-history__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.woosaas-history__badge.is-success {
+    background: #d7f5d9;
+    color: #155b2c;
+}
+
+.woosaas-history__badge.is-error {
+    background: #fde4e1;
+    color: #9f2d20;
+}
+
+@media (max-width: 960px) {
+    .woosaas-hero,
+    .woosaas-layout,
+    .woosaas-status-grid,
+    .woosaas-toggle-grid,
+    .woosaas-wizard__nav,
+    .woosaas-debug-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .woosaas-hero {
+        padding: 24px;
+    }
+
+    .woosaas-panel__header,
+    .woosaas-actions,
+    .woosaas-copy-row,
+    .woosaas-history__meta {
+        flex-direction: column;
+        align-items: start;
+    }
+}
