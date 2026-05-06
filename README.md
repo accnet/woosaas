@@ -31,18 +31,25 @@ Woosaas helps you track traffic sources, revenue, conversion funnels, and custom
 # Start infrastructure
 docker-compose up -d
 
-# Start API server
-cd api && go run cmd/server/main.go
+# Terminal 1: start API server
+(cd api && go run cmd/server/main.go)
 
-# Start dashboard
-cd dashboard && npm install && npm run dev
+# Terminal 2: start event worker
+(cd api && go run cmd/worker/main.go)
+
+# Terminal 3: start dashboard
+(cd dashboard && npm install && npm run dev)
 ```
+
+The worker is part of the normal local runtime. Events are queued through Redis first, then flushed to ClickHouse by the worker.
 
 # woosaas
 
 ## Documentation
 
+- [Execution Roadmap](ROADMAP_EXECUTION.md)
 - [Local Setup Guide](docs/local-setup.md)
+- [WordPress Plugin Setup](docs/plugin-setup.md)
 - [WordPress Plugin Test Checklist](docs/plugin-test-checklist.md)
 
 ## Project Structure

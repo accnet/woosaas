@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { authApi, getApiErrorMessage } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
-import { authApi } from '@/lib/api'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -11,9 +12,15 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const login = useAuthStore((state) => state.login)
+  const { hasHydrated, isAuthenticated, login } = useAuthStore()
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    if (hasHydrated && isAuthenticated) {
+      router.replace('/dashboard')
+    }
+  }, [hasHydrated, isAuthenticated, router])
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
     setLoading(true)
@@ -22,8 +29,8 @@ export default function LoginPage() {
       const res = await authApi.login(email, password)
       login(res.data.token, res.data.user)
       router.push('/dashboard')
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed')
+    } catch (error) {
+      setError(getApiErrorMessage(error, 'Login failed'))
     } finally {
       setLoading(false)
     }
@@ -78,9 +85,9 @@ export default function LoginPage() {
 
         <p className="mt-4 text-center text-gray-600">
           Don't have an account?{' '}
-          <a href="/register" className="text-blue-500 hover:text-blue-700">
+          <Link href="/register" className="text-blue-500 hover:text-blue-700">
             Register
-          </a>
+          </Link>
         </p>
       </div>
     </div>

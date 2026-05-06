@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"strconv"
 	"strings"
@@ -93,6 +95,23 @@ func (m *Middleware) APIKeyAuth(repo *sites.Repository) gin.HandlerFunc {
 			return
 		}
 
+		keyHash := hashAPIKey(apiKey)
+		cacheKey := "api_key:" + keyHash
+
+		cachedSiteID, err := m.redis.Get(c.Request.Context(), cacheKey).Result()
+		if err == nil && cachedSiteID != "" {
+			site, siteErr := repo.GetSiteByID(c.Request.Context(), cachedSiteID)
+			if siteErr == nil {
+				_ = repo.TouchAPIKeyLastUsedByHash(c.Request.Context(), keyHash)
+				c.Set("site_id", site.ID)
+				c.Set("site", site)
+				c.Next()
+				return
+			}
+
+			m.redis.Del(c.Request.Context(), cacheKey)
+		}
+
 		// Validate API key and get site_id
 		site, err := repo.ValidateAPIKey(c.Request.Context(), apiKey)
 		if err != nil {
@@ -100,6 +119,7 @@ func (m *Middleware) APIKeyAuth(repo *sites.Repository) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+		m.redis.Set(c.Request.Context(), cacheKey, site.ID, 5*time.Minute)
 
 		c.Set("site_id", site.ID)
 		c.Set("site", site)
@@ -165,4 +185,9 @@ func (m *Middleware) Recovery(logger *observability.StructuredLogger) gin.Handle
 		}()
 		c.Next()
 	}
+}
+
+func hashAPIKey(apiKey string) string {
+	hash := sha256.Sum256([]byte(apiKey))
+	return hex.EncodeToString(hash[:])
 }

@@ -23,14 +23,21 @@ docker-compose up -d
 # 4. Run migrations
 docker compose --profile tools run --rm migrate
 
-# 5. Start backend
-go run cmd/server/main.go
+# 5. Terminal 1: start backend
+(cd api && go run cmd/server/main.go)
 
-# 6. Start dashboard (in another terminal)
-cd dashboard
-npm install
-npm run dev
+# 6. Terminal 2: start worker
+(cd api && go run cmd/worker/main.go)
+
+# 7. Terminal 3: start dashboard
+(cd dashboard && npm install && npm run dev)
 ```
+
+Important:
+
+- The API accepts tracking events and pushes them into Redis.
+- The worker consumes those events and writes them to ClickHouse.
+- If the worker is not running, plugin requests can still succeed while the dashboard remains empty.
 
 ## Architecture Overview
 
@@ -48,6 +55,7 @@ Woosaas/
 | Service | Port | Description |
 |---------|------|-------------|
 | API Server | 8080 | Backend API |
+| Worker | - | Redis stream consumer and ClickHouse batch writer |
 | Dashboard | 3000 | Next.js dashboard |
 | PostgreSQL | 5432 | Business database |
 | ClickHouse | 9000 | Analytics database |
@@ -55,18 +63,15 @@ Woosaas/
 
 ## WordPress Plugin Setup
 
-1. Copy plugin folder to WordPress plugins directory:
-   ```bash
-   cp -r plugin /path/to/wordpress/wp-content/plugins/woosaas
-   ```
+For a full end-user walkthrough, use [WordPress Plugin Setup](plugin-setup.md).
 
-2. Activate plugin in WordPress admin
+Quick version:
 
-3. Go to WooCommerce > Woosaas Settings
-
-4. Enter your API URL and API key from the dashboard
-
-5. Click "Verify API Key" to test connection
+1. Copy the plugin folder into `wp-content/plugins/woosaas`
+2. Activate `Woosaas` in WordPress Admin
+3. Create a site and API key in the dashboard
+4. Enter the API URL and API key in the plugin
+5. Verify the connection and send a debug event
 
 ## API Endpoints
 
@@ -106,6 +111,8 @@ cd dashboard && npm run build
 ./scripts/smoke.sh
 ```
 
+For manual verification during development, keep both the API server and worker running before testing plugin or dashboard data flows.
+
 ## Migrations
 
 Fresh PostgreSQL containers initialize from `api/migrations_postgres/001_init.sql`. For an existing volume, run:
@@ -129,3 +136,9 @@ Check Redis is running and `REDIS_HOST` is correct.
 2. Verify API key is correct
 3. Check network tab for failed requests
 4. Verify site domain matches in dashboard
+
+### Dashboard shows no analytics after events are sent
+1. Confirm the worker process is running
+2. Check Redis for queued events and worker logs for flush failures
+3. Verify ClickHouse has recent rows for the site
+4. Re-run `./scripts/smoke.sh` against the live stack

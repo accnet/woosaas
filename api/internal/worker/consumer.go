@@ -14,6 +14,7 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/redis/go-redis/v9"
 	"github.com/shopspring/decimal"
+	"github.com/woosaas/api/internal/observability"
 	"github.com/woosaas/api/pkg/models"
 )
 
@@ -284,6 +285,11 @@ func (b *eventBatchWriter) flush(ctx context.Context, maxRetries int) error {
 		if err := b.redis.XAck(ctx, eventsStream, consumerGroup, ids...).Err(); err != nil {
 			return err
 		}
+		observability.RecordEventProcessed(len(ids))
+	}
+
+	if size, err := b.redis.XLen(ctx, eventsStream).Result(); err == nil {
+		observability.SetQueueSize(float64(size))
 	}
 
 	b.events = b.events[:0]

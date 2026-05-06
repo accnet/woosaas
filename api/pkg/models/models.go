@@ -17,14 +17,17 @@ type User struct {
 
 // Site represents a tracked website
 type Site struct {
-	ID        string    `json:"id" db:"id"`
-	UserID    string    `json:"user_id" db:"user_id"`
-	Name      string    `json:"name" db:"name"`
-	Domain    string    `json:"domain" db:"domain"`
-	Timezone  string    `json:"timezone" db:"timezone"`
-	Currency  string    `json:"currency" db:"currency"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	ID                    string     `json:"id" db:"id"`
+	UserID                string     `json:"user_id" db:"user_id"`
+	Name                  string     `json:"name" db:"name"`
+	Domain                string     `json:"domain" db:"domain"`
+	Timezone              string     `json:"timezone" db:"timezone"`
+	Currency              string     `json:"currency" db:"currency"`
+	TrackingStatus        string     `json:"tracking_status" db:"tracking_status"`
+	TrackingLastCheckedAt *time.Time `json:"tracking_last_checked_at" db:"tracking_last_checked_at"`
+	TrackingLastEventAt   *time.Time `json:"tracking_last_event_at" db:"tracking_last_event_at"`
+	CreatedAt             time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt             time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // APIKey represents an API key for a site
@@ -50,6 +53,31 @@ type APIKeyResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type SiteMember struct {
+	ID        string    `json:"id"`
+	SiteID    string    `json:"site_id"`
+	UserID    string    `json:"user_id"`
+	UserEmail string    `json:"user_email"`
+	UserName  string    `json:"user_name"`
+	Role      string    `json:"role"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type SiteMembersResponse struct {
+	Members                []SiteMember `json:"members"`
+	CurrentUserRole        string       `json:"current_user_role"`
+	CurrentUserPermissions []string     `json:"current_user_permissions"`
+}
+
+type TrackingVerification struct {
+	SiteID        string     `json:"site_id"`
+	Status        string     `json:"status"`
+	LastCheckedAt *time.Time `json:"last_checked_at"`
+	LastEventAt   *time.Time `json:"last_event_at"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+}
+
 // Attribution data
 type Attribution struct {
 	Source   string `json:"source,omitempty"`
@@ -65,25 +93,25 @@ type Attribution struct {
 
 // Event represents an analytics event
 type Event struct {
-	EventID   string      `json:"event_id" validate:"required,uuid"`
-	EventTime string      `json:"event_time" validate:"required"`
-	EventName string      `json:"event_name" validate:"required"`
-	ClientID  string      `json:"client_id" validate:"required"`
-	SessionID string      `json:"session_id" validate:"required"`
-	URL       string      `json:"url"`
-	Path      string      `json:"path"`
-	Referrer  string      `json:"referrer"`
-	
+	EventID   string `json:"event_id" validate:"required,uuid"`
+	EventTime string `json:"event_time" validate:"required"`
+	EventName string `json:"event_name" validate:"required"`
+	ClientID  string `json:"client_id" validate:"required"`
+	SessionID string `json:"session_id" validate:"required"`
+	URL       string `json:"url"`
+	Path      string `json:"path"`
+	Referrer  string `json:"referrer"`
+
 	Attribution *Attribution `json:"attribution,omitempty"`
-	
-	UserID   string                 `json:"user_id,omitempty"`
-	DeviceType string               `json:"device_type,omitempty"`
-	Browser    string               `json:"browser,omitempty"`
-	OS         string               `json:"os,omitempty"`
-	Country    string               `json:"country,omitempty"`
-	City       string               `json:"city,omitempty"`
-	UserAgent  string               `json:"user_agent,omitempty"`
-	IPHash     string               `json:"ip_hash,omitempty"`
+
+	UserID     string `json:"user_id,omitempty"`
+	DeviceType string `json:"device_type,omitempty"`
+	Browser    string `json:"browser,omitempty"`
+	OS         string `json:"os,omitempty"`
+	Country    string `json:"country,omitempty"`
+	City       string `json:"city,omitempty"`
+	UserAgent  string `json:"user_agent,omitempty"`
+	IPHash     string `json:"ip_hash,omitempty"`
 
 	OrderID     string                 `json:"order_id,omitempty"`
 	ProductID   string                 `json:"product_id,omitempty"`
@@ -94,7 +122,7 @@ type Event struct {
 	ItemsJSON   string                 `json:"items_json,omitempty"`
 	Properties  map[string]interface{} `json:"properties,omitempty"`
 
-	BotScore int    `json:"bot_score,omitempty"`
+	BotScore  int    `json:"bot_score,omitempty"`
 	BotReason string `json:"bot_reason,omitempty"`
 }
 
@@ -155,6 +183,19 @@ type UpdateSiteRequest struct {
 // CreateAPIKeyRequest for creating a new API key
 type CreateAPIKeyRequest struct {
 	Name string `json:"name" validate:"required,min=2"`
+}
+
+type CreateSiteMemberRequest struct {
+	Email string `json:"email" validate:"required,email"`
+	Role  string `json:"role" validate:"required"`
+}
+
+type UpdateSiteMemberRequest struct {
+	Role string `json:"role" validate:"required"`
+}
+
+type DebugEventRequest struct {
+	EventName string `json:"event_name" validate:"required"`
 }
 
 // ErrorResponse for error responses

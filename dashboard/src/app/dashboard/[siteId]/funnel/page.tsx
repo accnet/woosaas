@@ -1,37 +1,37 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { useSiteId } from '@/hooks/use-site-id'
 import { statsApi } from '@/lib/api'
+import { getLastDaysRange } from '@/lib/date-range'
+import type { FunnelStats } from '@/lib/types'
 
 export default function FunnelPage() {
-  const params = useParams()
-  const siteId = params.siteId as string
-  
-  const [funnel, setFunnel] = useState<any>(null)
+  const siteId = useSiteId()
+
+  const [funnel, setFunnel] = useState<FunnelStats | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadData()
+    const loadData = async () => {
+      setLoading(true)
+      try {
+        const { from, to } = getLastDaysRange(30)
+        const res = await statsApi.funnel(siteId, from, to)
+        setFunnel(res.data)
+      } catch (err) {
+        console.error('Failed to load funnel', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    void loadData()
   }, [siteId])
 
-  const loadData = async () => {
-    setLoading(true)
-    try {
-      const to = new Date()
-      const from = new Date()
-      from.setDate(from.getDate() - 30)
-      const res = await statsApi.funnel(siteId, from.toISOString(), to.toISOString())
-      setFunnel(res.data)
-    } catch (err) {
-      console.error('Failed to load funnel', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   if (loading) {
-    return <div className="flex justify-center p-8"><div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div></div>
+    return <LoadingSpinner className="p-8" />
   }
 
   const steps = [

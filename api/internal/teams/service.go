@@ -56,6 +56,41 @@ var Roles = []Role{
 	},
 }
 
+func IsValidRole(role string) bool {
+	for _, candidate := range Roles {
+		if candidate.ID == role {
+			return true
+		}
+	}
+	return false
+}
+
+func HasPermission(role, permission string) bool {
+	for _, candidate := range Roles {
+		if candidate.ID != role {
+			continue
+		}
+		for _, granted := range candidate.Permissions {
+			if granted == permission || granted == "*" {
+				return true
+			}
+		}
+		return false
+	}
+	return false
+}
+
+func PermissionsForRole(role string) []string {
+	for _, candidate := range Roles {
+		if candidate.ID == role {
+			permissions := make([]string, len(candidate.Permissions))
+			copy(permissions, candidate.Permissions)
+			return permissions
+		}
+	}
+	return []string{}
+}
+
 type SiteMember struct {
 	ID        string    `json:"id"`
 	SiteID    string    `json:"site_id"`
@@ -80,14 +115,7 @@ type Invite struct {
 // AddMember invites a user to a site
 func (s *TeamsService) AddMember(ctx context.Context, siteID, email, role string) (*Invite, error) {
 	// Validate role
-	validRole := false
-	for _, r := range Roles {
-		if r.ID == role {
-			validRole = true
-			break
-		}
-	}
-	if !validRole {
+	if !IsValidRole(role) {
 		return nil, &ValidationError{Field: "role", Message: "invalid role"}
 	}
 
@@ -137,11 +165,7 @@ func (s *TeamsService) HasPermission(ctx context.Context, userID, siteID, permis
 		if m.UserID == userID {
 			for _, r := range Roles {
 				if r.ID == m.Role {
-					for _, p := range r.Permissions {
-						if p == permission || p == "*" {
-							return true, nil
-						}
-					}
+					return HasPermission(r.ID, permission), nil
 				}
 			}
 		}

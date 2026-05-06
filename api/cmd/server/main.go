@@ -45,7 +45,8 @@ func main() {
 	router := api.NewRouter(repo, jwtManager, redis, ch)
 	engine := router.Setup()
 
-	engine.Use(observability.Metrics())
+	engine.GET("/metrics", observability.Metrics())
+	engine.Use(observability.RequestLogger())
 	engine.Use(observability.Recovery(logger))
 
 	srv := &http.Server{

@@ -1,4 +1,28 @@
 import axios from 'axios'
+import { clearStoredAuth, getStoredToken } from '@/lib/auth-storage'
+import type {
+  APIKey,
+  APIKeyResponse,
+  AuthResponse,
+  BotReportResponse,
+  CreateSiteMemberInput,
+  CreateSiteInput,
+  EventResponse,
+  FunnelStats,
+  OverviewStats,
+  PageStats,
+  ProductStats,
+  RealtimeStats,
+  Site,
+  SiteMember,
+  SiteMembersResponse,
+  SourceStats,
+  TrackingCodeResponse,
+  TrendPoint,
+  UpdateSiteMemberInput,
+  UpdateSiteInput,
+  User,
+} from '@/lib/types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
@@ -26,8 +50,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('token')
-        localStorage.removeItem('woosaas-auth')
+        clearStoredAuth()
         window.location.href = '/login'
       }
     }
@@ -38,77 +61,78 @@ api.interceptors.response.use(
 // Auth API
 export const authApi = {
   register: (email: string, password: string, name: string) =>
-    api.post('/api/v1/auth/register', { email, password, name }),
+    api.post<AuthResponse>('/api/v1/auth/register', { email, password, name }),
   login: (email: string, password: string) =>
-    api.post('/api/v1/auth/login', { email, password }),
-  me: () => api.get('/api/v1/me'),
-}
-
-function getStoredToken() {
-  const directToken = localStorage.getItem('token')
-  if (directToken) {
-    return directToken
-  }
-
-  const persisted = localStorage.getItem('woosaas-auth')
-  if (!persisted) {
-    return null
-  }
-
-  try {
-    return JSON.parse(persisted)?.state?.token || null
-  } catch {
-    return null
-  }
+    api.post<AuthResponse>('/api/v1/auth/login', { email, password }),
+  me: () => api.get<User>('/api/v1/me'),
 }
 
 // Sites API
 export const sitesApi = {
-  list: () => api.get('/api/v1/sites'),
-  create: (data: { name: string; domain: string }) =>
-    api.post('/api/v1/sites', data),
-  get: (id: string) => api.get(`/api/v1/sites/${id}`),
-  update: (id: string, data: any) => api.put(`/api/v1/sites/${id}`, data),
+  list: () => api.get<Site[]>('/api/v1/sites'),
+  create: (data: CreateSiteInput) => api.post<Site>('/api/v1/sites', data),
+  get: (id: string) => api.get<Site>(`/api/v1/sites/${id}`),
+  update: (id: string, data: UpdateSiteInput) =>
+    api.put<Site>(`/api/v1/sites/${id}`, data),
   delete: (id: string) => api.delete(`/api/v1/sites/${id}`),
-  getApiKeys: (id: string) => api.get(`/api/v1/sites/${id}/api-keys`),
+  getApiKeys: (id: string) => api.get<APIKey[]>(`/api/v1/sites/${id}/api-keys`),
   createApiKey: (id: string, name: string) =>
-    api.post(`/api/v1/sites/${id}/api-keys`, { name }),
+    api.post<APIKeyResponse>(`/api/v1/sites/${id}/api-keys`, { name }),
+  getMembers: (id: string) => api.get<SiteMembersResponse>(`/api/v1/sites/${id}/members`),
+  addMember: (id: string, data: CreateSiteMemberInput) =>
+    api.post<SiteMember>(`/api/v1/sites/${id}/members`, data),
+  updateMember: (id: string, memberId: string, data: UpdateSiteMemberInput) =>
+    api.put<SiteMember>(`/api/v1/sites/${id}/members/${memberId}`, data),
+  deleteMember: (id: string, memberId: string) =>
+    api.delete(`/api/v1/sites/${id}/members/${memberId}`),
   getTrackingCode: (id: string) =>
-    api.get(`/api/v1/sites/${id}/tracking-code`),
+    api.get<TrackingCodeResponse>(`/api/v1/sites/${id}/tracking-code`),
+  sendDebugEvent: (id: string, eventName: string) =>
+    api.post<EventResponse>(`/api/v1/sites/${id}/debug-event`, {
+      event_name: eventName,
+    }),
 }
 
 // Stats API
 export const statsApi = {
   overview: (siteId: string, from: string, to: string, timezone = 'UTC') =>
-    api.get('/api/v1/stats/overview', {
+    api.get<OverviewStats>('/api/v1/stats/overview', {
       params: { site_id: siteId, from, to, timezone },
     }),
   trend: (siteId: string, from: string, to: string, granularity = 'day') =>
-    api.get('/api/v1/stats/trend', {
+    api.get<TrendPoint[]>('/api/v1/stats/trend', {
       params: { site_id: siteId, from, to, granularity },
     }),
   sources: (siteId: string, from: string, to: string) =>
-    api.get('/api/v1/stats/sources', {
+    api.get<SourceStats[]>('/api/v1/stats/sources', {
       params: { site_id: siteId, from, to },
     }),
   pages: (siteId: string, from: string, to: string, limit = 20) =>
-    api.get('/api/v1/stats/pages', {
+    api.get<PageStats[]>('/api/v1/stats/pages', {
       params: { site_id: siteId, from, to, limit },
     }),
   products: (siteId: string, from: string, to: string, limit = 20) =>
-    api.get('/api/v1/stats/products', {
+    api.get<ProductStats[]>('/api/v1/stats/products', {
       params: { site_id: siteId, from, to, limit },
     }),
   funnel: (siteId: string, from: string, to: string) =>
-    api.get('/api/v1/stats/funnel', {
+    api.get<FunnelStats>('/api/v1/stats/funnel', {
       params: { site_id: siteId, from, to },
     }),
   realtime: (siteId: string, minutes = 5) =>
-    api.get('/api/v1/stats/realtime', {
+    api.get<RealtimeStats>('/api/v1/stats/realtime', {
       params: { site_id: siteId, minutes },
     }),
   bots: (siteId: string, from: string, to: string) =>
-    api.get('/api/v1/stats/bots', {
+    api.get<BotReportResponse>('/api/v1/stats/bots', {
       params: { site_id: siteId, from, to },
     }),
+}
+
+export function getApiErrorMessage(error: unknown, fallback: string) {
+  if (axios.isAxiosError<{ error?: string }>(error)) {
+    return error.response?.data?.error || fallback
+  }
+
+  return fallback
 }

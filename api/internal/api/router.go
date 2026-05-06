@@ -20,6 +20,7 @@ type Router struct {
 	mw          *middleware.Middleware
 	collector   *ingest.Collector
 	stats       *query.Stats
+	bots        *query.Bots
 	onlineUsers *realtime.OnlineUsers
 }
 
@@ -42,48 +43,59 @@ func NewRouter(
 		mw:          middleware.NewMiddleware(jwtManager, redisClient),
 		collector:   ingest.NewCollector(redisClient),
 		stats:       query.NewStats(ch),
+		bots:        query.NewBots(ch),
 		onlineUsers: realtime.NewOnlineUsers(redisClient),
 	}
 }
 
 func (r *Router) Setup() *gin.Engine {
-	// Health check
+	r.registerHealthRoute()
+
+	v1 := r.engine.Group("/api/v1")
+	r.registerCollectRoutes(v1)
+
+	authHandler := handlers.NewAuthHandler(r.repo, r.jwtManager)
+	r.registerAuthRoutes(v1, authHandler)
+	r.registerDashboardRoutes(v1, authHandler)
+	r.registerStatsRoutes(v1)
+
+	return r.engine
+}
+
+func (r *Router) registerHealthRoute() {
 	r.engine.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
+}
 
-	// API v1
-	v1 := r.engine.Group("/api/v1")
-
-	// ===== COLLECT ENDPOINTS (API Key Auth, CORS) =====
+func (r *Router) registerCollectRoutes(v1 *gin.RouterGroup) {
 	collect := v1.Group("/collect")
 	collect.Use(r.mw.CORS())
 	collect.Use(r.mw.APIKeyAuth(r.repo))
 	collect.Use(r.mw.RateLimit())
 	{
-		collectHandler := handlers.NewCollectHandler(r.collector)
+		collectHandler := handlers.NewCollectHandler(r.collector, r.repo)
 		collect.POST("", collectHandler.CollectEvent)
 		collect.POST("/batch", collectHandler.CollectBatch)
 		collect.GET("/verify", collectHandler.Verify)
 	}
+}
 
-	// ===== PUBLIC AUTH ENDPOINTS =====
-	authHandler := handlers.NewAuthHandler(r.repo, r.jwtManager)
+func (r *Router) registerAuthRoutes(v1 *gin.RouterGroup, authHandler *handlers.AuthHandler) {
 	authGroup := v1.Group("/auth")
 	{
 		authGroup.POST("/register", authHandler.Register)
 		authGroup.POST("/login", authHandler.Login)
 	}
+}
 
-	// ===== PROTECTED DASHBOARD ENDPOINTS =====
+func (r *Router) registerDashboardRoutes(v1 *gin.RouterGroup, authHandler *handlers.AuthHandler) {
 	dashboard := v1.Group("")
 	dashboard.Use(r.mw.JWTAuth())
 	{
-		// User
 		dashboard.GET("/me", authHandler.Me)
 
-		// Sites
-		sitesHandler := handlers.NewSitesHandler(r.repo)
+		sitesHandler := handlers.NewSitesHandler(r.repo, r.collector)
 		dashboard.POST("/sites", sitesHandler.CreateSite)
 		dashboard.GET("/sites", sitesHandler.GetSites)
 		dashboard.GET("/sites/:site_id", sitesHandler.GetSite)
@@ -94,10 +106,16 @@ func (r *Router) Setup() *gin.Engine {
 		dashboard.POST("/sites/:site_id/api-keys", sitesHandler.CreateAPIKey)
 		dashboard.GET("/sites/:site_id/api-keys", sitesHandler.GetAPIKeys)
 		dashboard.GET("/sites/:site_id/tracking-code", sitesHandler.GetTrackingCode)
+		dashboard.GET("/sites/:site_id/members", sitesHandler.GetSiteMembers)
+		dashboard.POST("/sites/:site_id/members", sitesHandler.AddSiteMember)
+		dashboard.PUT("/sites/:site_id/members/:member_id", sitesHandler.UpdateSiteMember)
+		dashboard.DELETE("/sites/:site_id/members/:member_id", sitesHandler.DeleteSiteMember)
+		dashboard.POST("/sites/:site_id/debug-event", sitesHandler.SendDebugEvent)
 	}
+}
 
-	// ===== STATS ENDPOINTS (JWT Auth) =====
-	statsHandler := handlers.NewStatsHandler(r.stats, r.onlineUsers, r.repo)
+func (r *Router) registerStatsRoutes(v1 *gin.RouterGroup) {
+	statsHandler := handlers.NewStatsHandler(r.stats, r.bots, r.onlineUsers, r.repo)
 	stats := v1.Group("/stats")
 	stats.Use(r.mw.JWTAuth())
 	{
@@ -110,6 +128,4 @@ func (r *Router) Setup() *gin.Engine {
 		stats.GET("/realtime", statsHandler.GetRealtime)
 		stats.GET("/bots", statsHandler.GetBots)
 	}
-
-	return r.engine
 }

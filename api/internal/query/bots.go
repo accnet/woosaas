@@ -15,12 +15,12 @@ func NewBots(ch driver.Conn) *Bots {
 }
 
 type BotReport struct {
-	TotalEvents   int64             `json:"total_events"`
-	BotEvents     int64             `json:"bot_events"`
-	HumanEvents   int64             `json:"human_events"`
-	BotPercentage float64           `json:"bot_percentage"`
-	TopBotReasons []BotReasonStat   `json:"top_bot_reasons"`
-	TopBotSources []BotSourceStat   `json:"top_bot_sources"`
+	TotalEvents    int64            `json:"total_events"`
+	BotEvents      int64            `json:"bot_events"`
+	HumanEvents    int64            `json:"human_events"`
+	BotPercentage  float64          `json:"bot_percentage"`
+	TopBotReasons  []BotReasonStat  `json:"top_bot_reasons"`
+	TopBotSources  []BotSourceStat  `json:"top_bot_sources"`
 	TopBotSessions []BotSessionStat `json:"top_bot_sessions"`
 }
 
@@ -68,58 +68,65 @@ func (b *Bots) GetReport(ctx context.Context, siteID, from, to string) (*BotRepo
 		report.BotPercentage = float64(report.BotEvents) / float64(report.TotalEvents) * 100
 	}
 
-	// Top bot reasons
 	reasonQuery := `
 		SELECT bot_reason, count() as cnt
 		FROM analytics_events
 		WHERE site_id = ? AND event_time >= ? AND event_time <= ? AND bot_score >= 70 AND bot_reason != ''
 		GROUP BY bot_reason ORDER BY cnt DESC LIMIT 10
 	`
-	rows, err = b.ch.Query(ctx, reasonQuery, siteID, from, to)
+	reasonRows, err := b.ch.Query(ctx, reasonQuery, siteID, from, to)
 	if err == nil {
-		defer rows.Close()
-		for rows.Next() {
+		for reasonRows.Next() {
 			var stat BotReasonStat
-			if err := rows.Scan(&stat.Reason, &stat.Count); err == nil {
+			if err := reasonRows.Scan(&stat.Reason, &stat.Count); err == nil {
 				report.TopBotReasons = append(report.TopBotReasons, stat)
 			}
 		}
+		reasonRows.Close()
 	}
 
-	// Top bot sources
 	sourceQuery := `
 		SELECT ifEmpty(source, 'direct') as source, count() as cnt
 		FROM analytics_events
 		WHERE site_id = ? AND event_time >= ? AND event_time <= ? AND bot_score >= 70
 		GROUP BY source ORDER BY cnt DESC LIMIT 10
 	`
-	rows, err = b.ch.Query(ctx, sourceQuery, siteID, from, to)
+	sourceRows, err := b.ch.Query(ctx, sourceQuery, siteID, from, to)
 	if err == nil {
-		defer rows.Close()
-		for rows.Next() {
+		for sourceRows.Next() {
 			var stat BotSourceStat
-			if err := rows.Scan(&stat.Source, &stat.Count); err == nil {
+			if err := sourceRows.Scan(&stat.Source, &stat.Count); err == nil {
 				report.TopBotSources = append(report.TopBotSources, stat)
 			}
 		}
+		sourceRows.Close()
 	}
 
-	// Top bot sessions
 	sessionQuery := `
 		SELECT session_id, ip_hash, user_agent, count() as event_count, max(bot_score) as max_score
 		FROM analytics_events
 		WHERE site_id = ? AND event_time >= ? AND event_time <= ? AND bot_score >= 70
 		GROUP BY session_id, ip_hash, user_agent ORDER BY event_count DESC LIMIT 20
 	`
-	rows, err = b.ch.Query(ctx, sessionQuery, siteID, from, to)
+	sessionRows, err := b.ch.Query(ctx, sessionQuery, siteID, from, to)
 	if err == nil {
-		defer rows.Close()
-		for rows.Next() {
+		for sessionRows.Next() {
 			var stat BotSessionStat
-			if err := rows.Scan(&stat.SessionID, &stat.IPHash, &stat.UserAgent, &stat.EventCount, &stat.BotScore); err == nil {
+			if err := sessionRows.Scan(&stat.SessionID, &stat.IPHash, &stat.UserAgent, &stat.EventCount, &stat.BotScore); err == nil {
 				report.TopBotSessions = append(report.TopBotSessions, stat)
 			}
 		}
+		sessionRows.Close()
+	}
+
+	if report.TopBotReasons == nil {
+		report.TopBotReasons = []BotReasonStat{}
+	}
+	if report.TopBotSources == nil {
+		report.TopBotSources = []BotSourceStat{}
+	}
+	if report.TopBotSessions == nil {
+		report.TopBotSessions = []BotSessionStat{}
 	}
 
 	return &report, nil

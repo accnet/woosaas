@@ -1,19 +1,11 @@
 'use client'
 
 import ReactECharts from 'echarts-for-react'
-
-interface TrendPoint {
-  date: string | Date
-  pageviews?: number
-  sessions?: number
-  users?: number
-  purchases?: number
-  revenue?: number
-}
+import type { TrendPoint } from '@/lib/types'
 
 interface LineChartProps {
   data: TrendPoint[]
-  dataKey?: string
+  dataKey?: keyof Omit<TrendPoint, 'date'>
   height?: number
 }
 
@@ -31,8 +23,7 @@ export function LineChart({ data, dataKey = 'pageviews', height = 300 }: LineCha
     xAxis: {
       type: 'category',
       data: data.map((d) => {
-        const date = d.date instanceof Date ? d.date.toLocaleDateString() : d.date
-        return typeof date === 'string' ? date.split('T')[0] : String(date)
+        return d.date.split('T')[0]
       }),
     },
     yAxis: {
@@ -41,7 +32,7 @@ export function LineChart({ data, dataKey = 'pageviews', height = 300 }: LineCha
     series: [
       {
         data: data.map((d) => {
-          const val = (d as any)[dataKey]
+          const val = d[dataKey]
           return val ?? 0
         }),
         type: 'line',

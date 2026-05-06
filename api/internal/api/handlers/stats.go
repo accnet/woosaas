@@ -13,13 +13,15 @@ import (
 
 type StatsHandler struct {
 	stats       *query.Stats
+	bots        *query.Bots
 	onlineUsers *realtime.OnlineUsers
 	repo        *sites.Repository
 }
 
-func NewStatsHandler(stats *query.Stats, onlineUsers *realtime.OnlineUsers, repo *sites.Repository) *StatsHandler {
+func NewStatsHandler(stats *query.Stats, bots *query.Bots, onlineUsers *realtime.OnlineUsers, repo *sites.Repository) *StatsHandler {
 	return &StatsHandler{
 		stats:       stats,
+		bots:        bots,
 		onlineUsers: onlineUsers,
 		repo:        repo,
 	}
@@ -258,18 +260,24 @@ func (h *StatsHandler) GetBots(c *gin.Context) {
 	if !h.requireSiteAccess(c, siteID) {
 		return
 	}
+	from, to, ok := normalizeDateRange(c, from, to)
+	if !ok {
+		return
+	}
 
-	// Simplified bot stats - in production this would be a proper query
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Bot report - coming in Phase 6",
-		"site_id": siteID,
-	})
+	report, err := h.bots.GetReport(c.Request.Context(), siteID, from, to)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, report)
 }
 
 func (h *StatsHandler) requireSiteAccess(c *gin.Context, siteID string) bool {
 	userID := c.GetString("user_id")
-	hasAccess, err := h.repo.UserHasAccessToSite(c.Request.Context(), userID, siteID)
-	if err != nil || !hasAccess {
+	allowed, err := h.repo.UserHasSitePermission(c.Request.Context(), userID, siteID, "site:read")
+	if err != nil || !allowed {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Site not found"})
 		return false
 	}

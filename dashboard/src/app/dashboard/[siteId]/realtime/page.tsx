@@ -1,35 +1,38 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { useSiteId } from '@/hooks/use-site-id'
 import { statsApi } from '@/lib/api'
+import type { RealtimeStats } from '@/lib/types'
 
 export default function RealtimePage() {
-  const params = useParams()
-  const siteId = params.siteId as string
-  
-  const [realtime, setRealtime] = useState<any>(null)
+  const siteId = useSiteId()
+
+  const [realtime, setRealtime] = useState<RealtimeStats | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadData()
-    const interval = setInterval(loadData, 30000) // Refresh every 30 seconds
+    const loadData = async () => {
+      try {
+        const res = await statsApi.realtime(siteId)
+        setRealtime(res.data)
+      } catch (err) {
+        console.error('Failed to load realtime', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    void loadData()
+    const interval = window.setInterval(() => {
+      void loadData()
+    }, 30000)
     return () => clearInterval(interval)
   }, [siteId])
 
-  const loadData = async () => {
-    try {
-      const res = await statsApi.realtime(siteId)
-      setRealtime(res.data)
-    } catch (err) {
-      console.error('Failed to load realtime', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   if (loading) {
-    return <div className="flex justify-center p-8"><div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div></div>
+    return <LoadingSpinner className="p-8" />
   }
 
   return (

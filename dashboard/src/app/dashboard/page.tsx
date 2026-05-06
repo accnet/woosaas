@@ -1,28 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { sitesApi } from '@/lib/api'
+import { getSiteTrackingState } from '@/lib/tracking-status'
+import type { Site } from '@/lib/types'
 import { useAuthStore } from '@/store/auth'
 
 export default function DashboardPage() {
-  const router = useRouter()
-  const { user, isAuthenticated, hasHydrated, logout } = useAuthStore()
-  const [sites, setSites] = useState<any[]>([])
+  const { user, logout } = useAuthStore()
+  const [sites, setSites] = useState<Site[]>([])
   const [loadingSites, setLoadingSites] = useState(true)
 
   useEffect(() => {
-    if (hasHydrated && !isAuthenticated) {
-      router.push('/login')
-    }
-  }, [hasHydrated, isAuthenticated, router])
-
-  useEffect(() => {
-    if (!hasHydrated || !isAuthenticated) {
-      return
-    }
-
     const loadSites = async () => {
       try {
         const res = await sitesApi.list()
@@ -34,10 +25,10 @@ export default function DashboardPage() {
       }
     }
 
-    loadSites()
-  }, [hasHydrated, isAuthenticated])
+    void loadSites()
+  }, [])
 
-  if (!hasHydrated || !isAuthenticated || !user) {
+  if (!user) {
     return null
   }
 
@@ -76,27 +67,39 @@ export default function DashboardPage() {
           </div>
 
           {loadingSites ? (
-            <div className="text-gray-500">Loading sites...</div>
+            <LoadingSpinner className="py-8" />
           ) : sites.length === 0 ? (
             <div className="text-gray-500">No sites yet. Add a site to start tracking.</div>
           ) : (
             <div className="divide-y">
-              {sites.map((site) => (
-                <div key={site.id} className="py-4 flex justify-between items-center">
-                  <div>
-                    <div className="font-medium">{site.name}</div>
-                    <div className="text-sm text-gray-500">{site.domain}</div>
+              {sites.map((site) => {
+                const trackingState = getSiteTrackingState(site)
+
+                return (
+                  <div key={site.id} className="py-4 flex justify-between items-center">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <div className="font-medium">{site.name}</div>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded font-medium ${trackingState.badgeClassName}`}
+                        >
+                          {trackingState.label}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-500">{site.domain}</div>
+                      <div className="text-sm text-gray-500">{trackingState.detail}</div>
+                    </div>
+                    <div className="flex gap-4 text-sm">
+                      <Link href={`/dashboard/${site.id}/overview`} className="text-blue-500 hover:text-blue-700">
+                        Overview
+                      </Link>
+                      <Link href={`/dashboard/sites/${site.id}/api-keys`} className="text-blue-500 hover:text-blue-700">
+                        API Keys
+                      </Link>
+                    </div>
                   </div>
-                  <div className="flex gap-4 text-sm">
-                    <Link href={`/dashboard/${site.id}/overview`} className="text-blue-500 hover:text-blue-700">
-                      Overview
-                    </Link>
-                    <Link href={`/dashboard/sites/${site.id}/api-keys`} className="text-blue-500 hover:text-blue-700">
-                      API Keys
-                    </Link>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

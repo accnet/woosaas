@@ -292,8 +292,8 @@ SETTINGS index_granularity = 8192;
 | Method | Endpoint | Auth | Mục đích |
 |--------|----------|------|----------|
 | POST | `/api/v1/collect` | `X-Api-Key` | Nhận một event |
-| POST | `/api/v1/batch` | `X-Api-Key` | Nhận nhiều event |
-| GET | `/api/v1/verify` | `X-Api-Key` | Plugin kiểm tra API key/site |
+| POST | `/api/v1/collect/batch` | `X-Api-Key` | Nhận nhiều event |
+| GET | `/api/v1/collect/verify` | `X-Api-Key` | Plugin kiểm tra API key/site |
 
 ### Event payload mẫu
 
@@ -330,6 +330,7 @@ SETTINGS index_granularity = 8192;
 | PUT | `/api/v1/sites/{site_id}` | JWT | Cập nhật site |
 | POST | `/api/v1/sites/{site_id}/api-keys` | JWT | Tạo/rotate API key |
 | GET | `/api/v1/sites/{site_id}/tracking-code` | JWT | Lấy snippet/plugin config |
+| POST | `/api/v1/sites/{site_id}/debug-event` | JWT | Bắn event test để verify tracking |
 
 ### 4.3 Reporting API
 
@@ -455,96 +456,101 @@ MVP chỉ **flag**, chưa hard-block.
 
 ## 9. Roadmap thực thi
 
+> Trạng thái hiện tại của repo:
+> `[x]` đã có trong code và đang dùng được
+> `[~]` đã có một phần hoặc còn lệch với định nghĩa ban đầu
+> `[ ]` chưa làm hoặc mới là ý tưởng
+
 ### Phase 0: Repository & Local Infra
 
-- [ ] Tạo structure repo.
-- [ ] Docker Compose: ClickHouse, PostgreSQL, Redis.
-- [ ] Env config.
-- [ ] Migration runner.
-- [ ] Healthcheck backend.
+- [x] Tạo structure repo.
+- [x] Docker Compose: ClickHouse, PostgreSQL, Redis.
+- [x] Env config.
+- [~] Migration runner.
+- [x] Healthcheck backend.
 
 ### Phase 1: Backend Foundation
 
-- [ ] Khởi tạo Go project.
-- [ ] HTTP router Gin.
-- [ ] Config loader.
-- [ ] PostgreSQL connection.
-- [ ] ClickHouse connection.
-- [ ] Redis connection.
-- [ ] Auth register/login.
-- [ ] Site CRUD.
-- [ ] API key generate/verify.
+- [x] Khởi tạo Go project.
+- [x] HTTP router Gin.
+- [x] Config loader.
+- [x] PostgreSQL connection.
+- [x] ClickHouse connection.
+- [x] Redis connection.
+- [x] Auth register/login.
+- [x] Site CRUD.
+- [x] API key generate/verify.
 
 ### Phase 2: Ingestion Pipeline
 
-- [ ] `POST /api/v1/collect`.
-- [ ] `POST /api/v1/batch`.
-- [ ] Request validation.
-- [ ] API key cache.
-- [ ] Rate limit.
-- [ ] Redis Stream producer.
-- [ ] Worker consumer group.
-- [ ] Batch insert ClickHouse.
-- [ ] Retry + dead letter.
-- [ ] Dedupe by event id.
+- [x] `POST /api/v1/collect`.
+- [x] `POST /api/v1/collect/batch`.
+- [~] Request validation.
+- [x] API key cache.
+- [x] Rate limit.
+- [x] Redis Stream producer.
+- [x] Worker consumer group.
+- [x] Batch insert ClickHouse.
+- [x] Retry + dead letter.
+- [x] Dedupe by event id.
 
 ### Phase 3: WordPress Plugin MVP
 
-- [ ] Plugin bootstrap.
-- [ ] Settings page nhập API key.
-- [ ] Verify API key.
-- [ ] JS tracker pageview.
-- [ ] Client/session cookies.
-- [ ] Attribution cookie.
-- [ ] WooCommerce hooks: add to cart, checkout, purchase.
-- [ ] Store attribution vào order meta.
+- [x] Plugin bootstrap.
+- [x] Settings page nhập API key.
+- [x] Verify API key.
+- [x] JS tracker pageview.
+- [x] Client/session cookies.
+- [x] Attribution cookie.
+- [x] WooCommerce hooks: add to cart, checkout, purchase.
+- [x] Store attribution vào order meta.
 
 ### Phase 4: Reporting MVP
 
-- [ ] Overview endpoint.
-- [ ] Trend endpoint.
-- [ ] Sources endpoint.
-- [ ] Pages endpoint.
-- [ ] Products endpoint.
-- [ ] Funnel endpoint.
-- [ ] Realtime endpoint bằng Redis ZSET.
+- [x] Overview endpoint.
+- [x] Trend endpoint.
+- [x] Sources endpoint.
+- [x] Pages endpoint.
+- [x] Products endpoint.
+- [x] Funnel endpoint.
+- [x] Realtime endpoint bằng Redis ZSET.
 
 ### Phase 5: Dashboard MVP
 
-- [ ] Next.js app init.
-- [ ] Login/register.
-- [ ] Site management.
-- [ ] Onboarding verify.
-- [ ] Overview page.
-- [ ] Trend charts.
-- [ ] Sources report.
-- [ ] Pages report.
-- [ ] Products report.
-- [ ] Funnel report.
-- [ ] Realtime widget.
+- [x] Next.js app init.
+- [x] Login/register.
+- [x] Site management.
+- [x] Onboarding verify.
+- [x] Overview page.
+- [x] Trend charts.
+- [x] Sources report.
+- [x] Pages report.
+- [x] Products report.
+- [x] Funnel report.
+- [x] Realtime widget.
 
 ### Phase 6: Hardening & Beta
 
-- [ ] Bot scoring MVP.
-- [ ] Bot report.
-- [ ] Tenant isolation review.
+- [~] Bot scoring MVP.
+- [x] Bot report.
+- [x] Tenant isolation review.
 - [ ] Security review.
 - [ ] Query performance review.
-- [ ] Basic observability: logs, metrics, error tracking.
+- [~] Basic observability: logs, metrics, error tracking.
 - [ ] Backup strategy PostgreSQL.
-- [ ] ClickHouse retention TTL.
-- [ ] Documentation cài plugin.
+- [~] ClickHouse retention TTL.
+- [x] Documentation cài plugin.
 
 ### Phase 7: Post-MVP
 
-- [ ] Billing/subscription.
-- [ ] Helpdesk ticket.
+- [~] Billing/subscription.
+- [~] Helpdesk ticket.
 - [ ] Inbound email parsing.
-- [ ] Outbound email SES/SendGrid.
-- [ ] Customer 360.
+- [~] Outbound email SES/SendGrid.
+- [~] Customer 360.
 - [ ] Materialized views cho dữ liệu lớn.
-- [ ] Export CSV.
-- [ ] Team roles nâng cao.
+- [~] Export CSV.
+- [~] Team roles nâng cao.
 
 ---
 
@@ -554,45 +560,54 @@ MVP chỉ **flag**, chưa hard-block.
 woosaas/
 ├── docker-compose.yml
 ├── .env.example
-├── backend/
+├── api/
 │   ├── cmd/
-│   │   ├── api/main.go
+│   │   ├── server/main.go
 │   │   └── worker/main.go
 │   ├── internal/
 │   │   ├── api/
 │   │   ├── auth/
+│   │   ├── billing/
 │   │   ├── config/
+│   │   ├── customer360/
 │   │   ├── database/
+│   │   ├── export/
+│   │   ├── helpdesk/
 │   │   ├── ingest/
 │   │   ├── middleware/
+│   │   ├── observability/
 │   │   ├── query/
 │   │   ├── realtime/
-│   │   └── sites/
+│   │   ├── sites/
+│   │   ├── teams/
+│   │   └── worker/
 │   ├── migrations/
-│   │   ├── clickhouse/
-│   │   └── postgres/
+│   │   └── clickhouse/
+│   ├── migrations_postgres/
 │   └── go.mod
 ├── plugin/
 │   ├── assets/
+│   │   ├── css/admin.css
 │   │   └── js/tracker.js
 │   ├── includes/
-│   │   ├── admin.php
-│   │   ├── attribution.php
-│   │   ├── collector.php
-│   │   └── woocommerce.php
+│   │   ├── admin/
+│   │   ├── class-attribution.php
+│   │   ├── class-collector.php
+│   │   ├── class-tracker.php
+│   │   ├── class-woocommerce.php
+│   │   └── utils/
 │   └── woosaas.php
 ├── dashboard/
-│   ├── app/
-│   ├── components/
-│   ├── lib/
+│   ├── src/
+│   │   ├── app/
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   ├── lib/
+│   │   └── store/
 │   └── package.json
 └── docs/
-    ├── api.md
-    ├── attribution.md
-    ├── bot.md
-    ├── data.md
-    ├── deployment.md
-    └── privacy.md
+    ├── local-setup.md
+    └── plugin-test-checklist.md
 ```
 
 ---
@@ -609,6 +624,10 @@ MVP được xem là xong khi:
 - Event duplicate không làm tăng doanh thu/order.
 - User A không thể đọc dữ liệu site của User B.
 - Có tài liệu local setup và plugin setup.
+
+### Gaps còn lại để chạm Definition of Done
+
+- Site sharing và permission runtime đã dùng `site_members`, nhưng team management UI/API nâng cao vẫn chưa có.
 
 ---
 

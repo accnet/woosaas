@@ -13,7 +13,7 @@ import (
 
 // TenantMiddleware ensures tenant isolation
 type TenantMiddleware struct {
-	repo *sites.Repository
+	repo  *sites.Repository
 	redis *redis.Client
 }
 
@@ -45,9 +45,8 @@ func (m *TenantMiddleware) EnforceSiteAccess() gin.HandlerFunc {
 			return
 		}
 
-		// Verify against database
-		hasAccess, err := m.repo.UserHasAccessToSite(c.Request.Context(), userID, siteID)
-		if err != nil || !hasAccess {
+		allowed, err := m.repo.UserHasSitePermission(c.Request.Context(), userID, siteID, "site:read")
+		if err != nil || !allowed {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied to this site"})
 			c.Abort()
 			return

@@ -5,12 +5,15 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/woosaas/api/internal/teams"
 	"github.com/woosaas/api/pkg/models"
 )
 
@@ -78,14 +81,15 @@ func (r *Repository) GetUserByID(ctx context.Context, id string) (*models.User, 
 
 func (r *Repository) CreateSite(ctx context.Context, userID, name, domain, timezone, currency string) (*models.Site, error) {
 	site := &models.Site{
-		ID:        uuid.New().String(),
-		UserID:    userID,
-		Name:      name,
-		Domain:    domain,
-		Timezone:  timezone,
-		Currency:  currency,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:             uuid.New().String(),
+		UserID:         userID,
+		Name:           name,
+		Domain:         domain,
+		Timezone:       timezone,
+		Currency:       currency,
+		TrackingStatus: "pending",
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 	}
 
 	_, err := r.db.Exec(ctx, `
@@ -103,15 +107,46 @@ func (r *Repository) CreateSite(ctx context.Context, userID, name, domain, timez
 		VALUES ($1, 'pending')
 	`, site.ID)
 
+	_, _ = r.db.Exec(ctx, `
+		INSERT INTO site_members (site_id, user_id, role)
+		VALUES ($1, $2, 'owner')
+		ON CONFLICT (site_id, user_id) DO NOTHING
+	`, site.ID, site.UserID)
+
 	return site, nil
 }
 
 func (r *Repository) GetSiteByID(ctx context.Context, id string) (*models.Site, error) {
 	var site models.Site
 	err := r.db.QueryRow(ctx, `
-		SELECT id, user_id, name, domain, timezone, currency, created_at, updated_at
-		FROM sites WHERE id = $1
-	`, id).Scan(&site.ID, &site.UserID, &site.Name, &site.Domain, &site.Timezone, &site.Currency, &site.CreatedAt, &site.UpdatedAt)
+		SELECT
+			s.id,
+			s.user_id,
+			s.name,
+			s.domain,
+			s.timezone,
+			s.currency,
+			COALESCE(tv.status, 'pending') AS tracking_status,
+			tv.last_checked_at,
+			tv.last_event_at,
+			s.created_at,
+			s.updated_at
+		FROM sites s
+		LEFT JOIN tracking_verifications tv ON tv.site_id = s.id
+		WHERE s.id = $1
+	`, id).Scan(
+		&site.ID,
+		&site.UserID,
+		&site.Name,
+		&site.Domain,
+		&site.Timezone,
+		&site.Currency,
+		&site.TrackingStatus,
+		&site.TrackingLastCheckedAt,
+		&site.TrackingLastEventAt,
+		&site.CreatedAt,
+		&site.UpdatedAt,
+	)
 
 	if err != nil {
 		return nil, err
@@ -122,9 +157,23 @@ func (r *Repository) GetSiteByID(ctx context.Context, id string) (*models.Site, 
 
 func (r *Repository) GetSitesByUserID(ctx context.Context, userID string) ([]models.Site, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id, user_id, name, domain, timezone, currency, created_at, updated_at
-		FROM sites WHERE user_id = $1
-		ORDER BY created_at DESC
+		SELECT
+			s.id,
+			s.user_id,
+			s.name,
+			s.domain,
+			s.timezone,
+			s.currency,
+			COALESCE(tv.status, 'pending') AS tracking_status,
+			tv.last_checked_at,
+			tv.last_event_at,
+			s.created_at,
+			s.updated_at
+		FROM sites s
+		LEFT JOIN tracking_verifications tv ON tv.site_id = s.id
+		LEFT JOIN site_members sm ON sm.site_id = s.id AND sm.user_id = $1
+		WHERE s.user_id = $1 OR sm.user_id = $1
+		ORDER BY s.created_at DESC
 	`, userID)
 
 	if err != nil {
@@ -135,7 +184,19 @@ func (r *Repository) GetSitesByUserID(ctx context.Context, userID string) ([]mod
 	var sites []models.Site
 	for rows.Next() {
 		var site models.Site
-		if err := rows.Scan(&site.ID, &site.UserID, &site.Name, &site.Domain, &site.Timezone, &site.Currency, &site.CreatedAt, &site.UpdatedAt); err != nil {
+		if err := rows.Scan(
+			&site.ID,
+			&site.UserID,
+			&site.Name,
+			&site.Domain,
+			&site.Timezone,
+			&site.Currency,
+			&site.TrackingStatus,
+			&site.TrackingLastCheckedAt,
+			&site.TrackingLastEventAt,
+			&site.CreatedAt,
+			&site.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
 		sites = append(sites, site)
@@ -229,10 +290,53 @@ func (r *Repository) GetAPIKeysBySiteID(ctx context.Context, siteID string) ([]m
 	return keys, nil
 }
 
+func (r *Repository) GetTrackingVerification(ctx context.Context, siteID string) (*models.TrackingVerification, error) {
+	var verification models.TrackingVerification
+	err := r.db.QueryRow(ctx, `
+		SELECT site_id, status, last_checked_at, last_event_at, created_at, updated_at
+		FROM tracking_verifications
+		WHERE site_id = $1
+	`, siteID).Scan(
+		&verification.SiteID,
+		&verification.Status,
+		&verification.LastCheckedAt,
+		&verification.LastEventAt,
+		&verification.CreatedAt,
+		&verification.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &verification, nil
+}
+
+func (r *Repository) MarkTrackingVerified(ctx context.Context, siteID string) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE tracking_verifications
+		SET status = 'verified', last_checked_at = NOW(), updated_at = NOW()
+		WHERE site_id = $1
+	`, siteID)
+	return err
+}
+
+func (r *Repository) RecordTrackingEvent(ctx context.Context, siteID string) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE tracking_verifications
+		SET status = 'verified', last_event_at = NOW(), updated_at = NOW()
+		WHERE site_id = $1
+	`, siteID)
+	return err
+}
+
+func hashAPIKey(apiKey string) string {
+	hash := sha256.Sum256([]byte(apiKey))
+	return hex.EncodeToString(hash[:])
+}
+
 func (r *Repository) ValidateAPIKey(ctx context.Context, apiKey string) (*models.Site, error) {
 	// Hash the provided key
-	hash := sha256.Sum256([]byte(apiKey))
-	keyHash := hex.EncodeToString(hash[:])
+	keyHash := hashAPIKey(apiKey)
 
 	var siteID string
 	err := r.db.QueryRow(ctx, `
@@ -255,6 +359,11 @@ func (r *Repository) ValidateAPIKey(ctx context.Context, apiKey string) (*models
 	return site, nil
 }
 
+func (r *Repository) TouchAPIKeyLastUsedByHash(ctx context.Context, keyHash string) error {
+	_, err := r.db.Exec(ctx, `UPDATE api_keys SET last_used_at = NOW() WHERE key_hash = $1`, keyHash)
+	return err
+}
+
 func (r *Repository) RevokeAPIKey(ctx context.Context, keyID string) error {
 	_, err := r.db.Exec(ctx, `UPDATE api_keys SET status = 'revoked' WHERE id = $1`, keyID)
 	return err
@@ -264,7 +373,10 @@ func (r *Repository) RevokeAPIKey(ctx context.Context, keyID string) error {
 func (r *Repository) UserHasAccessToSite(ctx context.Context, userID, siteID string) (bool, error) {
 	var count int
 	err := r.db.QueryRow(ctx, `
-		SELECT COUNT(*) FROM sites WHERE id = $1 AND user_id = $2
+		SELECT COUNT(*)
+		FROM sites s
+		LEFT JOIN site_members sm ON sm.site_id = s.id AND sm.user_id = $2
+		WHERE s.id = $1 AND (s.user_id = $2 OR sm.user_id = $2)
 	`, siteID, userID).Scan(&count)
 
 	if err != nil {
@@ -272,6 +384,201 @@ func (r *Repository) UserHasAccessToSite(ctx context.Context, userID, siteID str
 	}
 
 	return count > 0, nil
+}
+
+func (r *Repository) GetUserSiteRole(ctx context.Context, userID, siteID string) (string, error) {
+	var role string
+	err := r.db.QueryRow(ctx, `
+		SELECT CASE
+			WHEN s.user_id = $2 THEN 'owner'
+			ELSE COALESCE(sm.role, '')
+		END AS role
+		FROM sites s
+		LEFT JOIN site_members sm ON sm.site_id = s.id AND sm.user_id = $2
+		WHERE s.id = $1 AND (s.user_id = $2 OR sm.user_id = $2)
+	`, siteID, userID).Scan(&role)
+	if err != nil {
+		return "", err
+	}
+	return role, nil
+}
+
+func (r *Repository) UserHasSitePermission(ctx context.Context, userID, siteID, permission string) (bool, error) {
+	role, err := r.GetUserSiteRole(ctx, userID, siteID)
+	if err != nil {
+		return false, err
+	}
+	return teams.HasPermission(role, permission), nil
+}
+
+func (r *Repository) ensureOwnerMembership(ctx context.Context, siteID string) error {
+	_, err := r.db.Exec(ctx, `
+		INSERT INTO site_members (site_id, user_id, role)
+		SELECT id, user_id, 'owner'
+		FROM sites
+		WHERE id = $1
+		ON CONFLICT (site_id, user_id) DO UPDATE SET role = 'owner'
+	`, siteID)
+	return err
+}
+
+func (r *Repository) GetSiteMembers(ctx context.Context, siteID string) ([]models.SiteMember, error) {
+	if err := r.ensureOwnerMembership(ctx, siteID); err != nil {
+		return nil, err
+	}
+
+	rows, err := r.db.Query(ctx, `
+		SELECT sm.id, sm.site_id, sm.user_id, u.email, u.name, sm.role, sm.created_at
+		FROM site_members sm
+		INNER JOIN users u ON u.id = sm.user_id
+		WHERE sm.site_id = $1
+		ORDER BY
+			CASE sm.role
+				WHEN 'owner' THEN 0
+				WHEN 'admin' THEN 1
+				WHEN 'editor' THEN 2
+				ELSE 3
+			END,
+			u.email ASC
+	`, siteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var members []models.SiteMember
+	for rows.Next() {
+		var member models.SiteMember
+		if err := rows.Scan(
+			&member.ID,
+			&member.SiteID,
+			&member.UserID,
+			&member.UserEmail,
+			&member.UserName,
+			&member.Role,
+			&member.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		members = append(members, member)
+	}
+
+	return members, rows.Err()
+}
+
+func (r *Repository) AddSiteMemberByEmail(ctx context.Context, siteID, email, role string) (*models.SiteMember, error) {
+	if role == "owner" || !teams.IsValidRole(role) {
+		return nil, fmt.Errorf("invalid role")
+	}
+	if err := r.ensureOwnerMembership(ctx, siteID); err != nil {
+		return nil, err
+	}
+
+	user, err := r.GetUserByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("user account not found")
+		}
+		return nil, err
+	}
+
+	if hasAccess, err := r.UserHasAccessToSite(ctx, user.ID, siteID); err == nil && hasAccess {
+		return nil, fmt.Errorf("user already has access to this site")
+	} else if err != nil {
+		return nil, err
+	}
+
+	memberID := uuid.New().String()
+	createdAt := time.Now()
+	if _, err := r.db.Exec(ctx, `
+		INSERT INTO site_members (id, site_id, user_id, role, created_at)
+		VALUES ($1, $2, $3, $4, $5)
+	`, memberID, siteID, user.ID, role, createdAt); err != nil {
+		return nil, err
+	}
+
+	return &models.SiteMember{
+		ID:        memberID,
+		SiteID:    siteID,
+		UserID:    user.ID,
+		UserEmail: user.Email,
+		UserName:  user.Name,
+		Role:      role,
+		CreatedAt: createdAt,
+	}, nil
+}
+
+func (r *Repository) UpdateSiteMemberRole(ctx context.Context, siteID, memberID, role string) (*models.SiteMember, error) {
+	if role == "owner" || !teams.IsValidRole(role) {
+		return nil, fmt.Errorf("invalid role")
+	}
+	if err := r.ensureOwnerMembership(ctx, siteID); err != nil {
+		return nil, err
+	}
+
+	var member models.SiteMember
+	err := r.db.QueryRow(ctx, `
+		SELECT sm.id, sm.site_id, sm.user_id, u.email, u.name, sm.role, sm.created_at
+		FROM site_members sm
+		INNER JOIN users u ON u.id = sm.user_id
+		WHERE sm.site_id = $1 AND sm.id = $2
+	`, siteID, memberID).Scan(
+		&member.ID,
+		&member.SiteID,
+		&member.UserID,
+		&member.UserEmail,
+		&member.UserName,
+		&member.Role,
+		&member.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if member.Role == "owner" {
+		return nil, fmt.Errorf("owner role cannot be changed")
+	}
+
+	if _, err := r.db.Exec(ctx, `
+		UPDATE site_members
+		SET role = $1
+		WHERE site_id = $2 AND id = $3
+	`, role, siteID, memberID); err != nil {
+		return nil, err
+	}
+	member.Role = role
+	return &member, nil
+}
+
+func (r *Repository) RemoveSiteMember(ctx context.Context, siteID, memberID string) error {
+	if err := r.ensureOwnerMembership(ctx, siteID); err != nil {
+		return err
+	}
+
+	var role string
+	err := r.db.QueryRow(ctx, `
+		SELECT role
+		FROM site_members
+		WHERE site_id = $1 AND id = $2
+	`, siteID, memberID).Scan(&role)
+	if err != nil {
+		return err
+	}
+	if role == "owner" {
+		return fmt.Errorf("owner membership cannot be removed")
+	}
+
+	commandTag, err := r.db.Exec(ctx, `
+		DELETE FROM site_members
+		WHERE site_id = $1 AND id = $2
+	`, siteID, memberID)
+	if err != nil {
+		return err
+	}
+	if commandTag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+
+	return nil
 }
 
 // Domain validation helper

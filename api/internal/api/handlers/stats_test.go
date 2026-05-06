@@ -1,6 +1,12 @@
 package handlers
 
-import "testing"
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/gin-gonic/gin"
+)
 
 func TestParseDateTimeAcceptsISOAndDate(t *testing.T) {
 	tests := []string{
@@ -27,5 +33,20 @@ func TestFormatClickHouseTime(t *testing.T) {
 	want := "2026-05-06 15:45:47.000"
 	if got != want {
 		t.Fatalf("formatClickHouseTime() = %q, want %q", got, want)
+	}
+}
+
+func TestGetBotsRequiresSiteAndDateRange(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/v1/stats/bots", nil)
+
+	handler := &StatsHandler{}
+	handler.GetBots(ctx)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("GetBots() status = %d, want %d", recorder.Code, http.StatusBadRequest)
 	}
 }

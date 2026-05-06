@@ -74,13 +74,20 @@ func RecordRequest(method, endpoint, status string, duration time.Duration) {
 	httpRequestDuration.WithLabelValues(method, endpoint).Observe(duration.Seconds())
 }
 
-// RecordEvent records event metrics
-func RecordEvent(received bool) {
-	if received {
-		eventsReceivedTotal.Inc()
-	} else {
-		eventsProcessedTotal.Inc()
+// RecordEventReceived records received event count.
+func RecordEventReceived(count int) {
+	if count <= 0 {
+		return
 	}
+	eventsReceivedTotal.Add(float64(count))
+}
+
+// RecordEventProcessed records processed event count.
+func RecordEventProcessed(count int) {
+	if count <= 0 {
+		return
+	}
+	eventsProcessedTotal.Add(float64(count))
 }
 
 // RecordEventFailure records failed event

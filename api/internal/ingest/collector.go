@@ -6,12 +6,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/mssola/useragent"
 	"github.com/redis/go-redis/v9"
+	"github.com/woosaas/api/internal/observability"
 	"github.com/woosaas/api/pkg/models"
 )
 
@@ -28,10 +30,22 @@ func NewCollector(redisClient *redis.Client) *Collector {
 	}
 }
 
+func (c *Collector) ValidateEvent(event *models.Event) error {
+	if err := c.validator.Struct(event); err != nil {
+		return err
+	}
+	return validateEventSemantics(event)
+}
+
 // CollectEvent processes and queues a single event
 func (c *Collector) CollectEvent(ctx context.Context, siteID string, event *models.Event, ipHash string) error {
+	if event.EventID == "" {
+		event.EventID = uuid.New().String()
+	}
+
 	// Validate event
 	if err := c.validator.Struct(event); err != nil {
+		observability.RecordEventFailure()
 		return fmt.Errorf("validation error: %w", err)
 	}
 
@@ -48,21 +62,16 @@ func (c *Collector) CollectEvent(ctx context.Context, siteID string, event *mode
 	// Set IP hash
 	event.IPHash = ipHash
 
-	// Set site ID
-	// Note: We assume site_id is already set by middleware
-
-	// Generate server timestamp
-	event.EventID = uuid.New().String()
-
 	// Serialize event
 	eventJSON, err := json.Marshal(event)
 	if err != nil {
+		observability.RecordEventFailure()
 		return fmt.Errorf("failed to marshal event: %w", err)
 	}
 
 	// Push to Redis Stream
 	streamKey := "events:stream"
-	
+
 	_, err = c.redis.XAdd(ctx, &redis.XAddArgs{
 		Stream: streamKey,
 		Values: map[string]interface{}{
@@ -73,8 +82,10 @@ func (c *Collector) CollectEvent(ctx context.Context, siteID string, event *mode
 	}).Result()
 
 	if err != nil {
+		observability.RecordEventFailure()
 		return fmt.Errorf("failed to push to stream: %w", err)
 	}
+	observability.RecordEventReceived(1)
 
 	// Update realtime tracking
 	c.updateRealtime(ctx, siteID, event)
@@ -89,9 +100,10 @@ func (c *Collector) CollectBatch(ctx context.Context, siteID string, events []mo
 
 	for i := range events {
 		event := &events[i]
-		
+
 		// Validate event
 		if err := c.validator.Struct(event); err != nil {
+			observability.RecordEventFailure()
 			responses = append(responses, models.EventResponse{
 				EventID:    event.EventID,
 				Status:     "error",
@@ -121,6 +133,7 @@ func (c *Collector) CollectBatch(ctx context.Context, siteID string, events []mo
 		// Serialize event
 		eventJSON, err := json.Marshal(event)
 		if err != nil {
+			observability.RecordEventFailure()
 			responses = append(responses, models.EventResponse{
 				EventID:    event.EventID,
 				Status:     "error",
@@ -141,6 +154,7 @@ func (c *Collector) CollectBatch(ctx context.Context, siteID string, events []mo
 		}).Result()
 
 		if err != nil {
+			observability.RecordEventFailure()
 			responses = append(responses, models.EventResponse{
 				EventID:    event.EventID,
 				Status:     "error",
@@ -148,6 +162,7 @@ func (c *Collector) CollectBatch(ctx context.Context, siteID string, events []mo
 			})
 			continue
 		}
+		observability.RecordEventReceived(1)
 
 		// Update realtime tracking
 		c.updateRealtime(ctx, siteID, event)
@@ -169,7 +184,7 @@ func (c *Collector) updateRealtime(ctx context.Context, siteID string, event *mo
 	member := fmt.Sprintf("%s:%s", event.ClientID, event.SessionID)
 
 	c.redis.ZAdd(ctx, key, redis.Z{Score: score, Member: member})
-	
+
 	// Remove entries older than 5 minutes
 	cutoff := float64(time.Now().Add(-5 * time.Minute).Unix())
 	c.redis.ZRemRangeByScore(ctx, key, "-inf", fmt.Sprintf("%f", cutoff))
@@ -178,7 +193,7 @@ func (c *Collector) updateRealtime(ctx context.Context, siteID string, event *mo
 // Deduplicate checks if an event has already been processed
 func (c *Collector) Deduplicate(ctx context.Context, siteID, eventID string) (bool, error) {
 	key := fmt.Sprintf("dedupe:%s:%s", siteID, eventID)
-	
+
 	// Try to set the key with NX (only if not exists)
 	set, err := c.redis.SetNX(ctx, key, "1", 24*time.Hour).Result()
 	if err != nil {
@@ -192,4 +207,108 @@ func (c *Collector) Deduplicate(ctx context.Context, siteID, eventID string) (bo
 func HashIP(ip string) string {
 	hash := sha256.Sum256([]byte(ip + "woosaas-salt"))
 	return hex.EncodeToString(hash[:16])
+}
+
+func validateEventSemantics(event *models.Event) error {
+	switch event.EventName {
+	case "pageview", "session_start", "scroll_depth", "checkout_start":
+		return nil
+	case "product_view":
+		if !hasStringValue(event.ProductID, event.Properties, "product_id") {
+			return fmt.Errorf("product_view requires product_id")
+		}
+		return nil
+	case "add_to_cart":
+		if !hasStringValue(event.ProductID, event.Properties, "product_id") {
+			return fmt.Errorf("add_to_cart requires product_id")
+		}
+		if !hasPositiveUint(event.Quantity, event.Properties, "quantity") {
+			return fmt.Errorf("add_to_cart requires quantity")
+		}
+		return nil
+	case "purchase":
+		if !hasStringValue(event.OrderID, event.Properties, "order_id") {
+			return fmt.Errorf("purchase requires order_id")
+		}
+		if !hasPositiveFloat(event.Revenue, event.Properties, "revenue") {
+			return fmt.Errorf("purchase requires revenue")
+		}
+		if !hasStringValue(event.Currency, event.Properties, "currency") {
+			return fmt.Errorf("purchase requires currency")
+		}
+		return nil
+	default:
+		return nil
+	}
+}
+
+func hasStringValue(value string, properties map[string]interface{}, key string) bool {
+	if strings.TrimSpace(value) != "" {
+		return true
+	}
+	if properties == nil {
+		return false
+	}
+	raw, ok := properties[key]
+	if !ok {
+		return false
+	}
+	switch typed := raw.(type) {
+	case string:
+		return strings.TrimSpace(typed) != ""
+	default:
+		return fmt.Sprintf("%v", typed) != ""
+	}
+}
+
+func hasPositiveUint(value uint32, properties map[string]interface{}, key string) bool {
+	if value > 0 {
+		return true
+	}
+	if properties == nil {
+		return false
+	}
+	raw, ok := properties[key]
+	if !ok {
+		return false
+	}
+	switch typed := raw.(type) {
+	case int:
+		return typed > 0
+	case int64:
+		return typed > 0
+	case float64:
+		return typed > 0
+	case float32:
+		return typed > 0
+	default:
+		return false
+	}
+}
+
+func hasPositiveFloat(value float64, properties map[string]interface{}, key string) bool {
+	if value > 0 {
+		return true
+	}
+	if properties == nil {
+		return false
+	}
+	raw, ok := properties[key]
+	if !ok {
+		return false
+	}
+	switch typed := raw.(type) {
+	case int:
+		return typed > 0
+	case int64:
+		return typed > 0
+	case float64:
+		return typed > 0
+	case float32:
+		return typed > 0
+	case string:
+		return strings.TrimSpace(typed) != "" && typed != "0"
+	default:
+		return false
+	}
 }

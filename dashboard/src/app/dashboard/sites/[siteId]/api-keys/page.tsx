@@ -2,15 +2,16 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { useSiteId } from '@/hooks/use-site-id'
 import { sitesApi } from '@/lib/api'
+import type { APIKey, APIKeyResponse, Site } from '@/lib/types'
 
 export default function ApiKeysPage() {
-  const params = useParams()
-  const siteId = params.siteId as string
-  const [keys, setKeys] = useState<any[]>([])
-  const [site, setSite] = useState<any>(null)
-  const [newKey, setNewKey] = useState<any>(null)
+  const siteId = useSiteId()
+  const [keys, setKeys] = useState<APIKey[]>([])
+  const [site, setSite] = useState<Site | null>(null)
+  const [newKey, setNewKey] = useState<APIKeyResponse | null>(null)
   const [name, setName] = useState('WordPress Plugin')
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
@@ -31,7 +32,7 @@ export default function ApiKeysPage() {
     }
   }
 
-  const createKey = async (e: React.FormEvent) => {
+  const createKey = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setCreating(true)
     try {
@@ -47,19 +48,27 @@ export default function ApiKeysPage() {
   }
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [siteId])
 
   if (loading) {
-    return <div className="flex justify-center p-8"><div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div></div>
+    return <LoadingSpinner className="p-8" />
   }
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <div>
-        <Link href="/dashboard/sites" className="text-blue-500 hover:text-blue-700 text-sm">
-          Back to Sites
-        </Link>
+        <div className="flex gap-3 text-sm">
+          <Link href="/dashboard/sites" className="text-blue-500 hover:text-blue-700">
+            Back to Sites
+          </Link>
+          <Link href={`/dashboard/sites/${siteId}/onboarding`} className="text-blue-500 hover:text-blue-700">
+            Open Setup Guide
+          </Link>
+          <Link href={`/dashboard/sites/${siteId}/team`} className="text-blue-500 hover:text-blue-700">
+            Team
+          </Link>
+        </div>
         <h1 className="text-2xl font-bold mt-2">API Keys</h1>
         <p className="text-gray-500">{site?.name} · {site?.domain}</p>
       </div>

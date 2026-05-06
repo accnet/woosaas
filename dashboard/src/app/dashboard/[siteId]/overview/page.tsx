@@ -1,56 +1,56 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
-import { statsApi } from '@/lib/api'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { sitesApi, statsApi } from '@/lib/api'
 import { Card } from '@/components/ui/card'
 import { LineChart } from '@/components/ui/charts'
+import { useSiteId } from '@/hooks/use-site-id'
+import { getDataFreshnessState } from '@/lib/data-freshness'
+import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
+import type { OverviewStats, Site, TrendPoint } from '@/lib/types'
 
 export default function OverviewPage() {
-  const params = useParams()
-  const siteId = params.siteId as string
-  
-  const [overview, setOverview] = useState<any>(null)
-  const [trend, setTrend] = useState<any[]>([])
+  const siteId = useSiteId()
+
+  const [overview, setOverview] = useState<OverviewStats | null>(null)
+  const [site, setSite] = useState<Site | null>(null)
+  const [trend, setTrend] = useState<TrendPoint[]>([])
   const [loading, setLoading] = useState(true)
-  const [dateRange, setDateRange] = useState('7d')
+  const [dateRange, setDateRange] = useState<PresetDateRange>('7d')
 
   useEffect(() => {
-    loadData()
+    const loadData = async () => {
+      setLoading(true)
+      try {
+        const { from, to } = getPresetDateRange(dateRange)
+        const [siteRes, overviewRes, trendRes] = await Promise.all([
+          sitesApi.get(siteId),
+          statsApi.overview(siteId, from, to),
+          statsApi.trend(siteId, from, to, 'day'),
+        ])
+        setSite(siteRes.data)
+        setOverview(overviewRes.data)
+        setTrend(trendRes.data)
+      } catch (err) {
+        console.error('Failed to load stats', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    void loadData()
   }, [siteId, dateRange])
 
-  const loadData = async () => {
-    setLoading(true)
-    try {
-      const [from, to] = getDateRange(dateRange)
-      const [overviewRes, trendRes] = await Promise.all([
-        statsApi.overview(siteId, from, to),
-        statsApi.trend(siteId, from, to, 'day')
-      ])
-      setOverview(overviewRes.data)
-      setTrend(trendRes.data)
-    } catch (err) {
-      console.error('Failed to load stats', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const getDateRange = (range: string): [string, string] => {
-    const to = new Date()
-    const from = new Date()
-    switch (range) {
-      case '24h': from.setHours(from.getHours() - 24); break
-      case '7d': from.setDate(from.getDate() - 7); break
-      case '30d': from.setDate(from.getDate() - 30); break
-      case '90d': from.setDate(from.getDate() - 90); break
-    }
-    return [from.toISOString(), to.toISOString()]
-  }
-
   if (loading) {
-    return <div className="flex justify-center p-8"><div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div></div>
+    return <LoadingSpinner className="p-8" />
   }
+
+  const pagesPerSession =
+    overview && overview.sessions > 0
+      ? (overview.pageviews / overview.sessions).toFixed(2)
+      : '0.00'
+  const freshness = getDataFreshnessState(site?.tracking_last_event_at ?? null)
 
   return (
     <div className="space-y-6">
@@ -58,7 +58,7 @@ export default function OverviewPage() {
         <h1 className="text-2xl font-bold">Analytics Overview</h1>
         <select 
           value={dateRange} 
-          onChange={(e) => setDateRange(e.target.value)}
+          onChange={(e) => setDateRange(e.target.value as PresetDateRange)}
           className="border rounded px-3 py-2"
         >
           <option value="24h">Last 24 hours</option>
@@ -68,11 +68,12 @@ export default function OverviewPage() {
         </select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card title="Pageviews" value={overview?.pageviews?.toLocaleString() || '0'} />
         <Card title="Sessions" value={overview?.sessions?.toLocaleString() || '0'} />
         <Card title="Revenue" value={`$${(overview?.revenue || 0).toFixed(2)}`} />
         <Card title="Conversion Rate" value={`${(overview?.conversion_rate || 0).toFixed(2)}%`} />
+        <Card title="Data Freshness" value={freshness.label} change={freshness.detail} changeType={freshness.changeType} />
       </div>
 
       <div className="bg-white p-6 rounded-lg shadow">
@@ -126,9 +127,7 @@ export default function OverviewPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Pages / Session</span>
-              <span className="font-semibold">
-                {overview?.sessions > 0 ? (overview.pageviews / overview.sessions).toFixed(2) : '0.00'}
-              </span>
+              <span className="font-semibold">{pagesPerSession}</span>
             </div>
           </div>
         </div>
