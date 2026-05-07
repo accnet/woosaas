@@ -20,7 +20,7 @@ type WebsiteApp = {
   description: string
   href: string
   icon: ReactNode
-  status: 'active' | 'planned'
+  status: 'active' | 'comingSoon'
   cta: string
 }
 
@@ -70,16 +70,16 @@ export default function WebsiteHomePage() {
       description: 'Shared support inbox and ticket operations for this website.',
       href: `/dashboard/sites/${site.id}/support-tickets`,
       icon: <LifeBuoy className="h-5 w-5" />,
-      status: 'planned',
-      cta: 'View workspace',
+      status: 'comingSoon',
+      cta: 'Coming soon',
     },
     {
       title: 'Email Campaigns',
       description: 'Audience messaging, lifecycle flows, and campaign performance.',
       href: `/dashboard/sites/${site.id}/email-campaigns`,
       icon: <Mail className="h-5 w-5" />,
-      status: 'planned',
-      cta: 'View workspace',
+      status: 'comingSoon',
+      cta: 'Coming soon',
     },
   ]
 
@@ -176,10 +176,16 @@ export default function WebsiteHomePage() {
               <div className="mt-4 text-base font-semibold text-app-strong">{app.title}</div>
               <p className="mt-2 text-sm text-app-muted">{app.description}</p>
               <div className="mt-5">
-                <Link href={app.href} className="btn-secondary w-full justify-between">
-                  {app.cta}
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
+                {app.status === 'active' ? (
+                  <Link href={app.href} className="btn-secondary w-full justify-between">
+                    {app.cta}
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                ) : (
+                  <button type="button" className="btn-secondary w-full cursor-not-allowed justify-between opacity-65" disabled>
+                    {app.cta}
+                  </button>
+                )}
               </div>
             </div>
           ))}

@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ChevronRight, LogOut, Menu, Plus, Settings2, ShieldCheck, Star, X } from 'lucide-react'
+import { ChevronRight, ChevronsUpDown, LogOut, Menu, ShieldCheck, Star, X } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { SearchInput } from '@/components/ui/search-input'
 import { TrackingStatusChip } from '@/components/ui/tracking-status-chip'
 import { sitesApi } from '@/lib/api'
 import { formatRelativeTimeLabel } from '@/lib/dashboard-metadata'
-import { appNav, buildAnalyticsHref, buildPageMeta, buildSetupHref, getAppHref, getCurrentSiteApp, getCurrentSiteId, resolveSiteRoute, siteAcquisitionNav, siteAnalyticsNav, siteAppsNav, siteCommerceNav, siteOperationsNav, siteSetupNav } from '@/lib/navigation'
+import { appNav, buildAnalyticsHref, buildSetupHref, getAppHref, getCurrentSiteId, resolveSiteRoute, siteAcquisitionNav, siteAnalyticsNav, siteAppsNav, siteCommerceNav, siteOperationsNav, siteSetupNav } from '@/lib/navigation'
 import { getSiteTrackingState } from '@/lib/tracking-status'
 import type { Site } from '@/lib/types'
 import { useAuthStore } from '@/store/auth'
@@ -273,14 +273,14 @@ function SiteSwitcherControl({
     <div ref={switcherRef} className="relative w-full">
       <button onClick={() => setOpen((value) => !value)} className="site-switcher-trigger">
         <div className="min-w-0 text-left">
-          <div className="truncate text-sm font-semibold text-app-strong">
+          <div className="truncate text-lg font-semibold text-app-strong">
             {currentSite ? currentSite.domain : loadingSites ? 'Loading websites...' : 'Select website'}
           </div>
-          <div className="mt-0.5 truncate text-xs text-app-muted">
+          <div className="sr-only">
             {currentSite ? currentSite.name : `${sites.length} connected website${sites.length === 1 ? '' : 's'}`}
           </div>
         </div>
-        <ChevronRight className={`h-4 w-4 text-app-soft transition ${open ? 'rotate-90' : ''}`} />
+        <ChevronsUpDown className="h-4 w-4 shrink-0 text-app-soft" />
       </button>
 
       {open && (
@@ -391,12 +391,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [appRailExpanded, setAppRailExpanded] = useState(false)
   const currentSiteId = useMemo(() => getCurrentSiteId(pathname), [pathname])
-  const currentApp = useMemo(() => getCurrentSiteApp(pathname), [pathname])
   const currentSite = useMemo(
     () => sites.find((site) => site.id === currentSiteId) || null,
     [sites, currentSiteId]
   )
-  const page = useMemo(() => buildPageMeta(pathname), [pathname])
 
   useEffect(() => {
     const loadSites = async () => {
@@ -485,10 +483,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
         <div className="flex min-w-0 flex-1 flex-col">
           <TopNav
-            siteId={currentSiteId}
-            currentApp={currentApp}
             currentSite={currentSite}
-            page={page}
             onOpenMobileNav={() => setMobileNavOpen(true)}
           />
           <main className="flex-1 px-5 py-6 md:px-8 md:py-8">{children}</main>
@@ -547,7 +542,7 @@ function AppRail({
           </svg>
         </Link>
         {expanded ? (
-          <button type="button" onClick={onToggleExpanded} className="icon-button hidden xl:inline-flex" aria-label="Collapse app rail">
+          <button type="button" onClick={onToggleExpanded} className="app-rail-expand-button" aria-label="Collapse app rail">
             <ChevronRight className="h-4 w-4 rotate-180" />
           </button>
         ) : (
@@ -598,12 +593,41 @@ function AppRail({
                 const Icon = item.icon
                 const href = getAppHref(item.href, currentSiteId)
                 const isActive = isRailItemActive(item.href, href)
+                const isComingSoon = item.status === 'comingSoon'
+                const className = `group relative ${expanded ? 'app-rail-link' : 'app-rail-item'} ${isComingSoon ? 'app-rail-item-disabled' : isActive ? 'app-rail-item-active' : 'app-rail-item-idle'}`
 
-                return (
+                const content = (
+                  <>
+                    <Icon className="h-5 w-5" />
+                    {expanded ? (
+                      <>
+                        <span className="truncate text-sm font-medium">{item.label}</span>
+                        <span className="ml-auto rounded-full bg-app-subtle px-1.5 py-0.5 text-[10px] font-semibold text-app-soft">
+                          Soon
+                        </span>
+                      </>
+                    ) : (
+                      <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-app-strong px-2.5 py-1.5 text-xs font-medium text-white shadow-card group-hover:block">
+                        {item.label} - Coming soon
+                      </span>
+                    )}
+                  </>
+                )
+
+                return isComingSoon ? (
+                  <span
+                    key={`site-app-${item.label}-${href}`}
+                    className={className}
+                    aria-disabled="true"
+                    title={`${item.label} - Coming soon`}
+                  >
+                    {content}
+                  </span>
+                ) : (
                   <Link
                     key={`site-app-${item.label}-${href}`}
                     href={href}
-                    className={`group relative ${expanded ? 'app-rail-link' : 'app-rail-item'} ${isActive ? 'app-rail-item-active' : 'app-rail-item-idle'}`}
+                    className={className}
                   >
                     <Icon className="h-5 w-5" />
                     {expanded ? (
@@ -748,12 +772,26 @@ function MobileNavDrawer({
                   const Icon = item.icon
                   const href = getAppHref(item.href, currentSiteId)
                   const isActive = isMobileAppActive(item.href, href)
+                  const isComingSoon = item.status === 'comingSoon'
+                  const className = `mobile-app-link ${isComingSoon ? 'mobile-app-link-disabled' : isActive ? 'mobile-app-link-active' : ''}`
 
-                  return (
+                  return isComingSoon ? (
+                    <span
+                      key={`mobile-site-app-${item.label}-${href}`}
+                      className={className}
+                      aria-disabled="true"
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                      <span className="ml-auto rounded-full bg-app-subtle px-1.5 py-0.5 text-[10px] font-semibold text-app-soft">
+                        Soon
+                      </span>
+                    </span>
+                  ) : (
                     <Link
                       key={`mobile-site-app-${item.label}-${href}`}
                       href={href}
-                      className={`mobile-app-link ${isActive ? 'mobile-app-link-active' : ''}`}
+                      className={className}
                       onClick={onClose}
                     >
                       <Icon className="h-4 w-4" />
@@ -810,11 +848,8 @@ function SiteSidebar({
   loadingSites: boolean
 }) {
   return (
-    <aside className="hidden w-[300px] shrink-0 border-r border-app-line bg-white xl:flex xl:flex-col">
+    <aside className="hidden w-[280px] shrink-0 border-r border-app-line bg-white xl:flex xl:flex-col">
       <div className="border-b border-app-line px-5 py-4">
-        <div className="mb-3">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-app-soft">Website</div>
-        </div>
         <SiteSwitcherControl
           pathname={pathname}
           siteId={siteId}
@@ -884,13 +919,9 @@ function SiteSidebarContent({
   if (site) {
     const trackingState = getSiteTrackingState(site)
     const isAnalyticsApp = pathname.startsWith(`/dashboard/${siteId}/`)
-    const isSupportApp = pathname === `/dashboard/sites/${siteId}/support-tickets`
-    const isEmailApp = pathname === `/dashboard/sites/${siteId}/email-campaigns`
 
     return (
       <div className={compact ? 'space-y-6' : 'space-y-7'}>
-        <CurrentSiteCard site={site} />
-
         {isAnalyticsApp ? (
           <>
             <SidebarGroup
@@ -925,22 +956,7 @@ function SiteSidebarContent({
               onNavigate={onNavigate}
             />
           </>
-        ) : isSupportApp ? (
-          <ContextPanel
-            title="Support Tickets"
-            body="This app will eventually host the support inbox, ticket states, assignees, and customer context for the selected website."
-          />
-        ) : isEmailApp ? (
-          <ContextPanel
-            title="Email Campaigns"
-            body="This app will eventually host audiences, journeys, campaigns, and reporting for the selected website."
-          />
-        ) : (
-          <ContextPanel
-            title="Website Home"
-            body="Use this workspace to manage the website itself, then jump into apps from the icon rail on the left."
-          />
-        )}
+        ) : null}
 
         <SidebarGroup
           title="Setup"
@@ -996,10 +1012,6 @@ function SiteSidebarContent({
             </Link>
             <Link href={`/dashboard/${site?.id}/funnel`} className="site-switcher-footer" onClick={onNavigate}>
               Conversion funnel
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-            <Link href={`/dashboard/sites/${site?.id}/email-campaigns`} className="site-switcher-footer" onClick={onNavigate}>
-              Email workspace
               <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
@@ -1083,48 +1095,6 @@ function SiteSidebarContent({
   )
 }
 
-function ContextPanel({
-  title,
-  body,
-}: {
-  title: string
-  body: string
-}) {
-  return (
-    <div className="rounded-lg border border-app-line bg-slate-50 px-4 py-4">
-      <div className="text-sm font-semibold text-app-strong">{title}</div>
-      <p className="mt-2 text-sm leading-5 text-app-muted">{body}</p>
-    </div>
-  )
-}
-
-function CurrentSiteCard({ site }: { site: Site }) {
-  const trackingState = getSiteTrackingState(site)
-  const lastSignal = site.tracking_last_event_at || site.tracking_last_checked_at || site.created_at
-
-  return (
-    <div className="rounded-lg border border-app-line bg-slate-50 px-4 py-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-app-strong">{site.domain}</div>
-          <div className="mt-1 text-xs text-app-muted">{site.name}</div>
-        </div>
-        <TrackingStatusChip site={site} />
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="rounded-md bg-white px-3 py-2.5">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-app-soft">Status</div>
-          <div className="mt-1 text-sm font-medium text-app-strong">{trackingState.detail}</div>
-        </div>
-        <div className="rounded-md bg-white px-3 py-2.5">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-app-soft">Last Signal</div>
-          <div className="mt-1 text-sm font-medium text-app-strong">{formatRelativeTimeLabel(lastSignal)}</div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function SidebarGroup({
   title,
   items,
@@ -1169,18 +1139,15 @@ function SidebarGroup({
 }
 
 function TopNav({
-  siteId,
-  currentApp,
   currentSite,
-  page,
   onOpenMobileNav,
 }: {
-  siteId: string | null
-  currentApp: string | null
   currentSite: Site | null
-  page: { title: string; description: string }
   onOpenMobileNav: () => void
 }) {
+  const trackingState = currentSite ? getSiteTrackingState(currentSite) : null
+  const lastSignal = currentSite?.tracking_last_event_at || currentSite?.tracking_last_checked_at || currentSite?.created_at
+
   return (
     <header className="sticky top-0 z-20 border-b border-app-line bg-app/95 backdrop-blur">
       <div className="flex min-h-20 items-center justify-between gap-4 px-5 py-4 md:px-8">
@@ -1188,65 +1155,21 @@ function TopNav({
           <button type="button" onClick={onOpenMobileNav} className="icon-button xl:hidden">
             <Menu className="h-4 w-4" />
           </button>
-
-          <div className="hidden items-center gap-1.5 rounded-full bg-app-subtle px-3 py-1.5 text-xs font-medium text-app-muted md:inline-flex">
-            <span className="text-app-soft">Workspace</span>
-            <ChevronRight className="h-3 w-3 text-app-soft" />
-            <span className={currentSite ? 'text-app-muted' : 'text-app-strong'}>
-              {currentSite ? currentSite.domain : 'Workspace'}
-            </span>
-            {currentApp ? (
-              <>
-                <ChevronRight className="h-3 w-3 text-app-soft" />
-                <span className="font-semibold text-app-strong">{currentApp}</span>
-              </>
-            ) : null}
-          </div>
         </div>
 
         <div className="flex min-w-0 items-center gap-4">
-          <div className="hidden min-w-0 xl:block">
-            <div className="flex items-center gap-1.5 text-sm">
-              {currentSite ? (
-                <>
-                  <span className="font-medium text-app-muted">{currentSite.domain}</span>
-                  {currentApp ? (
-                    <>
-                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-app-soft" />
-                      <span className="font-medium text-app-muted">{currentApp}</span>
-                    </>
-                  ) : null}
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-app-soft" />
-                </>
-              ) : null}
-              <span className="font-semibold text-app-strong">{page.title}</span>
+          {currentSite && trackingState && lastSignal ? (
+            <div className="hidden shrink-0 items-center gap-3 rounded-lg border border-app-line bg-white px-3 py-2 md:flex">
+              <TrackingStatusChip site={currentSite} />
+              <div className="hidden max-w-[220px] truncate text-xs font-medium text-app-muted 2xl:block">
+                {trackingState.detail}
+              </div>
+              <div className="hidden h-5 w-px bg-slate-200 xl:block" />
+              <div className="whitespace-nowrap text-xs text-app-muted">
+                Last signal <span className="font-semibold text-app-strong">{formatRelativeTimeLabel(lastSignal)}</span>
+              </div>
             </div>
-            <div className="mt-1 truncate text-xs text-app-muted">{page.description}</div>
-          </div>
-
-          <div className="flex items-center gap-2">
-          {siteId && (
-            <>
-              <Link href={`/dashboard/sites/${siteId}`} className="btn-secondary hidden px-3.5 py-2 md:inline-flex">
-                Website Home
-              </Link>
-              <Link href={`/dashboard/sites/${siteId}/api-keys`} className="btn-secondary hidden px-3.5 py-2 md:inline-flex">
-                API Keys
-              </Link>
-              <Link href={`/dashboard/sites/${siteId}/onboarding`} className="btn-secondary hidden px-3.5 py-2 md:inline-flex">
-                Setup
-              </Link>
-            </>
-          )}
-          <Link href="/dashboard/sites" className="btn-primary px-3.5 py-2">
-            <Plus className="mr-1.5 h-4 w-4" />
-            <span className="hidden sm:inline">Add Site</span>
-          </Link>
-          <Link href="/dashboard/sites" className="btn-secondary hidden px-3.5 py-2 lg:inline-flex">
-            <Settings2 className="mr-1.5 h-4 w-4" />
-            Manage Sites
-          </Link>
-          </div>
+          ) : null}
         </div>
       </div>
     </header>

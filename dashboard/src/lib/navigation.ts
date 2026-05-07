@@ -23,6 +23,7 @@ export type NavItem = {
   href: string
   label: string
   icon: React.ComponentType<{ className?: string }>
+  status?: 'comingSoon'
 }
 
 export const appNav: NavItem[] = [
@@ -34,8 +35,8 @@ export const appNav: NavItem[] = [
 export const siteAppsNav: NavItem[] = [
   { href: '/dashboard/sites/[siteId]', label: 'Home', icon: House },
   { href: '/dashboard/[siteId]/overview', label: 'Analytics', icon: ChartColumn },
-  { href: '/dashboard/sites/[siteId]/support-tickets', label: 'Support Tickets', icon: LifeBuoy },
-  { href: '/dashboard/sites/[siteId]/email-campaigns', label: 'Email Campaigns', icon: Mail },
+  { href: '/dashboard/sites/[siteId]/support-tickets', label: 'Support Tickets', icon: LifeBuoy, status: 'comingSoon' },
+  { href: '/dashboard/sites/[siteId]/email-campaigns', label: 'Email Campaigns', icon: Mail, status: 'comingSoon' },
 ]
 
 export const siteAnalyticsNav: NavItem[] = [
@@ -195,14 +196,14 @@ export function buildPageMeta(pathname: string) {
   if (pathname.includes('/support-tickets')) {
     return {
       title: 'Support Tickets',
-      description: 'Ticketing workspace for this website.',
+      description: 'Coming soon ticketing workspace for this website.',
     }
   }
 
   if (pathname.includes('/email-campaigns')) {
     return {
       title: 'Email Campaigns',
-      description: 'Campaign workspace for this website.',
+      description: 'Coming soon campaign workspace for this website.',
     }
   }
 

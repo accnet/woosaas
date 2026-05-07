@@ -54,17 +54,17 @@ export function getWebsiteAppStatuses(site: Site): WebsiteAppStatus[] {
     {
       key: 'supportTickets',
       title: 'Support Tickets',
-      label: 'Planned',
+      label: 'Coming soon',
       tone: 'neutral',
-      description: 'Reserved app surface for shared inbox, ticket routing, and support operations.',
+      description: 'Coming soon app surface for shared inbox, ticket routing, and support operations.',
       href: `/dashboard/sites/${site.id}/support-tickets`,
     },
     {
       key: 'emailCampaigns',
       title: 'Email Campaigns',
-      label: 'Planned',
+      label: 'Coming soon',
       tone: 'neutral',
-      description: 'Reserved app surface for audience messaging, journeys, and campaign reporting.',
+      description: 'Coming soon app surface for audience messaging, journeys, and campaign reporting.',
       href: `/dashboard/sites/${site.id}/email-campaigns`,
     },
   ]
@@ -88,16 +88,16 @@ export function getWorkspaceAppSummaries(sites: Site[]): WorkspaceAppSummary[] {
     {
       key: 'supportTickets',
       title: 'Support Tickets',
-      label: 'Planned',
+      label: 'Coming soon',
       tone: 'neutral',
-      detail: `${sites.length} website${sites.length === 1 ? '' : 's'} already have a reserved app slot`,
+      detail: 'Will be built after the analytics workspace is stable',
     },
     {
       key: 'emailCampaigns',
       title: 'Email Campaigns',
-      label: 'Planned',
+      label: 'Coming soon',
       tone: 'neutral',
-      detail: 'Can later share the same website, customer, and analytics context',
+      detail: 'Will be built later on top of website, customer, and analytics context',
     },
   ]
 }

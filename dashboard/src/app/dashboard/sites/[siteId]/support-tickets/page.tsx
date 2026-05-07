@@ -19,7 +19,7 @@ export default function SupportTicketsPage() {
       >
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           <div className="rounded-lg border border-app-line bg-slate-50 p-5">
-            <div className="text-sm font-semibold text-app-strong">Planned scope</div>
+            <div className="text-sm font-semibold text-app-strong">Coming soon scope</div>
             <ul className="mt-3 space-y-2 text-sm text-app-muted">
               <li>Shared inbox by website</li>
               <li>Ticket routing, assignee, priority, SLA</li>

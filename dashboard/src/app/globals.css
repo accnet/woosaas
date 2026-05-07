@@ -445,6 +445,13 @@
     color: #172033;
   }
 
+  .app-rail-item-disabled {
+    color: #8a95a8;
+    background: #f8fafc;
+    cursor: not-allowed;
+    opacity: 0.78;
+  }
+
   .app-rail-item-active {
     background: #edf4ff;
     color: #0f6cde;
@@ -458,7 +465,7 @@
   }
 
   .app-rail-expand-button {
-    @apply absolute right-[-14px] top-1/2 hidden h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border bg-white text-app-soft shadow-sm transition xl:inline-flex;
+    @apply absolute bottom-[-14px] right-[-14px] z-10 hidden h-7 w-7 items-center justify-center rounded-full border bg-white text-app-soft shadow-sm transition xl:inline-flex;
     border-color: #dbe3ee;
   }
 
@@ -468,14 +475,11 @@
   }
 
   .site-switcher-trigger {
-    @apply flex w-full items-center justify-between gap-2 rounded-lg border bg-white px-3.5 py-2 text-left transition;
-
-    border-color: #dbe3ee;
-    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.03);
+    @apply flex h-10 w-full items-center justify-between gap-3 rounded-md bg-transparent px-0 text-left transition;
   }
 
   .site-switcher-trigger:hover {
-    background: #fbfdff;
+    color: #172033;
   }
 
   .site-switcher-panel {
@@ -570,6 +574,17 @@
     background: linear-gradient(135deg, #1e3a5f, #172033);
     border-color: #172033;
     color: white;
+  }
+
+  .mobile-app-link-disabled {
+    background: #f8fafc;
+    color: #8a95a8;
+    cursor: not-allowed;
+  }
+
+  .mobile-app-link-disabled:hover {
+    background: #f8fafc;
+    color: #8a95a8;
   }
 }
 
