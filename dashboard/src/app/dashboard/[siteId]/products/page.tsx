@@ -1,12 +1,13 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { DollarSign, Package, ShoppingCart } from 'lucide-react'
+import { DollarSign, ExternalLink, Package, ShoppingCart } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { MetricCard } from '@/components/ui/metric-card'
-import { EmptyState } from '@/components/ui/empty-state'
 import { SectionCard } from '@/components/ui/section-card'
+import { DataTable, type Column } from '@/components/ui/data-table'
 import { statsApi } from '@/lib/api'
 import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import { useSiteId } from '@/hooks/use-site-id'
@@ -40,8 +41,42 @@ export default function ProductsPage() {
   const totalRevenue = products.reduce((sum, p) => sum + (p.revenue || 0), 0)
   const totalPurchases = products.reduce((sum, p) => sum + (p.purchases || 0), 0)
 
+  const columns: Column<ProductStats>[] = [
+    {
+      key: 'product_name',
+      label: 'Product',
+      render: (p) => (
+        <div className="flex items-center gap-2">
+          <span className="truncate max-w-[200px] block font-medium text-app-strong" title={p.product_name}>
+            {p.product_name || p.product_id}
+          </span>
+        </div>
+      ),
+    },
+    { key: 'views', label: 'Views', align: 'right', sortable: true, render: (p) => p.views?.toLocaleString() || '0', sortValue: (p) => p.views },
+    { key: 'add_to_carts', label: 'Add to Cart', align: 'right', sortable: true, render: (p) => p.add_to_carts?.toLocaleString() || '0', sortValue: (p) => p.add_to_carts },
+    { key: 'purchases', label: 'Purchases', align: 'right', sortable: true, render: (p) => p.purchases?.toLocaleString() || '0', sortValue: (p) => p.purchases },
+    { key: 'units_sold', label: 'Units Sold', align: 'right', sortable: true, render: (p) => p.units_sold?.toLocaleString() || '0', sortValue: (p) => p.units_sold },
+    { key: 'conversion_rate', label: 'Conv. Rate', align: 'right', sortable: true, render: (p) => `${(p.conversion_rate || 0).toFixed(2)}%`, sortValue: (p) => p.conversion_rate },
+    { key: 'revenue', label: 'Revenue', align: 'right', sortable: true, render: (p) => <span className="font-medium">${(p.revenue || 0).toFixed(2)}</span>, sortValue: (p) => p.revenue },
+    {
+      key: 'delta',
+      label: 'Δ Revenue',
+      align: 'right',
+      sortable: true,
+      render: (p) => {
+        const delta = p.revenue_delta
+        if (delta == null) return <span className="text-app-soft">-</span>
+        const isUp = delta >= 0
+        return <span className={`text-xs font-semibold ${isUp ? 'text-emerald-600' : 'text-red-600'}`}>{isUp ? '+' : ''}{delta.toFixed(1)}%</span>
+      },
+      sortValue: (p) => p.revenue_delta,
+    },
+  ]
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
+
       <AnalyticsPageHeader
         title="Top Products"
         description="Product interest, cart activity, and purchase conversion."
@@ -71,39 +106,7 @@ export default function ProductsPage() {
         icon={<Package className="h-4 w-4" />}
         className="overflow-hidden px-0 py-0"
       >
-        <div className="table-container rounded-none border-0 shadow-none">
-          <table className="min-w-full">
-            <thead className="table-header">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Product</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Views</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Add to Cart</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Purchases</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Units Sold</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Conv. Rate</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Revenue</th>
-              </tr>
-            </thead>
-            <tbody className="table-body">
-              {products.map((product, i) => (
-                <tr key={i} className="table-row">
-                  <td className="table-cell max-w-[200px]">
-                    <div className="truncate font-medium text-app-strong" title={product.product_name}>
-                      {product.product_name || product.product_id}
-                    </div>
-                  </td>
-                  <td className="table-cell text-right">{product.views?.toLocaleString() || '0'}</td>
-                  <td className="table-cell text-right">{product.add_to_carts?.toLocaleString() || '0'}</td>
-                  <td className="table-cell text-right">{product.purchases?.toLocaleString() || '0'}</td>
-                  <td className="table-cell text-right">{product.units_sold?.toLocaleString() || '0'}</td>
-                  <td className="table-cell text-right">{(product.conversion_rate || 0).toFixed(2)}%</td>
-                  <td className="table-cell text-right font-medium">${(product.revenue || 0).toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {products.length === 0 && <EmptyState body="No product data available" />}
-        </div>
+        <DataTable columns={columns} data={products} keyExtractor={(p) => p.product_id} />
       </SectionCard>
     </div>
   )

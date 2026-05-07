@@ -13,8 +13,9 @@ import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-
 import { InlineErrorState } from '@/components/ui/inline-error-state'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { MetricCard } from '@/components/ui/metric-card'
+import { SectionCard } from '@/components/ui/section-card'
 import { StatusChip } from '@/components/ui/status-chip'
-import { TableSection } from '@/components/ui/table-section'
+import { DataTable, type Column } from '@/components/ui/data-table'
 import { useSiteId } from '@/hooks/use-site-id'
 import { getApiErrorMessage, statsApi } from '@/lib/api'
 import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
@@ -86,12 +87,45 @@ export default function CampaignsPage() {
     return { totalSessions, totalConversions, totalRevenue, topCampaign }
   }, [campaigns])
 
+  const columns: Column<CampaignStats>[] = [
+    {
+      key: 'campaign',
+      label: 'Campaign',
+      render: (c) => <span className="truncate max-w-[200px] block font-medium text-app-strong" title={c.campaign || '(none)'}>{c.campaign || '(none)'}</span>,
+    },
+    {
+      key: 'source_medium',
+      label: 'Source / Medium',
+      render: (c) => (
+        <div>
+          <div className="font-medium text-app-strong">{c.source || '(direct)'}</div>
+          <div className="mt-0.5 text-xs text-app-muted">{c.medium || '(none)'}</div>
+        </div>
+      ),
+    },
+    { key: 'sessions', label: 'Sessions', align: 'right', sortable: true, render: (c) => c.sessions.toLocaleString(), sortValue: (c) => c.sessions },
+    { key: 'conversions', label: 'Conversions', align: 'right', sortable: true, render: (c) => c.conversions.toLocaleString(), sortValue: (c) => c.conversions },
+    { key: 'conversion_rate', label: 'Conv. Rate', align: 'right', sortable: true, render: (c) => `${c.conversion_rate.toFixed(2)}%`, sortValue: (c) => c.conversion_rate },
+    { key: 'revenue', label: 'Revenue', align: 'right', sortable: true, render: (c) => <span className="font-medium">${c.revenue.toFixed(2)}</span>, sortValue: (c) => c.revenue },
+    { key: 'revenue_per_session', label: 'Rev / Session', align: 'right', sortable: true, render: (c) => `$${c.revenue_per_session.toFixed(2)}`, sortValue: (c) => c.revenue_per_session },
+    {
+      key: 'signal_coverage',
+      label: 'Signal Coverage',
+      align: 'right',
+      render: (c) => {
+        const signalCount = c.gclid_events + c.fbclid_events + c.ttclid_events + c.msclkid_events
+        return <StatusChip label={signalCount > 0 ? `${signalCount.toLocaleString()} ids` : 'Organic'} tone={signalCount > 0 ? 'info' : 'neutral'} className="justify-center" />
+      },
+    },
+  ]
+
   if (loading && campaigns.length === 0) {
     return <LoadingSpinner className="py-16" />
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
+
       <AnalyticsPageHeader
         title="Campaigns"
         description="Performance by campaign, source, and medium for the selected attribution window."
@@ -146,10 +180,11 @@ export default function CampaignsPage() {
         />
       </div>
 
-      <TableSection
+      <SectionCard
         title="Campaign Breakdown"
         description="Compare campaign traffic quality, conversion efficiency, and monetization in one place."
         icon={<Tags className="h-4 w-4" />}
+        className="overflow-hidden px-0 py-0"
         action={
           <div className="flex items-center gap-2">
             <StatusChip label={`${campaigns.length} campaigns`} tone="neutral" />
@@ -163,64 +198,9 @@ export default function CampaignsPage() {
             </button>
           </div>
         }
-        isEmpty={campaigns.length === 0}
-        emptyTitle="No campaign data yet"
-        emptyBody="Campaign metrics will appear once visits arrive with campaign, source, or medium attribution."
-        emptyIcon={<Megaphone className="h-12 w-12" />}
       >
-        <table className="min-w-full">
-          <thead className="table-header">
-            <tr>
-              <th>Campaign</th>
-              <th>Source / Medium</th>
-              <th className="text-right">Sessions</th>
-              <th className="text-right">Conversions</th>
-              <th className="text-right">Conv. Rate</th>
-              <th className="text-right">Revenue</th>
-              <th className="text-right">Rev / Session</th>
-              <th className="text-right">Signal Coverage</th>
-            </tr>
-          </thead>
-          <tbody className="table-body">
-            {campaigns.map((campaign) => {
-              const signalCount =
-                campaign.gclid_events +
-                campaign.fbclid_events +
-                campaign.ttclid_events +
-                campaign.msclkid_events
-
-              return (
-                <tr
-                  key={`${campaign.campaign}-${campaign.source}-${campaign.medium}`}
-                  className="table-row"
-                >
-                  <td className="table-cell max-w-[240px]">
-                    <div className="truncate font-medium text-app-strong" title={campaign.campaign || '(none)'}>
-                      {campaign.campaign || '(none)'}
-                    </div>
-                  </td>
-                  <td className="table-cell">
-                    <div className="font-medium text-app-strong">{campaign.source || '(direct)'}</div>
-                    <div className="mt-1 text-xs text-app-muted">{campaign.medium || '(none)'}</div>
-                  </td>
-                  <td className="table-cell text-right">{campaign.sessions.toLocaleString()}</td>
-                  <td className="table-cell text-right">{campaign.conversions.toLocaleString()}</td>
-                  <td className="table-cell text-right">{campaign.conversion_rate.toFixed(2)}%</td>
-                  <td className="table-cell text-right font-medium">${campaign.revenue.toFixed(2)}</td>
-                  <td className="table-cell text-right">${campaign.revenue_per_session.toFixed(2)}</td>
-                  <td className="table-cell text-right">
-                    <StatusChip
-                      label={signalCount > 0 ? `${signalCount.toLocaleString()} ids` : 'Organic'}
-                      tone={signalCount > 0 ? 'info' : 'neutral'}
-                      className="justify-center"
-                    />
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </TableSection>
+        <DataTable columns={columns} data={campaigns} keyExtractor={(c) => `${c.campaign}-${c.source}-${c.medium}`} />
+      </SectionCard>
     </div>
   )
 }

@@ -201,7 +201,8 @@ export default function FunnelPage() {
   const isEmpty = steps.every((step) => step.count === 0)
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
+
       <AnalyticsPageHeader
         title="Conversion Funnel"
         description="Step-by-step movement from traffic to purchase across the active date range."

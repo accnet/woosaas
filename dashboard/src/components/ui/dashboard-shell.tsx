@@ -507,19 +507,24 @@ function SiteSidebarContent({
         <div className="rounded-lg border border-app-line bg-slate-50 px-4 py-4">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-app-strong">
             <ShieldCheck className="h-4 w-4 text-emerald-600" />
-            Environment
+            Quick Actions
           </div>
-          <div className="space-y-2 text-sm text-app-muted">
-            <div className="flex items-center justify-between">
-              <span>API</span>
-              <span className="text-app-strong">localhost:8080</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Dashboard</span>
-              <span className="text-app-strong">localhost:3000</span>
-            </div>
+          <div className="space-y-2">
+            <Link href={`/dashboard/${site?.id}/realtime`} className="site-switcher-footer" onClick={onNavigate}>
+              Watch realtime
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+            <Link href={`/dashboard/${site?.id}/health`} className="site-switcher-footer" onClick={onNavigate}>
+              Pipeline health
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+            <Link href={`/dashboard/${site?.id}/funnel`} className="site-switcher-footer" onClick={onNavigate}>
+              Conversion funnel
+              <ChevronRight className="h-4 w-4" />
+            </Link>
           </div>
         </div>
+
       </div>
     )
   }

@@ -10,13 +10,13 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
-import { DeltaIndicator } from '@/components/ui/delta-indicator'
 import { InlineErrorState } from '@/components/ui/inline-error-state'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { MetricCard } from '@/components/ui/metric-card'
+import { SectionCard } from '@/components/ui/section-card'
 import { SearchInput } from '@/components/ui/search-input'
 import { StatusChip } from '@/components/ui/status-chip'
-import { TableSection } from '@/components/ui/table-section'
+import { DataTable, type Column } from '@/components/ui/data-table'
 import { statsApi, getApiErrorMessage } from '@/lib/api'
 import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import { useSiteId } from '@/hooks/use-site-id'
@@ -80,7 +80,6 @@ export default function PagesPage() {
     if (!normalizedQuery) {
       return pages
     }
-
     return pages.filter((page) => page.path.toLowerCase().includes(normalizedQuery))
   }, [pages, query])
 
@@ -99,12 +98,84 @@ export default function PagesPage() {
     return { totalViews, totalSessions, totalRevenue, totalPurchases, topPage }
   }, [pages])
 
+  const columns: Column<PageStats>[] = [
+    {
+      key: 'path',
+      label: 'Page',
+      render: (p) => (
+        <div className="truncate max-w-[280px]">
+          <span className="font-medium text-app-strong" title={p.path || '/'}>{p.path || '/'}</span>
+          <div className="mt-0.5 text-xs text-app-muted">{p.previous_pageviews.toLocaleString()} views in previous range</div>
+        </div>
+      ),
+    },
+    {
+      key: 'pageviews',
+      label: 'Pageviews',
+      align: 'right',
+      sortable: true,
+      render: (p) => (
+        <div>
+          <div className="font-medium text-app-strong">{p.pageviews.toLocaleString()}</div>
+          <div className="mt-0.5 flex justify-end">
+            <DeltaLabel value={p.pageviews_delta} />
+          </div>
+        </div>
+      ),
+      sortValue: (p) => p.pageviews,
+    },
+    {
+      key: 'sessions',
+      label: 'Sessions',
+      align: 'right',
+      sortable: true,
+      render: (p) => (
+        <div>
+          <div className="font-medium text-app-strong">{p.sessions.toLocaleString()}</div>
+          <div className="mt-0.5 flex justify-end">
+            <DeltaLabel value={p.sessions_delta} />
+          </div>
+        </div>
+      ),
+      sortValue: (p) => p.sessions,
+    },
+    { key: 'product_views', label: 'Product Views', align: 'right', sortable: true, render: (p) => p.product_views.toLocaleString(), sortValue: (p) => p.product_views },
+    { key: 'purchases', label: 'Purchases', align: 'right', sortable: true, render: (p) => p.purchases.toLocaleString(), sortValue: (p) => p.purchases },
+    {
+      key: 'revenue',
+      label: 'Revenue',
+      align: 'right',
+      sortable: true,
+      render: (p) => (
+        <div>
+          <div className="font-medium text-app-strong">${p.revenue.toFixed(2)}</div>
+          <div className="mt-0.5 flex justify-end">
+            <DeltaLabel value={p.revenue_delta} />
+          </div>
+        </div>
+      ),
+      sortValue: (p) => p.revenue,
+    },
+    {
+      key: 'momentum',
+      label: 'Momentum',
+      align: 'right',
+      render: (p) => (
+        <div className="flex justify-end gap-2">
+          <DeltaLabel value={p.pageviews_delta} />
+          <DeltaLabel value={p.revenue_delta} />
+        </div>
+      ),
+    },
+  ]
+
   if (loading && pages.length === 0) {
     return <LoadingSpinner className="py-16" />
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
+
       <AnalyticsPageHeader
         title="Top Pages"
         description="Landing pages and content paths ranked by traffic, conversion signals, and revenue."
@@ -156,10 +227,11 @@ export default function PagesPage() {
         />
       </div>
 
-      <TableSection
+      <SectionCard
         title="Page Performance"
         description="Scan page-level traffic, value, and period-over-period momentum using one consistent pattern."
         icon={<FileText className="h-4 w-4" />}
+        className="overflow-hidden px-0 py-0"
         action={
           <div className="flex flex-col gap-2 sm:min-w-[320px] sm:max-w-[460px]">
             <div className="flex items-center justify-end gap-2">
@@ -176,69 +248,25 @@ export default function PagesPage() {
             <SearchInput value={query} onChange={setQuery} placeholder="Filter by page path" />
           </div>
         }
-        isEmpty={filteredPages.length === 0}
-        emptyTitle={pages.length === 0 ? 'No page data yet' : 'No matching page paths'}
-        emptyBody={
-          pages.length === 0
-            ? 'Top pages will appear here once traffic data has been collected for this site.'
-            : 'Try a shorter page path or clear the current filter to see the full list again.'
-        }
-        emptyIcon={<FileText className="h-12 w-12" />}
       >
-        <table className="min-w-full">
-          <thead className="table-header">
-            <tr>
-              <th>Page</th>
-              <th className="text-right">Pageviews</th>
-              <th className="text-right">Sessions</th>
-              <th className="text-right">Product Views</th>
-              <th className="text-right">Purchases</th>
-              <th className="text-right">Revenue</th>
-              <th className="text-right">Momentum</th>
-            </tr>
-          </thead>
-          <tbody className="table-body">
-            {filteredPages.map((page) => (
-              <tr key={page.path} className="table-row">
-                <td className="table-cell max-w-[280px]">
-                  <div className="truncate font-medium text-app-strong" title={page.path || '/'}>
-                    {page.path || '/'}
-                  </div>
-                  <div className="mt-1 text-xs text-app-muted">
-                    {page.previous_pageviews.toLocaleString()} views in previous range
-                  </div>
-                </td>
-                <td className="table-cell text-right">
-                  <div className="font-medium text-app-strong">{page.pageviews.toLocaleString()}</div>
-                  <div className="mt-1 flex justify-end">
-                    <DeltaIndicator value={page.pageviews_delta} />
-                  </div>
-                </td>
-                <td className="table-cell text-right">
-                  <div className="font-medium text-app-strong">{page.sessions.toLocaleString()}</div>
-                  <div className="mt-1 flex justify-end">
-                    <DeltaIndicator value={page.sessions_delta} />
-                  </div>
-                </td>
-                <td className="table-cell text-right">{page.product_views.toLocaleString()}</td>
-                <td className="table-cell text-right">{page.purchases.toLocaleString()}</td>
-                <td className="table-cell text-right">
-                  <div className="font-medium text-app-strong">${page.revenue.toFixed(2)}</div>
-                  <div className="mt-1 flex justify-end">
-                    <DeltaIndicator value={page.revenue_delta} />
-                  </div>
-                </td>
-                <td className="table-cell">
-                  <div className="flex justify-end gap-2">
-                    <DeltaIndicator value={page.pageviews_delta} emphasize />
-                    <DeltaIndicator value={page.revenue_delta} emphasize />
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </TableSection>
+        <DataTable
+          columns={columns}
+          data={filteredPages}
+          keyExtractor={(p) => p.path}
+          emptyTitle={pages.length === 0 ? 'No page data yet' : 'No matching page paths'}
+          emptyBody={
+            pages.length === 0
+              ? 'Top pages will appear here once traffic data has been collected for this site.'
+              : 'Try a shorter page path or clear the current filter to see the full list again.'
+          }
+        />
+      </SectionCard>
     </div>
   )
+}
+
+function DeltaLabel({ value }: { value: number | null | undefined }) {
+  if (value == null) return <span className="text-xs text-app-soft">-</span>
+  const isUp = value >= 0
+  return <span className={`text-xs font-semibold ${isUp ? 'text-emerald-600' : 'text-red-600'}`}>{isUp ? '+' : ''}{value.toFixed(1)}%</span>
 }

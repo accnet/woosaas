@@ -5,8 +5,8 @@ import { DollarSign, Globe, RadioTower, Users } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { MetricCard } from '@/components/ui/metric-card'
-import { EmptyState } from '@/components/ui/empty-state'
 import { SectionCard } from '@/components/ui/section-card'
+import { DataTable, type Column } from '@/components/ui/data-table'
 import { statsApi } from '@/lib/api'
 import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import { useSiteId } from '@/hooks/use-site-id'
@@ -41,8 +41,20 @@ export default function SourcesPage() {
   const totalRevenue = sources.reduce((sum, s) => sum + s.revenue, 0)
   const totalUsers = sources.reduce((sum, s) => sum + s.users, 0)
 
+  const columns: Column<SourceStats>[] = [
+    { key: 'source', label: 'Source', render: (s) => <span className="font-medium text-app-strong">{s.source || '(direct)'}</span> },
+    { key: 'medium', label: 'Medium', render: (s) => <span className="text-app-muted">{s.medium || '(none)'}</span> },
+    { key: 'pageviews', label: 'Pageviews', align: 'right', sortable: true, render: (s) => s.pageviews?.toLocaleString() || '0', sortValue: (s) => s.pageviews },
+    { key: 'sessions', label: 'Sessions', align: 'right', sortable: true, render: (s) => s.sessions?.toLocaleString() || '0', sortValue: (s) => s.sessions },
+    { key: 'users', label: 'Users', align: 'right', sortable: true, render: (s) => s.users?.toLocaleString() || '0', sortValue: (s) => s.users },
+    { key: 'conversions', label: 'Conversions', align: 'right', sortable: true, render: (s) => s.conversions?.toLocaleString() || '0', sortValue: (s) => s.conversions },
+    { key: 'conversion_rate', label: 'Conv. Rate', align: 'right', sortable: true, render: (s) => `${(s.conversion_rate || 0).toFixed(2)}%`, sortValue: (s) => s.conversion_rate },
+    { key: 'revenue', label: 'Revenue', align: 'right', sortable: true, render: (s) => <span className="font-medium">${(s.revenue || 0).toFixed(2)}</span>, sortValue: (s) => s.revenue },
+  ]
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
+
       <AnalyticsPageHeader
         title="Traffic Sources"
         description="Which channels and mediums are driving visits, users, and revenue."
@@ -72,37 +84,9 @@ export default function SourcesPage() {
         icon={<RadioTower className="h-4 w-4" />}
         className="overflow-hidden px-0 py-0"
       >
-        <div className="table-container rounded-none border-0 shadow-none">
-          <table className="min-w-full">
-            <thead className="table-header">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Source</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Medium</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Pageviews</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Sessions</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Users</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Conversions</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Conv. Rate</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Revenue</th>
-              </tr>
-            </thead>
-            <tbody className="table-body">
-              {sources.map((source, i) => (
-                <tr key={i} className="table-row">
-                  <td className="table-cell font-medium text-app-strong">{source.source || '(direct)'}</td>
-                  <td className="table-cell text-app-muted">{source.medium || '(none)'}</td>
-                  <td className="table-cell text-right">{source.pageviews?.toLocaleString() || '0'}</td>
-                  <td className="table-cell text-right">{source.sessions?.toLocaleString() || '0'}</td>
-                  <td className="table-cell text-right">{source.users?.toLocaleString() || '0'}</td>
-                  <td className="table-cell text-right">{source.conversions?.toLocaleString() || '0'}</td>
-                  <td className="table-cell text-right">{(source.conversion_rate || 0).toFixed(2)}%</td>
-                  <td className="table-cell text-right font-medium">${(source.revenue || 0).toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {sources.length === 0 && <EmptyState body="No source data available" />}
-        </div>
+        <DataTable columns={columns} data={sources} keyExtractor={(_s) => `${_s.source}-${_s.medium}`} />
+
+
       </SectionCard>
     </div>
   )

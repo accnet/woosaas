@@ -1,3 +1,4 @@
+import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 export function MetricCard({
@@ -7,6 +8,8 @@ export function MetricCard({
   helper,
   tone = 'neutral',
   live = false,
+  delta,
+  deltaLabel = 'vs previous period',
   valueClassName = '',
 }: {
   icon: ReactNode
@@ -15,6 +18,8 @@ export function MetricCard({
   helper?: string
   tone?: 'neutral' | 'good' | 'warn'
   live?: boolean
+  delta?: number | null
+  deltaLabel?: string
   valueClassName?: string
 }) {
   const toneClass = {
@@ -22,6 +27,9 @@ export function MetricCard({
     good: 'bg-emerald-50 text-emerald-700',
     warn: 'bg-amber-50 text-amber-700',
   }[tone]
+
+  const isDeltaPositive = delta !== null && delta !== undefined && delta >= 0
+  const DeltaIcon = delta === null || delta === undefined ? null : delta === 0 ? Minus : isDeltaPositive ? ArrowUpRight : ArrowDownRight
 
   return (
     <div className="card px-5 py-5">
@@ -38,7 +46,25 @@ export function MetricCard({
           </div>
         )}
       </div>
-      {helper ? <div className="mt-2 text-sm text-app-muted">{helper}</div> : null}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {delta !== null && delta !== undefined && DeltaIcon ? (
+          <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold ${
+            delta === 0
+              ? 'bg-app-subtle text-app-muted'
+              : isDeltaPositive
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'bg-red-50 text-red-700'
+          }`}>
+            <DeltaIcon className="h-3 w-3" />
+            {delta > 0 ? '+' : ''}{delta.toFixed(1)}%
+          </span>
+        ) : null}
+        {helper ? <span className="text-sm text-app-muted">{helper}</span> : null}
+      </div>
+      {delta !== null && delta !== undefined && deltaLabel ? (
+        <div className="mt-1 text-xs text-app-soft">{deltaLabel}</div>
+      ) : null}
     </div>
   )
 }
+

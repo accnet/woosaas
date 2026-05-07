@@ -145,7 +145,8 @@ export default function RealtimePage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
+
       <AnalyticsPageHeader
         title="Realtime Activity"
         description="Short-window activity feed with explicit live state, refresh control, and feed filtering."
