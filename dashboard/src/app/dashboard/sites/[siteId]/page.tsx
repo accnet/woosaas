@@ -148,7 +148,7 @@ export default function WebsiteHomePage() {
               Manage API keys
               <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link href={`/dashboard/sites/${site.id}/team`} className="site-switcher-footer">
+            <Link href={`/dashboard/teams?siteId=${site.id}`} className="site-switcher-footer">
               Manage team access
               <ArrowRight className="h-4 w-4" />
             </Link>

@@ -29,7 +29,7 @@ Woosaas helps you track traffic sources, revenue, conversion funnels, and custom
 
 ```bash
 # Start the full dev stack from .env
-./.start.sh start
+./start.sh start
 ```
 
 The dev script builds the stack, runs migrations, checks API health, and uses the WordPress plugin already installed at `/var/www/site1.local/wp-content/plugins/plugin`.

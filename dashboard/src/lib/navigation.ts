@@ -28,6 +28,7 @@ export type NavItem = {
 export const appNav: NavItem[] = [
   { href: '/dashboard', label: 'Workspace', icon: LayoutDashboard },
   { href: '/dashboard/sites', label: 'Websites', icon: Globe },
+  { href: '/dashboard/teams', label: 'Teams', icon: Users },
 ]
 
 export const siteAppsNav: NavItem[] = [
@@ -64,7 +65,6 @@ export const siteOperationsNav: NavItem[] = [
 export const siteSetupNav: NavItem[] = [
   { href: '/dashboard/sites/[siteId]/onboarding', label: 'Onboarding', icon: PanelLeft },
   { href: '/dashboard/sites/[siteId]/api-keys', label: 'API Keys', icon: KeyRound },
-  { href: '/dashboard/sites/[siteId]/team', label: 'Team', icon: Users },
 ]
 
 export function getCurrentSiteId(pathname: string) {
@@ -108,6 +108,10 @@ export function isAnalyticsRoute(pathname: string) {
 }
 
 export function getCurrentSiteApp(pathname: string) {
+  if (pathname === '/dashboard/teams') {
+    return 'Teams'
+  }
+
   if (/^\/dashboard\/sites\/[^/]+\/support-tickets(?:\/|$)/.test(pathname)) {
     return 'Support Tickets'
   }
@@ -171,6 +175,13 @@ export function buildPageMeta(pathname: string) {
     return {
       title: 'Websites',
       description: 'Create websites, inspect readiness, and jump into apps or setup flows.',
+    }
+  }
+
+  if (pathname === '/dashboard/teams') {
+    return {
+      title: 'Teams',
+      description: 'Manage workspace members, website access, and assigned roles.',
     }
   }
 

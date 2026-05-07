@@ -8,6 +8,7 @@ plugin/vendor/
 # Build output
 .next/
 dashboard/.next/
+dashboard/tsconfig.tsbuildinfo
 dist/
 build/
 

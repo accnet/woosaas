@@ -411,7 +411,7 @@ function SiteCard({
         <Link href={`/dashboard/${site.id}/overview`} className="btn-secondary">
           View analytics
         </Link>
-        <Link href={`/dashboard/sites/${site.id}/team`} className="btn-ghost">
+        <Link href={`/dashboard/teams?siteId=${site.id}`} className="btn-ghost">
           <Users className="mr-1.5 h-4 w-4" />
           Team
         </Link>

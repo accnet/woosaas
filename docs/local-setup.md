@@ -19,7 +19,7 @@ cd woosaas
 # /var/www/site1.local/wp-content/plugins/plugin
 
 # 3. Start everything
-./.start.sh start
+./start.sh start
 ```
 
 Important:
@@ -94,14 +94,14 @@ Key variables:
 - `POSTGRES_*` - PostgreSQL connection
 - `REDIS_*` - Redis connection
 - `NEXT_PUBLIC_API_URL` - Dashboard API URL
-- `WP_PLUGIN_PATH` - WordPress plugin location used by `.start.sh`
+- `WP_PLUGIN_PATH` - WordPress plugin location used by `start.sh`
 
 ## Testing
 
 ```bash
 cd api && go test ./...
 cd ../dashboard && npm run build
-cd .. && ./.start.sh smoke
+cd .. && ./start.sh smoke
 ```
 
 For manual verification during development, keep both the API server and worker running before testing plugin or dashboard data flows.
