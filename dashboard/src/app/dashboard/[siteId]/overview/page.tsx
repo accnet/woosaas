@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { BarChart3, DollarSign, Gauge, MousePointerClick, ShoppingCart, Users } from 'lucide-react'
+import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { LineChart } from '@/components/ui/charts'
 import { MetricCard } from '@/components/ui/metric-card'
@@ -58,24 +59,22 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-8">
-      <div className="panel-header">
-        <div>
-          <h2 className="text-2xl font-semibold text-app-strong">Performance Summary</h2>
-          <p className="mt-2 text-sm text-app-muted">
-            Core traffic, conversion, and revenue signals for the selected period.
-          </p>
-        </div>
-        <select
-          value={dateRange}
-          onChange={(e) => setDateRange(e.target.value as PresetDateRange)}
-          className="select"
-        >
-          <option value="24h">Last 24 hours</option>
-          <option value="7d">Last 7 days</option>
-          <option value="30d">Last 30 days</option>
-          <option value="90d">Last 90 days</option>
-        </select>
-      </div>
+      <AnalyticsPageHeader
+        title="Performance Summary"
+        description="Core traffic, conversion, and revenue signals for the selected period."
+        controls={
+          <DateRangeSelect
+            value={dateRange}
+            onChange={(value) => setDateRange(value as PresetDateRange)}
+            options={[
+              { value: '24h', label: 'Last 24 hours' },
+              { value: '7d', label: 'Last 7 days' },
+              { value: '30d', label: 'Last 30 days' },
+              { value: '90d', label: 'Last 90 days' },
+            ]}
+          />
+        }
+      />
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
         <MetricCard

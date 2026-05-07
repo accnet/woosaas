@@ -89,15 +89,20 @@ function SiteDirectoryRow({
   onNavigate?: () => void
 }) {
   const { state, badgeClass } = getTrackingBadgeClass(site)
+  const lastSignal = site.tracking_last_event_at || site.tracking_last_checked_at || site.created_at
 
   return (
     <Link href={`/dashboard/${site.id}/overview`} className="site-list-row" onClick={onNavigate}>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-3">
           <div className="truncate text-sm font-medium text-app-strong">{site.name}</div>
-          {pinned ? <Star className="h-4 w-4 shrink-0 fill-current text-amber-500" /> : <span className={badgeClass}>{state.label}</span>}
+          <div className="flex shrink-0 items-center gap-2">
+            {pinned && <Star className="h-4 w-4 fill-current text-amber-500" />}
+            <span className={badgeClass}>{state.label}</span>
+          </div>
         </div>
         <div className="truncate text-xs text-app-muted">{site.domain}</div>
+        <div className="mt-1 truncate text-[11px] text-app-soft">Last signal {formatRelativeTimeLabel(lastSignal)}</div>
       </div>
       <ChevronRight className="h-4 w-4 text-app-soft" />
     </Link>
@@ -395,17 +400,27 @@ function SiteSidebarContent({
   onNavigate?: () => void
 }) {
   const [pinnedSiteIds, setPinnedSiteIds] = useState<string[]>([])
+  const [recentSiteIds, setRecentSiteIds] = useState<string[]>([])
 
   useEffect(() => {
     if (typeof window === 'undefined') {
       return
     }
     setPinnedSiteIds(JSON.parse(window.localStorage.getItem(PINNED_SITES_KEY) || '[]'))
+    setRecentSiteIds(JSON.parse(window.localStorage.getItem(RECENT_SITES_KEY) || '[]'))
   }, [siteId, pathname])
 
   const pinnedSites = pinnedSiteIds
     .map((pinnedId) => sites.find((entry) => entry.id === pinnedId))
     .filter((entry): entry is Site => !!entry)
+
+  const recentSites = recentSiteIds
+    .map((recentId) => sites.find((entry) => entry.id === recentId))
+    .filter((entry): entry is Site => !!entry && !pinnedSiteIds.includes(entry.id))
+
+  const connectedSites = sites.filter(
+    (entry) => !pinnedSiteIds.includes(entry.id) && !recentSiteIds.includes(entry.id)
+  )
 
   if (site) {
     return (
@@ -476,6 +491,23 @@ function SiteSidebarContent({
         </div>
       )}
 
+      {recentSites.length > 0 && (
+        <div>
+          <div className="pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-app-soft">
+            Recent Websites
+          </div>
+          <div className="space-y-2">
+            {recentSites.slice(0, 4).map((connectedSite) => (
+              <SiteDirectoryRow
+                key={`recent-${connectedSite.id}`}
+                site={connectedSite}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div>
         <div className="pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-app-soft">
           Connected Websites
@@ -486,9 +518,9 @@ function SiteSidebarContent({
             <div className="h-10 rounded-md bg-slate-100" />
             <div className="h-10 rounded-md bg-slate-100" />
           </div>
-        ) : sites.length > 0 ? (
+        ) : connectedSites.length > 0 ? (
           <div className="space-y-2">
-            {sites.slice(0, 8).map((connectedSite) => (
+            {connectedSites.slice(0, 8).map((connectedSite) => (
               <SiteDirectoryRow
                 key={connectedSite.id}
                 site={connectedSite}

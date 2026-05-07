@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { BarChart3, CalendarRange, LineChart as LineChartIcon, Users } from 'lucide-react'
+import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
 import { LineChart } from '@/components/ui/charts'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { MetricCard } from '@/components/ui/metric-card'
 import { EmptyState } from '@/components/ui/empty-state'
+import { SectionCard } from '@/components/ui/section-card'
 import { statsApi } from '@/lib/api'
 import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import { useSiteId } from '@/hooks/use-site-id'
@@ -41,25 +43,29 @@ export default function TrendPage() {
 
   return (
     <div className="space-y-8">
-      <div className="panel-header">
-        <div>
-          <h2 className="text-2xl font-semibold text-app-strong">Trend Analysis</h2>
-          <p className="mt-2 text-sm text-app-muted">Historical movement across the key acquisition and conversion metrics.</p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <select value={metric} onChange={(e) => setMetric(e.target.value as typeof metric)} className="select">
-            <option value="pageviews">Pageviews</option>
-            <option value="sessions">Sessions</option>
-            <option value="users">Users</option>
-            <option value="purchases">Purchases</option>
-          </select>
-          <select value={dateRange} onChange={(e) => setDateRange(e.target.value as PresetDateRange)} className="select">
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-            <option value="90d">Last 90 days</option>
-          </select>
-        </div>
-      </div>
+      <AnalyticsPageHeader
+        title="Trend Analysis"
+        description="Historical movement across the key acquisition and conversion metrics."
+        controls={
+          <>
+            <select value={metric} onChange={(e) => setMetric(e.target.value as typeof metric)} className="select min-w-[150px]">
+              <option value="pageviews">Pageviews</option>
+              <option value="sessions">Sessions</option>
+              <option value="users">Users</option>
+              <option value="purchases">Purchases</option>
+            </select>
+            <DateRangeSelect
+              value={dateRange}
+              onChange={(value) => setDateRange(value as PresetDateRange)}
+              options={[
+                { value: '7d', label: 'Last 7 days' },
+                { value: '30d', label: 'Last 30 days' },
+                { value: '90d', label: 'Last 90 days' },
+              ]}
+            />
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
         <MetricCard icon={<LineChartIcon className="h-4 w-4" />} label="Pageviews" value={trend.reduce((sum, p) => sum + (p.pageviews ?? 0), 0).toLocaleString()} />
@@ -68,13 +74,17 @@ export default function TrendPage() {
         <MetricCard icon={<CalendarRange className="h-4 w-4" />} label="Revenue" value={`$${trend.reduce((sum, p) => sum + (p.revenue ?? 0), 0).toFixed(2)}`} />
       </div>
 
-      <div className="card px-6 py-6">
+      <SectionCard
+        title="Metric Timeline"
+        description="Daily movement for the selected metric and date range."
+        icon={<LineChartIcon className="h-4 w-4" />}
+      >
         {trend.length > 0 ? (
           <LineChart data={trend} dataKey={metric} />
         ) : (
           <EmptyState icon={<LineChartIcon className="h-12 w-12" />} body="No trend data available" className="flex h-64 items-center justify-center" />
         )}
-      </div>
+      </SectionCard>
     </div>
   )
 }

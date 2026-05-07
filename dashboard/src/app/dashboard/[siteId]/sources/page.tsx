@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { DollarSign, Globe, RadioTower, Users } from 'lucide-react'
+import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { MetricCard } from '@/components/ui/metric-card'
 import { EmptyState } from '@/components/ui/empty-state'
+import { SectionCard } from '@/components/ui/section-card'
 import { statsApi } from '@/lib/api'
 import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import { useSiteId } from '@/hooks/use-site-id'
@@ -41,17 +43,21 @@ export default function SourcesPage() {
 
   return (
     <div className="space-y-8">
-      <div className="panel-header">
-        <div>
-          <h2 className="text-2xl font-semibold text-app-strong">Traffic Sources</h2>
-          <p className="mt-2 text-sm text-app-muted">Which channels and mediums are driving visits, users, and revenue.</p>
-        </div>
-        <select value={dateRange} onChange={(e) => setDateRange(e.target.value as PresetDateRange)} className="select">
-          <option value="7d">Last 7 days</option>
-          <option value="30d">Last 30 days</option>
-          <option value="90d">Last 90 days</option>
-        </select>
-      </div>
+      <AnalyticsPageHeader
+        title="Traffic Sources"
+        description="Which channels and mediums are driving visits, users, and revenue."
+        controls={
+          <DateRangeSelect
+            value={dateRange}
+            onChange={(value) => setDateRange(value as PresetDateRange)}
+            options={[
+              { value: '7d', label: 'Last 7 days' },
+              { value: '30d', label: 'Last 30 days' },
+              { value: '90d', label: 'Last 90 days' },
+            ]}
+          />
+        }
+      />
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
         <MetricCard icon={<RadioTower className="h-4 w-4" />} label="Sources" value={sources.length.toString()} />
@@ -60,37 +66,44 @@ export default function SourcesPage() {
         <MetricCard icon={<DollarSign className="h-4 w-4" />} label="Revenue" value={`$${totalRevenue.toFixed(2)}`} />
       </div>
 
-      <div className="table-container">
-        <table className="min-w-full">
-          <thead className="table-header">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Source</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Medium</th>
-              <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Pageviews</th>
-              <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Sessions</th>
-              <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Users</th>
-              <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Conversions</th>
-              <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Conv. Rate</th>
-              <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Revenue</th>
-            </tr>
-          </thead>
-          <tbody className="table-body">
-            {sources.map((source, i) => (
-              <tr key={i} className="table-row">
-                <td className="table-cell font-medium text-app-strong">{source.source || '(direct)'}</td>
-                <td className="table-cell text-app-muted">{source.medium || '(none)'}</td>
-                <td className="table-cell text-right">{source.pageviews?.toLocaleString() || '0'}</td>
-                <td className="table-cell text-right">{source.sessions?.toLocaleString() || '0'}</td>
-                <td className="table-cell text-right">{source.users?.toLocaleString() || '0'}</td>
-                <td className="table-cell text-right">{source.conversions?.toLocaleString() || '0'}</td>
-                <td className="table-cell text-right">{(source.conversion_rate || 0).toFixed(2)}%</td>
-                <td className="table-cell text-right font-medium">${(source.revenue || 0).toFixed(2)}</td>
+      <SectionCard
+        title="Source Breakdown"
+        description="Acquisition performance by source and medium."
+        icon={<RadioTower className="h-4 w-4" />}
+        className="overflow-hidden px-0 py-0"
+      >
+        <div className="table-container rounded-none border-0 shadow-none">
+          <table className="min-w-full">
+            <thead className="table-header">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Source</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Medium</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Pageviews</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Sessions</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Users</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Conversions</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Conv. Rate</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">Revenue</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        {sources.length === 0 && <EmptyState body="No source data available" />}
-      </div>
+            </thead>
+            <tbody className="table-body">
+              {sources.map((source, i) => (
+                <tr key={i} className="table-row">
+                  <td className="table-cell font-medium text-app-strong">{source.source || '(direct)'}</td>
+                  <td className="table-cell text-app-muted">{source.medium || '(none)'}</td>
+                  <td className="table-cell text-right">{source.pageviews?.toLocaleString() || '0'}</td>
+                  <td className="table-cell text-right">{source.sessions?.toLocaleString() || '0'}</td>
+                  <td className="table-cell text-right">{source.users?.toLocaleString() || '0'}</td>
+                  <td className="table-cell text-right">{source.conversions?.toLocaleString() || '0'}</td>
+                  <td className="table-cell text-right">{(source.conversion_rate || 0).toFixed(2)}%</td>
+                  <td className="table-cell text-right font-medium">${(source.revenue || 0).toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {sources.length === 0 && <EmptyState body="No source data available" />}
+        </div>
+      </SectionCard>
     </div>
   )
 }
