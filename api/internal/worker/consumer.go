@@ -161,12 +161,21 @@ func (c *Consumer) readOnce(ctx context.Context, batch *eventBatchWriter) {
 	}
 }
 
+var (
+	_consumerName     string
+	_consumerNameOnce sync.Once
+)
+
 func consumerName() string {
-	host, err := os.Hostname()
-	if err != nil || host == "" {
-		return "worker"
-	}
-	return host
+	_consumerNameOnce.Do(func() {
+		host, err := os.Hostname()
+		if err != nil || host == "" {
+			_consumerName = "worker"
+		} else {
+			_consumerName = host
+		}
+	})
+	return _consumerName
 }
 
 func isBusyGroupErr(err error) bool {

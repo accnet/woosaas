@@ -93,9 +93,13 @@ func (h *CollectHandler) CollectBatch(c *gin.Context) {
 	responses := make([]models.EventResponse, len(req.Events))
 	processed := false
 
+	// Step 1: Validate all events locally without network calls
+	validEvents := make([]models.Event, 0, len(req.Events))
+	validIndexes := make([]int, 0, len(req.Events))
+	eventIDs := make([]string, 0, len(req.Events))
+
 	for i := range req.Events {
 		event := req.Events[i]
-
 		if err := h.collector.ValidateEvent(&event); err != nil {
 			responses[i] = models.EventResponse{
 				EventID:    event.EventID,
@@ -104,23 +108,29 @@ func (h *CollectHandler) CollectBatch(c *gin.Context) {
 			}
 			continue
 		}
+		validEvents = append(validEvents, event)
+		validIndexes = append(validIndexes, i)
+		eventIDs = append(eventIDs, event.EventID)
+	}
 
-		isDup, err := h.collector.Deduplicate(c.Request.Context(), siteID, event.EventID)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check duplicate events"})
-			return
-		}
+	// Step 2: Deduplicate in a single Redis Pipeline round-trip (C3)
+	isDupBatch, err := h.collector.DeduplicateBatch(c.Request.Context(), siteID, eventIDs)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check duplicate events"})
+		return
+	}
+
+	for i, isDup := range isDupBatch {
 		if isDup {
-			responses[i] = models.EventResponse{
-				EventID:    event.EventID,
+			responses[validIndexes[i]] = models.EventResponse{
+				EventID:    validEvents[i].EventID,
 				Status:     "duplicate",
 				ReceivedAt: time.Now().Format(time.RFC3339Nano),
 			}
 			continue
 		}
-
-		queuedEvents = append(queuedEvents, event)
-		queuedIndexes = append(queuedIndexes, i)
+		queuedEvents = append(queuedEvents, validEvents[i])
+		queuedIndexes = append(queuedIndexes, validIndexes[i])
 	}
 
 	// Process batch

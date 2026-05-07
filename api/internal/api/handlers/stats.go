@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -367,7 +368,7 @@ func (h *StatsHandler) GetHealth(c *gin.Context) {
 		return
 	}
 
-	health, err := h.stats.GetPipelineHealth(c.Request.Context(), siteID, h.redis)
+	health, err := h.stats.GetPipelineHealth(c.Request.Context(), siteID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -467,9 +468,25 @@ func (h *StatsHandler) GetCustomer(c *gin.Context) {
 	c.JSON(http.StatusOK, customer)
 }
 
+// requireSiteAccess checks if the user can read the site.
+// M1: Result is cached in Redis for 5 minutes to avoid a Postgres query on every metrics request.
 func (h *StatsHandler) requireSiteAccess(c *gin.Context, siteID string) bool {
 	userID := c.GetString("user_id")
+	
+	cacheKey := fmt.Sprintf("perm:%s:%s", userID, siteID)
+	if allowed, err := h.redis.Get(c.Request.Context(), cacheKey).Bool(); err == nil {
+		if !allowed {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Site not found"})
+			return false
+		}
+		return true
+	}
+
 	allowed, err := h.repo.UserHasSitePermission(c.Request.Context(), userID, siteID, "site:read")
+	
+	// Cache the boolean result
+	h.redis.Set(c.Request.Context(), cacheKey, allowed, 5*time.Minute)
+
 	if err != nil || !allowed {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Site not found"})
 		return false

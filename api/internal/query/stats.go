@@ -383,9 +383,17 @@ type PageStats struct {
 	RevenueDelta         float64 `json:"revenue_delta"`
 }
 
-// GetProducts returns product performance stats
+// GetProducts returns product performance stats. Cached for 5 minutes.
+// C2: Single-pass query evaluates conditional aggregates in one scan.
 func (s *Stats) GetProducts(ctx context.Context, siteID, from, to, previousFrom, previousTo string, limit int) ([]ProductStats, error) {
-	query := `
+	const ttl = 5 * time.Minute
+	key := cacheKey("products", siteID, from, to, previousFrom, previousTo, fmt.Sprintf("%d", limit))
+	var cached []ProductStats
+	if s.cache.get(ctx, key, &cached) {
+		return cached, nil
+	}
+
+	const q = `
 		SELECT
 			product_id,
 			anyLast(product_name) as product_name,
@@ -394,27 +402,19 @@ func (s *Stats) GetProducts(ctx context.Context, siteID, from, to, previousFrom,
 			toInt64(countIf(event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as purchases,
 			toFloat64(sumIf(revenue, event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as total_revenue,
 			toInt64(sumIf(quantity, event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as units_sold,
-			toInt64(countIf(event_name = 'product_view' AND event_time >= ? AND event_time <= ?)) as previous_views,
-			toInt64(countIf(event_name = 'add_to_cart' AND event_time >= ? AND event_time <= ?)) as previous_add_to_carts,
-			toInt64(countIf(event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as previous_purchases,
-			toFloat64(sumIf(revenue, event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as previous_total_revenue,
-			toInt64(sumIf(quantity, event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as previous_units_sold
+			toInt64(countIf(event_name = 'product_view' AND event_time >= ? AND event_time <= ?)) as prev_views,
+			toInt64(countIf(event_name = 'add_to_cart' AND event_time >= ? AND event_time <= ?)) as prev_add_to_carts,
+			toInt64(countIf(event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as prev_purchases,
+			toFloat64(sumIf(revenue, event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as prev_total_revenue,
+			toInt64(sumIf(quantity, event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as prev_units_sold
 		FROM analytics_events
 		WHERE site_id = ? AND event_time >= ? AND event_time <= ? AND product_id != '' AND bot_score < 70
 		GROUP BY product_id ORDER BY total_revenue DESC, views DESC LIMIT ?
 	`
 
-	rows, err := s.ch.Query(ctx, query,
-		from, to,
-		from, to,
-		from, to,
-		from, to,
-		from, to,
-		previousFrom, previousTo,
-		previousFrom, previousTo,
-		previousFrom, previousTo,
-		previousFrom, previousTo,
-		previousFrom, previousTo,
+	rows, err := s.ch.Query(ctx, q,
+		from, to, from, to, from, to, from, to, from, to,
+		previousFrom, previousTo, previousFrom, previousTo, previousFrom, previousTo, previousFrom, previousTo, previousFrom, previousTo,
 		siteID, previousFrom, to, limit,
 	)
 	if err != nil {
@@ -426,18 +426,9 @@ func (s *Stats) GetProducts(ctx context.Context, siteID, from, to, previousFrom,
 	for rows.Next() {
 		var product ProductStats
 		if err := rows.Scan(
-			&product.ProductID,
-			&product.ProductName,
-			&product.Views,
-			&product.AddToCarts,
-			&product.Purchases,
-			&product.Revenue,
-			&product.UnitsSold,
-			&product.PreviousViews,
-			&product.PreviousAddToCarts,
-			&product.PreviousPurchases,
-			&product.PreviousRevenue,
-			&product.PreviousUnitsSold,
+			&product.ProductID, &product.ProductName,
+			&product.Views, &product.AddToCarts, &product.Purchases, &product.Revenue, &product.UnitsSold,
+			&product.PreviousViews, &product.PreviousAddToCarts, &product.PreviousPurchases, &product.PreviousRevenue, &product.PreviousUnitsSold,
 		); err != nil {
 			return nil, err
 		}
@@ -456,6 +447,9 @@ func (s *Stats) GetProducts(ctx context.Context, siteID, from, to, previousFrom,
 		products = append(products, product)
 	}
 
+	if products != nil {
+		s.cache.set(ctx, key, products, ttl)
+	}
 	return products, nil
 }
 
@@ -617,7 +611,7 @@ type RealtimeEvent struct {
 }
 
 // GetPipelineHealth returns site processing freshness and Redis stream health.
-func (s *Stats) GetPipelineHealth(ctx context.Context, siteID string, redisClient *redis.Client) (*PipelineHealth, error) {
+func (s *Stats) GetPipelineHealth(ctx context.Context, siteID string) (*PipelineHealth, error) {
 	health := &PipelineHealth{
 		Status:        "healthy",
 		ConsumerGroup: "woosaas-workers",
@@ -626,7 +620,8 @@ func (s *Stats) GetPipelineHealth(ctx context.Context, siteID string, redisClien
 		CheckedAt:     time.Now().UTC(),
 	}
 
-	if redisClient != nil {
+	if s.cache != nil && s.cache.redis != nil {
+		redisClient := s.cache.redis
 		if streamLength, err := redisClient.XLen(ctx, health.Stream).Result(); err == nil {
 			health.StreamLength = streamLength
 		}
