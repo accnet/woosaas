@@ -4,6 +4,7 @@ import (
 	"context"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/woosaas/api/pkg/models"
@@ -11,9 +12,9 @@ import (
 
 // Scorer handles bot detection
 type Scorer struct {
-	redis       *redis.Client
-	userAgents  []string
-	ipPatterns  []*regexp.Regexp
+	redis      *redis.Client
+	userAgents []string
+	ipPatterns []*regexp.Regexp
 }
 
 func NewScorer(redis *redis.Client) *Scorer {
@@ -32,7 +33,7 @@ func NewScorer(redis *redis.Client) *Scorer {
 			"okhttp",
 		},
 		ipPatterns: []*regexp.Regexp{
-			regexp.MustCompile(`^45\.33\.`), // Linode
+			regexp.MustCompile(`^45\.33\.`),             // Linode
 			regexp.MustCompile(`^104\.24\.|^172\.70\.`), // Cloudflare
 		},
 	}
@@ -73,13 +74,15 @@ func (s *Scorer) Score(ctx context.Context, event *models.Event) (int, []string)
 	}
 
 	// Check event rate (if Redis has rate info)
-	key := "bot_rate:" + event.SessionID
-	count, err := s.redis.Incr(ctx, key).Result()
-	if err == nil {
-		s.redis.Expire(ctx, key, 60*60) // 1 hour
-		if count > 100 { // More than 100 events per hour in single session
-			score += 30
-			reasons = append(reasons, "high_event_rate")
+	if s.redis != nil && event.SessionID != "" {
+		key := "bot_rate:" + event.SessionID
+		count, err := s.redis.Incr(ctx, key).Result()
+		if err == nil {
+			s.redis.Expire(ctx, key, time.Hour)
+			if count > 100 { // More than 100 events per hour in single session
+				score += 30
+				reasons = append(reasons, "high_event_rate")
+			}
 		}
 	}
 

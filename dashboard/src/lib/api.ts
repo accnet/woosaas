@@ -5,14 +5,19 @@ import type {
   APIKeyResponse,
   AuthResponse,
   BotReportResponse,
+  CampaignStats,
   CreateSiteMemberInput,
   CreateSiteInput,
+  CustomerDetailResponse,
+  CustomerListResponse,
   EventResponse,
   FunnelStats,
   OverviewStats,
   PageStats,
+  PipelineHealth,
   ProductStats,
   RealtimeStats,
+  RealtimeEvent,
   Site,
   SiteMember,
   SiteMembersResponse,
@@ -107,6 +112,10 @@ export const statsApi = {
     api.get<SourceStats[]>('/api/v1/stats/sources', {
       params: { site_id: siteId, from, to },
     }),
+  campaigns: (siteId: string, from: string, to: string) =>
+    api.get<CampaignStats[]>('/api/v1/stats/campaigns', {
+      params: { site_id: siteId, from, to },
+    }),
   pages: (siteId: string, from: string, to: string, limit = 20) =>
     api.get<PageStats[]>('/api/v1/stats/pages', {
       params: { site_id: siteId, from, to, limit },
@@ -123,10 +132,30 @@ export const statsApi = {
     api.get<RealtimeStats>('/api/v1/stats/realtime', {
       params: { site_id: siteId, minutes },
     }),
+  realtimeEvents: (siteId: string, minutes = 5, limit = 25) =>
+    api.get<RealtimeEvent[]>('/api/v1/stats/realtime/events', {
+      params: { site_id: siteId, minutes, limit },
+    }),
   bots: (siteId: string, from: string, to: string) =>
     api.get<BotReportResponse>('/api/v1/stats/bots', {
       params: { site_id: siteId, from, to },
     }),
+  health: (siteId: string) =>
+    api.get<PipelineHealth>('/api/v1/stats/health', {
+      params: { site_id: siteId },
+    }),
+  customers: (siteId: string, page = 1, pageSize = 25) =>
+    api.get<CustomerListResponse>('/api/v1/stats/customers', {
+      params: { site_id: siteId, page, page_size: pageSize },
+    }),
+  customer: (siteId: string, clientId: string, limit = 50) =>
+    api.get<CustomerDetailResponse>(`/api/v1/stats/customers/${encodeURIComponent(clientId)}`, {
+      params: { site_id: siteId, limit },
+    }),
+  exportUrl: (siteId: string, type: 'events' | 'orders' | 'customers', from: string, to: string) => {
+    const params = new URLSearchParams({ site_id: siteId, type, from, to })
+    return `${API_URL}/api/v1/stats/export?${params.toString()}`
+  },
 }
 
 export function getApiErrorMessage(error: unknown, fallback: string) {

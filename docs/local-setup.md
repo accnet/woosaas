@@ -14,23 +14,12 @@
 git clone https://github.com/woosaas/woosaas.git
 cd woosaas
 
-# 2. Copy environment file
-cp .env.example .env
+# 2. Review .env if needed
+# The default file already points the plugin path at:
+# /var/www/site1.local/wp-content/plugins/plugin
 
-# 3. Start infrastructure
-docker-compose up -d
-
-# 4. Run migrations
-docker compose --profile tools run --rm migrate
-
-# 5. Terminal 1: start backend
-(cd api && go run cmd/server/main.go)
-
-# 6. Terminal 2: start worker
-(cd api && go run cmd/worker/main.go)
-
-# 7. Terminal 3: start dashboard
-(cd dashboard && npm install && npm run dev)
+# 3. Start everything
+./.start.sh start
 ```
 
 Important:
@@ -45,7 +34,6 @@ Important:
 Woosaas/
 ├── api/              # Go backend (Gin + ClickHouse + Redis)
 ├── dashboard/        # Next.js frontend  
-├── plugin/           # WordPress plugin
 ├── docker/           # Docker configurations
 └── docker-compose.yml
 ```
@@ -67,7 +55,7 @@ For a full end-user walkthrough, use [WordPress Plugin Setup](plugin-setup.md).
 
 Quick version:
 
-1. Copy the plugin folder into `wp-content/plugins/woosaas`
+1. Use the plugin already installed at `/var/www/site1.local/wp-content/plugins/plugin`
 2. Activate `Woosaas` in WordPress Admin
 3. Create a site and API key in the dashboard
 4. Enter the API URL and API key in the plugin
@@ -87,6 +75,15 @@ Quick version:
 - `GET /api/v1/sites` - List sites
 - `GET /api/v1/stats/*` - Analytics endpoints
 
+## Default Dashboard Login
+
+For local development, PostgreSQL seeds an admin account:
+
+- Email: `admin@woosaas.com`
+- Password: `Admin123!`
+
+If your PostgreSQL volume was created before this credential fix, rerun migrations or reset the password manually for that user.
+
 ## Environment Variables
 
 See `.env.example` for all configuration options.
@@ -97,18 +94,14 @@ Key variables:
 - `POSTGRES_*` - PostgreSQL connection
 - `REDIS_*` - Redis connection
 - `NEXT_PUBLIC_API_URL` - Dashboard API URL
+- `WP_PLUGIN_PATH` - WordPress plugin location used by `.start.sh`
 
 ## Testing
 
 ```bash
-# Run backend tests
 cd api && go test ./...
-
-# Build dashboard
-cd dashboard && npm run build
-
-# Run an end-to-end smoke test against a running stack
-./scripts/smoke.sh
+cd ../dashboard && npm run build
+cd .. && ./.start.sh smoke
 ```
 
 For manual verification during development, keep both the API server and worker running before testing plugin or dashboard data flows.

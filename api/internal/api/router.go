@@ -7,6 +7,8 @@ import (
 	"github.com/woosaas/api/internal/api/handlers"
 	"github.com/woosaas/api/internal/api/middleware"
 	"github.com/woosaas/api/internal/auth"
+	"github.com/woosaas/api/internal/customer360"
+	"github.com/woosaas/api/internal/export"
 	"github.com/woosaas/api/internal/ingest"
 	"github.com/woosaas/api/internal/query"
 	"github.com/woosaas/api/internal/realtime"
@@ -18,9 +20,12 @@ type Router struct {
 	repo        *sites.Repository
 	jwtManager  *auth.JWTManager
 	mw          *middleware.Middleware
+	redisClient *redis.Client
 	collector   *ingest.Collector
 	stats       *query.Stats
 	bots        *query.Bots
+	exports     *export.ExportService
+	customers   *customer360.CustomerService
 	onlineUsers *realtime.OnlineUsers
 }
 
@@ -41,15 +46,19 @@ func NewRouter(
 		repo:        repo,
 		jwtManager:  jwtManager,
 		mw:          middleware.NewMiddleware(jwtManager, redisClient),
+		redisClient: redisClient,
 		collector:   ingest.NewCollector(redisClient),
 		stats:       query.NewStats(ch),
 		bots:        query.NewBots(ch),
+		exports:     export.NewService(ch),
+		customers:   customer360.NewService(ch),
 		onlineUsers: realtime.NewOnlineUsers(redisClient),
 	}
 }
 
 func (r *Router) Setup() *gin.Engine {
 	r.registerHealthRoute()
+	r.engine.Use(r.mw.CORS())
 
 	v1 := r.engine.Group("/api/v1")
 	r.registerCollectRoutes(v1)
@@ -70,7 +79,6 @@ func (r *Router) registerHealthRoute() {
 
 func (r *Router) registerCollectRoutes(v1 *gin.RouterGroup) {
 	collect := v1.Group("/collect")
-	collect.Use(r.mw.CORS())
 	collect.Use(r.mw.APIKeyAuth(r.repo))
 	collect.Use(r.mw.RateLimit())
 	{
@@ -115,17 +123,23 @@ func (r *Router) registerDashboardRoutes(v1 *gin.RouterGroup, authHandler *handl
 }
 
 func (r *Router) registerStatsRoutes(v1 *gin.RouterGroup) {
-	statsHandler := handlers.NewStatsHandler(r.stats, r.bots, r.onlineUsers, r.repo)
+	statsHandler := handlers.NewStatsHandler(r.stats, r.bots, r.onlineUsers, r.repo, r.redisClient, r.exports, r.customers)
 	stats := v1.Group("/stats")
 	stats.Use(r.mw.JWTAuth())
 	{
 		stats.GET("/overview", statsHandler.GetOverview)
 		stats.GET("/trend", statsHandler.GetTrend)
 		stats.GET("/sources", statsHandler.GetSources)
+		stats.GET("/campaigns", statsHandler.GetCampaigns)
 		stats.GET("/pages", statsHandler.GetPages)
 		stats.GET("/products", statsHandler.GetProducts)
 		stats.GET("/funnel", statsHandler.GetFunnel)
 		stats.GET("/realtime", statsHandler.GetRealtime)
+		stats.GET("/realtime/events", statsHandler.GetRealtimeEvents)
 		stats.GET("/bots", statsHandler.GetBots)
+		stats.GET("/health", statsHandler.GetHealth)
+		stats.GET("/export", statsHandler.Export)
+		stats.GET("/customers", statsHandler.GetCustomers)
+		stats.GET("/customers/:client_id", statsHandler.GetCustomer)
 	}
 }

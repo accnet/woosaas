@@ -4,7 +4,7 @@ Use this checklist against a local WordPress + WooCommerce install after the Woo
 
 ## Setup
 
-- Copy `plugin/` to `wp-content/plugins/woosaas`.
+- Use the plugin already installed at `/var/www/site1.local/wp-content/plugins/plugin`.
 - Activate the plugin in WordPress Admin.
 - In the Woosaas dashboard, create a site and API key.
 - Configure the plugin with API URL `http://localhost:8080` and the API key.

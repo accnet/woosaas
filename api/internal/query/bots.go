@@ -44,8 +44,8 @@ type BotSessionStat struct {
 
 func (b *Bots) GetReport(ctx context.Context, siteID, from, to string) (*BotReport, error) {
 	query := `
-		SELECT count() as total, countIf(bot_score >= 70) as bot_count,
-			countIf(bot_score < 70) as human_count
+		SELECT toInt64(count()) as total, toInt64(countIf(bot_score >= 70)) as bot_count,
+			toInt64(countIf(bot_score < 70)) as human_count
 		FROM analytics_events
 		WHERE site_id = ? AND event_time >= ? AND event_time <= ?
 	`
@@ -69,7 +69,7 @@ func (b *Bots) GetReport(ctx context.Context, siteID, from, to string) (*BotRepo
 	}
 
 	reasonQuery := `
-		SELECT bot_reason, count() as cnt
+		SELECT bot_reason, toInt64(count()) as cnt
 		FROM analytics_events
 		WHERE site_id = ? AND event_time >= ? AND event_time <= ? AND bot_score >= 70 AND bot_reason != ''
 		GROUP BY bot_reason ORDER BY cnt DESC LIMIT 10
@@ -86,7 +86,7 @@ func (b *Bots) GetReport(ctx context.Context, siteID, from, to string) (*BotRepo
 	}
 
 	sourceQuery := `
-		SELECT ifEmpty(source, 'direct') as source, count() as cnt
+		SELECT if(source = '', 'direct', source) as source, toInt64(count()) as cnt
 		FROM analytics_events
 		WHERE site_id = ? AND event_time >= ? AND event_time <= ? AND bot_score >= 70
 		GROUP BY source ORDER BY cnt DESC LIMIT 10
@@ -103,7 +103,7 @@ func (b *Bots) GetReport(ctx context.Context, siteID, from, to string) (*BotRepo
 	}
 
 	sessionQuery := `
-		SELECT session_id, ip_hash, user_agent, count() as event_count, max(bot_score) as max_score
+		SELECT session_id, ip_hash, user_agent, toInt64(count()) as event_count, toInt32(max(bot_score)) as max_score
 		FROM analytics_events
 		WHERE site_id = ? AND event_time >= ? AND event_time <= ? AND bot_score >= 70
 		GROUP BY session_id, ip_hash, user_agent ORDER BY event_count DESC LIMIT 20
@@ -112,7 +112,9 @@ func (b *Bots) GetReport(ctx context.Context, siteID, from, to string) (*BotRepo
 	if err == nil {
 		for sessionRows.Next() {
 			var stat BotSessionStat
-			if err := sessionRows.Scan(&stat.SessionID, &stat.IPHash, &stat.UserAgent, &stat.EventCount, &stat.BotScore); err == nil {
+			var botScore int32
+			if err := sessionRows.Scan(&stat.SessionID, &stat.IPHash, &stat.UserAgent, &stat.EventCount, &botScore); err == nil {
+				stat.BotScore = int(botScore)
 				report.TopBotSessions = append(report.TopBotSessions, stat)
 			}
 		}

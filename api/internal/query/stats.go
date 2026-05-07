@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
+	"github.com/redis/go-redis/v9"
 )
 
 type Stats struct {
@@ -27,7 +28,7 @@ func (s *Stats) GetOverview(ctx context.Context, siteID, from, to, timezone stri
 			toInt64(countIf(event_name = 'add_to_cart')) as add_to_carts,
 			toInt64(countIf(event_name = 'checkout_start')) as checkouts,
 			toInt64(countIf(event_name = 'purchase')) as purchases,
-			toFloat64(sumIf(revenue, event_name = 'purchase')) as revenue,
+			toFloat64(sumIf(revenue, event_name = 'purchase')) as total_revenue,
 			toInt64(countIf(event_name = 'purchase')) as orders,
 			toInt64(uniqExactIf(session_id, event_name = 'purchase')) as converting_sessions
 		FROM analytics_events
@@ -103,7 +104,7 @@ func (s *Stats) GetTrend(ctx context.Context, siteID, from, to, timezone, granul
 			toInt64(uniqExact(session_id)) as sessions,
 			toInt64(uniqExact(client_id)) as users,
 			toInt64(countIf(event_name = 'purchase')) as purchases,
-			toFloat64(sumIf(revenue, event_name = 'purchase')) as revenue
+			toFloat64(sumIf(revenue, event_name = 'purchase')) as total_revenue
 		FROM analytics_events
 		WHERE site_id = ? AND event_time >= ? AND event_time <= ? AND bot_score < 70
 		GROUP BY date ORDER BY date
@@ -140,12 +141,12 @@ type TrendPoint struct {
 // GetSources returns traffic source breakdown
 func (s *Stats) GetSources(ctx context.Context, siteID, from, to string) ([]SourceStats, error) {
 	query := `
-		SELECT ifEmpty(source, 'direct') as source, ifEmpty(medium, '') as medium,
+		SELECT if(source = '', 'direct', source) as source, if(medium = '', '', medium) as medium,
 			toInt64(countIf(event_name = 'pageview')) as pageviews,
 			toInt64(uniqExact(session_id)) as sessions,
 			toInt64(uniqExact(client_id)) as users,
 			toInt64(countIf(event_name = 'purchase')) as conversions,
-			toFloat64(sumIf(revenue, event_name = 'purchase')) as revenue
+			toFloat64(sumIf(revenue, event_name = 'purchase')) as total_revenue
 		FROM analytics_events
 		WHERE site_id = ? AND event_time >= ? AND event_time <= ? AND bot_score < 70
 		GROUP BY source, medium ORDER BY sessions DESC LIMIT 50
@@ -184,18 +185,114 @@ type SourceStats struct {
 	ConversionRate float64 `json:"conversion_rate"`
 }
 
-// GetPages returns top pages by traffic
-func (s *Stats) GetPages(ctx context.Context, siteID, from, to string, limit int) ([]PageStats, error) {
+// GetCampaigns returns campaign-level attribution performance.
+func (s *Stats) GetCampaigns(ctx context.Context, siteID, from, to string) ([]CampaignStats, error) {
 	query := `
-		SELECT path, toInt64(countIf(event_name = 'pageview')) as pageviews,
+		SELECT
+			if(source = '', 'direct', source) as source,
+			if(medium = '', '', medium) as medium,
+			if(campaign = '', '(none)', campaign) as campaign,
+			toInt64(countIf(event_name = 'pageview')) as pageviews,
 			toInt64(uniqExact(session_id)) as sessions,
-			toInt64(countIf(event_name = 'product_view')) as product_views
+			toInt64(uniqExact(client_id)) as users,
+			toInt64(countIf(event_name = 'purchase')) as conversions,
+			toFloat64(sumIf(revenue, event_name = 'purchase')) as total_revenue,
+			toInt64(countIf(gclid != '')) as gclid_events,
+			toInt64(countIf(fbclid != '')) as fbclid_events,
+			toInt64(countIf(ttclid != '')) as ttclid_events,
+			toInt64(countIf(msclkid != '')) as msclkid_events
+		FROM analytics_events
+		WHERE site_id = ? AND event_time >= ? AND event_time <= ? AND bot_score < 70
+		GROUP BY source, medium, campaign
+		ORDER BY total_revenue DESC, sessions DESC
+		LIMIT 100
+	`
+
+	rows, err := s.ch.Query(ctx, query, siteID, from, to)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var campaigns []CampaignStats
+	for rows.Next() {
+		var stat CampaignStats
+		if err := rows.Scan(
+			&stat.Source,
+			&stat.Medium,
+			&stat.Campaign,
+			&stat.Pageviews,
+			&stat.Sessions,
+			&stat.Users,
+			&stat.Conversions,
+			&stat.Revenue,
+			&stat.GCLIDEvents,
+			&stat.FBCLIDEvents,
+			&stat.TTCLIDEvents,
+			&stat.MSCLKIDEvents,
+		); err != nil {
+			return nil, err
+		}
+		if stat.Sessions > 0 {
+			stat.ConversionRate = float64(stat.Conversions) / float64(stat.Sessions) * 100
+			stat.RevenuePerSession = stat.Revenue / float64(stat.Sessions)
+		}
+		campaigns = append(campaigns, stat)
+	}
+
+	return campaigns, nil
+}
+
+type CampaignStats struct {
+	Source            string  `json:"source"`
+	Medium            string  `json:"medium"`
+	Campaign          string  `json:"campaign"`
+	Pageviews         int64   `json:"pageviews"`
+	Sessions          int64   `json:"sessions"`
+	Users             int64   `json:"users"`
+	Conversions       int64   `json:"conversions"`
+	Revenue           float64 `json:"revenue"`
+	ConversionRate    float64 `json:"conversion_rate"`
+	RevenuePerSession float64 `json:"revenue_per_session"`
+	GCLIDEvents       int64   `json:"gclid_events"`
+	FBCLIDEvents      int64   `json:"fbclid_events"`
+	TTCLIDEvents      int64   `json:"ttclid_events"`
+	MSCLKIDEvents     int64   `json:"msclkid_events"`
+}
+
+// GetPages returns top pages by traffic
+func (s *Stats) GetPages(ctx context.Context, siteID, from, to, previousFrom, previousTo string, limit int) ([]PageStats, error) {
+	query := `
+		SELECT
+			path,
+			toInt64(countIf(event_name = 'pageview' AND event_time >= ? AND event_time <= ?)) as pageviews,
+			toInt64(uniqExactIf(session_id, event_time >= ? AND event_time <= ?)) as sessions,
+			toInt64(countIf(event_name = 'product_view' AND event_time >= ? AND event_time <= ?)) as product_views,
+			toInt64(countIf(event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as purchases,
+			toFloat64(sumIf(revenue, event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as total_revenue,
+			toInt64(countIf(event_name = 'pageview' AND event_time >= ? AND event_time <= ?)) as previous_pageviews,
+			toInt64(uniqExactIf(session_id, event_time >= ? AND event_time <= ?)) as previous_sessions,
+			toInt64(countIf(event_name = 'product_view' AND event_time >= ? AND event_time <= ?)) as previous_product_views,
+			toInt64(countIf(event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as previous_purchases,
+			toFloat64(sumIf(revenue, event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as previous_total_revenue
 		FROM analytics_events
 		WHERE site_id = ? AND event_time >= ? AND event_time <= ? AND path != '' AND bot_score < 70
 		GROUP BY path ORDER BY pageviews DESC LIMIT ?
 	`
 
-	rows, err := s.ch.Query(ctx, query, siteID, from, to, limit)
+	rows, err := s.ch.Query(ctx, query,
+		from, to,
+		from, to,
+		from, to,
+		from, to,
+		from, to,
+		previousFrom, previousTo,
+		previousFrom, previousTo,
+		previousFrom, previousTo,
+		previousFrom, previousTo,
+		previousFrom, previousTo,
+		siteID, previousFrom, to, limit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -204,10 +301,24 @@ func (s *Stats) GetPages(ctx context.Context, siteID, from, to string, limit int
 	var pages []PageStats
 	for rows.Next() {
 		var page PageStats
-		err := rows.Scan(&page.Path, &page.Pageviews, &page.Sessions, &page.ProductViews)
-		if err != nil {
+		if err := rows.Scan(
+			&page.Path,
+			&page.Pageviews,
+			&page.Sessions,
+			&page.ProductViews,
+			&page.Purchases,
+			&page.Revenue,
+			&page.PreviousPageviews,
+			&page.PreviousSessions,
+			&page.PreviousProductViews,
+			&page.PreviousPurchases,
+			&page.PreviousRevenue,
+		); err != nil {
 			return nil, err
 		}
+		page.PageviewsDelta = percentChange(page.Pageviews, page.PreviousPageviews)
+		page.SessionsDelta = percentChange(page.Sessions, page.PreviousSessions)
+		page.RevenueDelta = percentChangeFloat(page.Revenue, page.PreviousRevenue)
 		pages = append(pages, page)
 	}
 
@@ -215,27 +326,56 @@ func (s *Stats) GetPages(ctx context.Context, siteID, from, to string, limit int
 }
 
 type PageStats struct {
-	Path         string `json:"path"`
-	Pageviews    int64  `json:"pageviews"`
-	Sessions     int64  `json:"sessions"`
-	ProductViews int64  `json:"product_views"`
+	Path                 string  `json:"path"`
+	Pageviews            int64   `json:"pageviews"`
+	Sessions             int64   `json:"sessions"`
+	ProductViews         int64   `json:"product_views"`
+	Purchases            int64   `json:"purchases"`
+	Revenue              float64 `json:"revenue"`
+	PreviousPageviews    int64   `json:"previous_pageviews"`
+	PreviousSessions     int64   `json:"previous_sessions"`
+	PreviousProductViews int64   `json:"previous_product_views"`
+	PreviousPurchases    int64   `json:"previous_purchases"`
+	PreviousRevenue      float64 `json:"previous_revenue"`
+	PageviewsDelta       float64 `json:"pageviews_delta"`
+	SessionsDelta        float64 `json:"sessions_delta"`
+	RevenueDelta         float64 `json:"revenue_delta"`
 }
 
 // GetProducts returns product performance stats
-func (s *Stats) GetProducts(ctx context.Context, siteID, from, to string, limit int) ([]ProductStats, error) {
+func (s *Stats) GetProducts(ctx context.Context, siteID, from, to, previousFrom, previousTo string, limit int) ([]ProductStats, error) {
 	query := `
-		SELECT product_id, product_name,
-			toInt64(countIf(event_name = 'product_view')) as views,
-			toInt64(countIf(event_name = 'add_to_cart')) as add_to_carts,
-			toInt64(countIf(event_name = 'purchase')) as purchases,
-			toFloat64(sumIf(revenue, event_name = 'purchase')) as revenue,
-			toInt64(sumIf(quantity, event_name = 'purchase')) as units_sold
+		SELECT
+			product_id,
+			anyLast(product_name) as product_name,
+			toInt64(countIf(event_name = 'product_view' AND event_time >= ? AND event_time <= ?)) as views,
+			toInt64(countIf(event_name = 'add_to_cart' AND event_time >= ? AND event_time <= ?)) as add_to_carts,
+			toInt64(countIf(event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as purchases,
+			toFloat64(sumIf(revenue, event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as total_revenue,
+			toInt64(sumIf(quantity, event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as units_sold,
+			toInt64(countIf(event_name = 'product_view' AND event_time >= ? AND event_time <= ?)) as previous_views,
+			toInt64(countIf(event_name = 'add_to_cart' AND event_time >= ? AND event_time <= ?)) as previous_add_to_carts,
+			toInt64(countIf(event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as previous_purchases,
+			toFloat64(sumIf(revenue, event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as previous_total_revenue,
+			toInt64(sumIf(quantity, event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as previous_units_sold
 		FROM analytics_events
 		WHERE site_id = ? AND event_time >= ? AND event_time <= ? AND product_id != '' AND bot_score < 70
-		GROUP BY product_id, product_name ORDER BY revenue DESC LIMIT ?
+		GROUP BY product_id ORDER BY total_revenue DESC, views DESC LIMIT ?
 	`
 
-	rows, err := s.ch.Query(ctx, query, siteID, from, to, limit)
+	rows, err := s.ch.Query(ctx, query,
+		from, to,
+		from, to,
+		from, to,
+		from, to,
+		from, to,
+		previousFrom, previousTo,
+		previousFrom, previousTo,
+		previousFrom, previousTo,
+		previousFrom, previousTo,
+		previousFrom, previousTo,
+		siteID, previousFrom, to, limit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -244,13 +384,34 @@ func (s *Stats) GetProducts(ctx context.Context, siteID, from, to string, limit 
 	var products []ProductStats
 	for rows.Next() {
 		var product ProductStats
-		err := rows.Scan(&product.ProductID, &product.ProductName, &product.Views, &product.AddToCarts, &product.Purchases, &product.Revenue, &product.UnitsSold)
-		if err != nil {
+		if err := rows.Scan(
+			&product.ProductID,
+			&product.ProductName,
+			&product.Views,
+			&product.AddToCarts,
+			&product.Purchases,
+			&product.Revenue,
+			&product.UnitsSold,
+			&product.PreviousViews,
+			&product.PreviousAddToCarts,
+			&product.PreviousPurchases,
+			&product.PreviousRevenue,
+			&product.PreviousUnitsSold,
+		); err != nil {
 			return nil, err
 		}
 		if product.Views > 0 {
 			product.ConversionRate = float64(product.Purchases) / float64(product.Views) * 100
+			product.AddToCartRate = float64(product.AddToCarts) / float64(product.Views) * 100
+			product.PurchaseRate = product.ConversionRate
 		}
+		if product.PreviousViews > 0 {
+			product.PreviousAddToCartRate = float64(product.PreviousAddToCarts) / float64(product.PreviousViews) * 100
+			product.PreviousPurchaseRate = float64(product.PreviousPurchases) / float64(product.PreviousViews) * 100
+		}
+		product.ViewsDelta = percentChange(product.Views, product.PreviousViews)
+		product.RevenueDelta = percentChangeFloat(product.Revenue, product.PreviousRevenue)
+		product.PurchaseRateDelta = product.PurchaseRate - product.PreviousPurchaseRate
 		products = append(products, product)
 	}
 
@@ -258,14 +419,26 @@ func (s *Stats) GetProducts(ctx context.Context, siteID, from, to string, limit 
 }
 
 type ProductStats struct {
-	ProductID      string  `json:"product_id"`
-	ProductName    string  `json:"product_name"`
-	Views          int64   `json:"views"`
-	AddToCarts     int64   `json:"add_to_carts"`
-	Purchases      int64   `json:"purchases"`
-	Revenue        float64 `json:"revenue"`
-	UnitsSold      int64   `json:"units_sold"`
-	ConversionRate float64 `json:"conversion_rate"`
+	ProductID             string  `json:"product_id"`
+	ProductName           string  `json:"product_name"`
+	Views                 int64   `json:"views"`
+	AddToCarts            int64   `json:"add_to_carts"`
+	Purchases             int64   `json:"purchases"`
+	Revenue               float64 `json:"revenue"`
+	UnitsSold             int64   `json:"units_sold"`
+	ConversionRate        float64 `json:"conversion_rate"`
+	AddToCartRate         float64 `json:"add_to_cart_rate"`
+	PurchaseRate          float64 `json:"purchase_rate"`
+	PreviousViews         int64   `json:"previous_views"`
+	PreviousAddToCarts    int64   `json:"previous_add_to_carts"`
+	PreviousPurchases     int64   `json:"previous_purchases"`
+	PreviousRevenue       float64 `json:"previous_revenue"`
+	PreviousUnitsSold     int64   `json:"previous_units_sold"`
+	PreviousAddToCartRate float64 `json:"previous_add_to_cart_rate"`
+	PreviousPurchaseRate  float64 `json:"previous_purchase_rate"`
+	ViewsDelta            float64 `json:"views_delta"`
+	RevenueDelta          float64 `json:"revenue_delta"`
+	PurchaseRateDelta     float64 `json:"purchase_rate_delta"`
 }
 
 // GetFunnel returns funnel conversion data
@@ -329,4 +502,192 @@ func (f *FunnelStats) CalculateRates() {
 	if f.Checkouts > 0 {
 		f.PurchaseRate = float64(f.Purchases) / float64(f.Checkouts) * 100
 	}
+}
+
+// GetRealtimeEvents returns the latest live events for a site.
+func (s *Stats) GetRealtimeEvents(ctx context.Context, siteID string, minutes, limit int) ([]RealtimeEvent, error) {
+	if minutes <= 0 || minutes > 60 {
+		minutes = 5
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 25
+	}
+	from := time.Now().UTC().Add(-time.Duration(minutes) * time.Minute).Format("2006-01-02 15:04:05.000")
+	to := time.Now().UTC().Format("2006-01-02 15:04:05.000")
+
+	query := `
+		SELECT event_time, event_name, client_id, session_id, path, source, medium,
+			campaign, product_id, product_name, order_id, toFloat64(revenue), currency, toInt32(bot_score)
+		FROM analytics_events
+		WHERE site_id = ? AND event_time >= ? AND event_time <= ? AND bot_score < 70
+		ORDER BY event_time DESC LIMIT ?
+	`
+
+	rows, err := s.ch.Query(ctx, query, siteID, from, to, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	events := []RealtimeEvent{}
+	for rows.Next() {
+		var event RealtimeEvent
+		var botScore int32
+		if err := rows.Scan(
+			&event.EventTime,
+			&event.EventName,
+			&event.ClientID,
+			&event.SessionID,
+			&event.Path,
+			&event.Source,
+			&event.Medium,
+			&event.Campaign,
+			&event.ProductID,
+			&event.ProductName,
+			&event.OrderID,
+			&event.Revenue,
+			&event.Currency,
+			&botScore,
+		); err != nil {
+			return nil, err
+		}
+		event.BotScore = int(botScore)
+		events = append(events, event)
+	}
+
+	return events, nil
+}
+
+type RealtimeEvent struct {
+	EventTime   time.Time `json:"event_time"`
+	EventName   string    `json:"event_name"`
+	ClientID    string    `json:"client_id"`
+	SessionID   string    `json:"session_id"`
+	Path        string    `json:"path"`
+	Source      string    `json:"source"`
+	Medium      string    `json:"medium"`
+	Campaign    string    `json:"campaign"`
+	ProductID   string    `json:"product_id"`
+	ProductName string    `json:"product_name"`
+	OrderID     string    `json:"order_id"`
+	Revenue     float64   `json:"revenue"`
+	Currency    string    `json:"currency"`
+	BotScore    int       `json:"bot_score"`
+}
+
+// GetPipelineHealth returns site processing freshness and Redis stream health.
+func (s *Stats) GetPipelineHealth(ctx context.Context, siteID string, redisClient *redis.Client) (*PipelineHealth, error) {
+	health := &PipelineHealth{
+		Status:        "healthy",
+		ConsumerGroup: "woosaas-workers",
+		Stream:        "events:stream",
+		DeadStream:    "events:dead",
+		CheckedAt:     time.Now().UTC(),
+	}
+
+	if redisClient != nil {
+		if streamLength, err := redisClient.XLen(ctx, health.Stream).Result(); err == nil {
+			health.StreamLength = streamLength
+		}
+		if deadLength, err := redisClient.XLen(ctx, health.DeadStream).Result(); err == nil {
+			health.DeadLetterLength = deadLength
+		}
+		if groups, err := redisClient.XInfoGroups(ctx, health.Stream).Result(); err == nil {
+			for _, group := range groups {
+				if group.Name == health.ConsumerGroup {
+					health.ConsumerCount = group.Consumers
+					health.Pending = group.Pending
+					if group.Lag >= 0 {
+						health.Lag = group.Lag
+					}
+					health.LastDeliveredID = group.LastDeliveredID
+					break
+				}
+			}
+		}
+	}
+
+	query := `
+		SELECT max(received_at)
+		FROM analytics_events
+		WHERE site_id = ?
+	`
+	rows, err := s.ch.Query(ctx, query, siteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		var latest time.Time
+		if err := rows.Scan(&latest); err != nil {
+			return nil, err
+		}
+		if !latest.IsZero() {
+			health.LastProcessedAt = &latest
+			age := time.Since(latest)
+			health.LastProcessedAgeSeconds = int64(age.Seconds())
+		}
+	}
+
+	health.QueueDepth = health.Pending + health.Lag
+	switch {
+	case health.DeadLetterLength > 0:
+		health.Status = "degraded"
+		health.Message = "Dead-letter events need review."
+	case health.QueueDepth > 1000:
+		health.Status = "degraded"
+		health.Message = "Queue depth is high; worker may be falling behind."
+	case health.ConsumerCount == 0 && health.StreamLength > 0:
+		health.Status = "degraded"
+		health.Message = "No Redis stream consumers are visible."
+	case health.LastProcessedAt == nil:
+		health.Status = "waiting"
+		health.Message = "No processed events have reached ClickHouse for this site yet."
+	case health.LastProcessedAgeSeconds > 900:
+		health.Status = "idle"
+		health.Message = "No events processed recently for this site."
+	default:
+		health.Message = "Worker and queue health look normal."
+	}
+
+	return health, nil
+}
+
+type PipelineHealth struct {
+	Status                  string     `json:"status"`
+	Message                 string     `json:"message"`
+	Stream                  string     `json:"stream"`
+	DeadStream              string     `json:"dead_stream"`
+	ConsumerGroup           string     `json:"consumer_group"`
+	StreamLength            int64      `json:"stream_length"`
+	QueueDepth              int64      `json:"queue_depth"`
+	Pending                 int64      `json:"pending"`
+	Lag                     int64      `json:"lag"`
+	DeadLetterLength        int64      `json:"dead_letter_length"`
+	ConsumerCount           int64      `json:"consumer_count"`
+	LastDeliveredID         string     `json:"last_delivered_id"`
+	LastProcessedAt         *time.Time `json:"last_processed_at"`
+	LastProcessedAgeSeconds int64      `json:"last_processed_age_seconds"`
+	CheckedAt               time.Time  `json:"checked_at"`
+}
+
+func percentChange(current, previous int64) float64 {
+	if previous == 0 {
+		if current == 0 {
+			return 0
+		}
+		return 100
+	}
+	return (float64(current-previous) / float64(previous)) * 100
+}
+
+func percentChangeFloat(current, previous float64) float64 {
+	if previous == 0 {
+		if current == 0 {
+			return 0
+		}
+		return 100
+	}
+	return ((current - previous) / previous) * 100
 }

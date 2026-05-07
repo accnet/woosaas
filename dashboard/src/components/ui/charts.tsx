@@ -1,107 +1,57 @@
 'use client'
 
-import ReactECharts from 'echarts-for-react'
+import {
+  LineChart as RechartsLineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts'
 import type { TrendPoint } from '@/lib/types'
 
 interface LineChartProps {
   data: TrendPoint[]
-  dataKey?: keyof Omit<TrendPoint, 'date'>
+  dataKey: string
   height?: number
 }
 
-export function LineChart({ data, dataKey = 'pageviews', height = 300 }: LineChartProps) {
-  const option = {
-    tooltip: {
-      trigger: 'axis',
-    },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      containLabel: true,
-    },
-    xAxis: {
-      type: 'category',
-      data: data.map((d) => {
-        return d.date.split('T')[0]
-      }),
-    },
-    yAxis: {
-      type: 'value',
-    },
-    series: [
-      {
-        data: data.map((d) => {
-          const val = d[dataKey]
-          return val ?? 0
-        }),
-        type: 'line',
-        smooth: true,
-        areaStyle: {
-          opacity: 0.3,
-        },
-      },
-    ],
-  }
-
-  return <ReactECharts option={option} style={{ height }} />
-}
-
-interface BarChartProps {
-  data: { name: string; value: number }[]
-  height?: number
-}
-
-export function BarChart({ data, height = 300 }: BarChartProps) {
-  const option = {
-    tooltip: {
-      trigger: 'axis',
-    },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      containLabel: true,
-    },
-    xAxis: {
-      type: 'category',
-      data: data.map((d) => d.name),
-      axisLabel: {
-        rotate: 45,
-      },
-    },
-    yAxis: {
-      type: 'value',
-    },
-    series: [
-      {
-        data: data.map((d) => d.value),
-        type: 'bar',
-      },
-    ],
-  }
-
-  return <ReactECharts option={option} style={{ height }} />
-}
-
-interface PieChartProps {
-  data: { name: string; value: number }[]
-  height?: number
-}
-
-export function PieChart({ data, height = 300 }: PieChartProps) {
-  const option = {
-    tooltip: {
-      trigger: 'item',
-    },
-    series: [
-      {
-        type: 'pie',
-        radius: '50%',
-        data: data.map((d) => ({ name: d.name, value: d.value })),
-      },
-    ],
-  }
-
-  return <ReactECharts option={option} style={{ height }} />
+export function LineChart({ data, dataKey, height = 300 }: LineChartProps) {
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <RechartsLineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+        <XAxis
+          dataKey="date"
+          tick={{ fontSize: 12, fill: '#94a3b8' }}
+          tickLine={false}
+          axisLine={{ stroke: '#e2e8f0' }}
+        />
+        <YAxis
+          tick={{ fontSize: 12, fill: '#94a3b8' }}
+          tickLine={false}
+          axisLine={false}
+          width={60}
+        />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: '#fff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
+            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+            fontSize: '12px',
+          }}
+        />
+        <Line
+          type="monotone"
+          dataKey={dataKey}
+          stroke="#6366f1"
+          strokeWidth={2}
+          dot={false}
+          activeDot={{ r: 4, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }}
+        />
+      </RechartsLineChart>
+    </ResponsiveContainer>
+  )
 }

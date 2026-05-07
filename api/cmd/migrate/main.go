@@ -87,8 +87,13 @@ func runPostgresMigrations(db *pgxpool.Pool, reset bool) error {
 		return err
 	}
 
-	_, err = db.Exec(context.Background(), string(sql))
-	return err
+	for _, statement := range splitSQLStatements(string(sql)) {
+		if _, err := db.Exec(context.Background(), statement); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func runClickHouseMigrations(db driver.Conn, reset bool) error {

@@ -35,10 +35,10 @@ The full secret is only shown once. The dashboard will keep a short key prefix f
 
 ## 3. Install the Plugin in WordPress
 
-Copy the local `plugin/` directory into your WordPress install:
+For local development in this workspace, use the plugin already located at:
 
 ```bash
-cp -r plugin /path/to/wordpress/wp-content/plugins/woosaas
+/var/www/site1.local/wp-content/plugins/plugin
 ```
 
 Then:

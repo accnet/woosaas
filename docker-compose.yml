@@ -2,14 +2,14 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: woosaas_secret
-      POSTGRES_DB: woosaas
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-woosaas_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-woosaas}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./api/migrations_postgres/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -19,15 +19,15 @@ services:
   clickhouse:
     image: clickhouse/clickhouse-server:23.11-alpine
     environment:
-      CLICKHOUSE_DB: woosaas
-      CLICKHOUSE_USER: default
-      CLICKHOUSE_PASSWORD: woosaas_secret
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-woosaas}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-woosaas_secret}
     volumes:
       - clickhouse_data:/var/lib/clickhouse
       - ./api/migrations/clickhouse:/docker-entrypoint-initdb.d:ro
     ports:
-      - "8123:8123"
-      - "9000:9000"
+      - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
+      - "${CLICKHOUSE_PORT:-9000}:9000"
     healthcheck:
       test: ["CMD-SHELL", "clickhouse-client --host 127.0.0.1 --query 'SELECT 1' || exit 1"]
       interval: 30s
@@ -42,7 +42,7 @@ services:
       - redis_data:/data
       - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     ports:
-      - "6380:6379"
+      - "${REDIS_HOST_PORT:-6380}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -55,25 +55,25 @@ services:
       dockerfile: Dockerfile
       target: api
     environment:
-      PORT: "8080"
-      HOST: "0.0.0.0"
-      JWT_SECRET: "change-me-in-production-use-strong-secret"
-      JWT_EXPIRY: "24h"
-      POSTGRES_HOST: postgres
+      PORT: ${PORT:-8080}
+      HOST: ${HOST:-0.0.0.0}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-development-use-a-longer-secret}
+      JWT_EXPIRY: ${JWT_EXPIRY:-24h}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
       POSTGRES_PORT: "5432"
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: woosaas_secret
-      POSTGRES_DB: woosaas
-      CLICKHOUSE_HOST: clickhouse
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-woosaas_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-woosaas}
+      CLICKHOUSE_HOST: ${CLICKHOUSE_HOST:-clickhouse}
       CLICKHOUSE_PORT: "9000"
-      CLICKHOUSE_USER: default
-      CLICKHOUSE_PASSWORD: woosaas_secret
-      CLICKHOUSE_DB: woosaas
-      CLICKHOUSE_DEBUG: "false"
-      REDIS_HOST: redis
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-woosaas_secret}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-woosaas}
+      CLICKHOUSE_DEBUG: ${CLICKHOUSE_DEBUG:-false}
+      REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: "6379"
     ports:
-      - "8080:8080"
+      - "${PORT:-8080}:8080"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null || exit 1"]
       interval: 10s
@@ -94,22 +94,22 @@ services:
       dockerfile: Dockerfile
       target: worker
     environment:
-      POSTGRES_HOST: postgres
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
       POSTGRES_PORT: "5432"
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: woosaas_secret
-      POSTGRES_DB: woosaas
-      CLICKHOUSE_HOST: clickhouse
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-woosaas_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-woosaas}
+      CLICKHOUSE_HOST: ${CLICKHOUSE_HOST:-clickhouse}
       CLICKHOUSE_PORT: "9000"
-      CLICKHOUSE_USER: default
-      CLICKHOUSE_PASSWORD: woosaas_secret
-      CLICKHOUSE_DB: woosaas
-      CLICKHOUSE_DEBUG: "false"
-      REDIS_HOST: redis
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-woosaas_secret}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-woosaas}
+      CLICKHOUSE_DEBUG: ${CLICKHOUSE_DEBUG:-false}
+      REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: "6379"
-      WORKER_BATCH_SIZE: "1000"
-      WORKER_FLUSH_INTERVAL: "2"
-      WORKER_MAX_RETRIES: "3"
+      WORKER_BATCH_SIZE: ${WORKER_BATCH_SIZE:-1000}
+      WORKER_FLUSH_INTERVAL: ${WORKER_FLUSH_INTERVAL:-2}
+      WORKER_MAX_RETRIES: ${WORKER_MAX_RETRIES:-3}
     depends_on:
       postgres:
         condition: service_healthy
@@ -126,17 +126,17 @@ services:
       target: migrate
     profiles: ["tools"]
     environment:
-      POSTGRES_HOST: postgres
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
       POSTGRES_PORT: "5432"
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: woosaas_secret
-      POSTGRES_DB: woosaas
-      CLICKHOUSE_HOST: clickhouse
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-woosaas_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-woosaas}
+      CLICKHOUSE_HOST: ${CLICKHOUSE_HOST:-clickhouse}
       CLICKHOUSE_PORT: "9000"
-      CLICKHOUSE_USER: default
-      CLICKHOUSE_PASSWORD: woosaas_secret
-      CLICKHOUSE_DB: woosaas
-      CLICKHOUSE_DEBUG: "false"
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-woosaas_secret}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-woosaas}
+      CLICKHOUSE_DEBUG: ${CLICKHOUSE_DEBUG:-false}
     command: ["./migrate", "-up"]
     depends_on:
       postgres:
@@ -149,7 +149,7 @@ services:
       context: ./dashboard
       dockerfile: Dockerfile
     environment:
-      NEXT_PUBLIC_API_URL: http://api:8080
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
     ports:
       - "3000:3000"
     healthcheck:

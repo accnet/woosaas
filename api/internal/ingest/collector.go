@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/mssola/useragent"
 	"github.com/redis/go-redis/v9"
+	"github.com/woosaas/api/internal/bot"
 	"github.com/woosaas/api/internal/observability"
 	"github.com/woosaas/api/pkg/models"
 )
@@ -20,6 +21,7 @@ import (
 type Collector struct {
 	redis     *redis.Client
 	validator *validator.Validate
+	scorer    *bot.Scorer
 }
 
 func NewCollector(redisClient *redis.Client) *Collector {
@@ -27,6 +29,7 @@ func NewCollector(redisClient *redis.Client) *Collector {
 	return &Collector{
 		redis:     redisClient,
 		validator: v,
+		scorer:    bot.NewScorer(redisClient),
 	}
 }
 
@@ -61,6 +64,8 @@ func (c *Collector) CollectEvent(ctx context.Context, siteID string, event *mode
 
 	// Set IP hash
 	event.IPHash = ipHash
+
+	c.scoreBot(ctx, event)
 
 	// Serialize event
 	eventJSON, err := json.Marshal(event)
@@ -125,6 +130,8 @@ func (c *Collector) CollectBatch(ctx context.Context, siteID string, events []mo
 		// Set IP hash
 		event.IPHash = ipHash
 
+		c.scoreBot(ctx, event)
+
 		// Ensure event ID
 		if event.EventID == "" {
 			event.EventID = uuid.New().String()
@@ -188,6 +195,25 @@ func (c *Collector) updateRealtime(ctx context.Context, siteID string, event *mo
 	// Remove entries older than 5 minutes
 	cutoff := float64(time.Now().Add(-5 * time.Minute).Unix())
 	c.redis.ZRemRangeByScore(ctx, key, "-inf", fmt.Sprintf("%f", cutoff))
+}
+
+func (c *Collector) scoreBot(ctx context.Context, event *models.Event) {
+	if c.scorer == nil {
+		return
+	}
+	score, reasons := c.scorer.Score(ctx, event)
+	if score > event.BotScore {
+		event.BotScore = score
+	}
+	if len(reasons) > 0 {
+		reason := strings.Join(reasons, ",")
+		if event.BotReason == "" {
+			event.BotReason = reason
+		} else if !strings.Contains(event.BotReason, reason) {
+			event.BotReason = event.BotReason + "," + reason
+		}
+	}
+	observability.RecordBotScore(float64(event.BotScore))
 }
 
 // Deduplicate checks if an event has already been processed

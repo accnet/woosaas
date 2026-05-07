@@ -7,21 +7,21 @@ interface CardProps {
 
 export function Card({ title, value, change, changeType = 'neutral' }: CardProps) {
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-gray-500 text-sm font-medium">{title}</h3>
-      <p className="text-3xl font-bold mt-2">{value}</p>
+    <div className="stat-card animate-fade-in">
+      <div className="stat-label">{title}</div>
+      <div className="stat-value">{value}</div>
       {change && (
-        <p
-          className={`text-sm mt-2 ${
+        <div
+          className={`stat-change ${
             changeType === 'positive'
-              ? 'text-green-600'
+              ? 'text-emerald-600'
               : changeType === 'negative'
               ? 'text-red-600'
-              : 'text-gray-600'
+              : 'text-surface-500'
           }`}
         >
           {change}
-        </p>
+        </div>
       )}
     </div>
   )
