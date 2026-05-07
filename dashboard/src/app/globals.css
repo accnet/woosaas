@@ -343,6 +343,10 @@
     @apply inline-flex h-11 w-11 items-center justify-center rounded-lg transition;
   }
 
+  .app-rail-link {
+    @apply flex h-11 w-full items-center gap-3 rounded-lg px-3 text-left transition;
+  }
+
   .app-rail-item-idle {
     color: #5e6b84;
   }
@@ -362,6 +366,16 @@
     @apply flex h-11 w-11 items-center justify-center rounded-lg text-sm font-semibold;
     background: #eef3f8;
     color: #172033;
+  }
+
+  .app-rail-expand-button {
+    @apply absolute right-[-14px] top-1/2 hidden h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border bg-white text-app-soft shadow-sm transition xl:inline-flex;
+    border-color: #dbe3ee;
+  }
+
+  .app-rail-expand-button:hover {
+    color: #172033;
+    background: #f8fafc;
   }
 
   .site-switcher-trigger {

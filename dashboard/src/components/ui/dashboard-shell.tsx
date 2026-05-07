@@ -15,6 +15,7 @@ import { useAuthStore } from '@/store/auth'
 
 const RECENT_SITES_KEY = 'woosaas-recent-sites'
 const PINNED_SITES_KEY = 'woosaas-pinned-sites'
+const APP_RAIL_EXPANDED_KEY = 'woosaas-app-rail-expanded'
 
 function SiteSwitcherOption({
   site,
@@ -388,6 +389,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [sites, setSites] = useState<Site[]>([])
   const [loadingSites, setLoadingSites] = useState(true)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [appRailExpanded, setAppRailExpanded] = useState(false)
   const currentSiteId = useMemo(() => getCurrentSiteId(pathname), [pathname])
   const currentApp = useMemo(() => getCurrentSiteApp(pathname), [pathname])
   const currentSite = useMemo(
@@ -440,10 +442,33 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     }
   }, [mobileNavOpen])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    setAppRailExpanded(window.localStorage.getItem(APP_RAIL_EXPANDED_KEY) === 'true')
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    window.localStorage.setItem(APP_RAIL_EXPANDED_KEY, String(appRailExpanded))
+  }, [appRailExpanded])
+
   return (
     <div className="min-h-screen bg-app">
       <div className="mx-auto flex min-h-screen max-w-[1680px]">
-        <AppRail pathname={pathname} currentSiteId={currentSiteId} user={user} logout={logout} />
+        <AppRail
+          pathname={pathname}
+          currentSiteId={currentSiteId}
+          user={user}
+          logout={logout}
+          expanded={appRailExpanded}
+          onToggleExpanded={() => setAppRailExpanded((value) => !value)}
+        />
         <SiteSidebar pathname={pathname} siteId={currentSiteId} site={currentSite} sites={sites} loadingSites={loadingSites} />
 
         <MobileNavDrawer
@@ -478,11 +503,15 @@ function AppRail({
   currentSiteId,
   user,
   logout,
+  expanded,
+  onToggleExpanded,
 }: {
   pathname: string
   currentSiteId: string | null
   user: { name?: string | null; email?: string | null } | null
   logout: () => void
+  expanded: boolean
+  onToggleExpanded: () => void
 }) {
   const isRailItemActive = (itemHref: string, href: string) => {
     if (itemHref === '/dashboard') {
@@ -505,11 +534,29 @@ function AppRail({
   }
 
   return (
-    <aside className="hidden w-[72px] shrink-0 border-r border-app-line bg-app-panel xl:flex xl:flex-col">
-      <div className="flex h-20 items-center justify-center border-b border-app-line">
+    <aside
+      className={`hidden shrink-0 border-r border-app-line bg-app-panel transition-[width] duration-200 xl:flex xl:flex-col ${
+        expanded ? 'w-[220px]' : 'w-[72px]'
+      }`}
+    >
+      <div className={`relative flex h-20 items-center border-b border-app-line px-3 ${expanded ? 'justify-between' : 'justify-center'}`}>
         <Link href="/dashboard" className="app-rail-logo" title="Woosaas">
           W
         </Link>
+        {expanded ? (
+          <button type="button" onClick={onToggleExpanded} className="icon-button hidden xl:inline-flex" aria-label="Collapse app rail">
+            <ChevronRight className="h-4 w-4 rotate-180" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onToggleExpanded}
+            className="app-rail-expand-button"
+            aria-label="Expand app rail"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-5">
@@ -523,12 +570,16 @@ function AppRail({
               <Link
                 key={`${item.label}-${href}`}
                 href={href}
-                className={`group relative app-rail-item ${isActive ? 'app-rail-item-active' : 'app-rail-item-idle'}`}
+                className={`group relative ${expanded ? 'app-rail-link' : 'app-rail-item'} ${isActive ? 'app-rail-item-active' : 'app-rail-item-idle'}`}
               >
                 <Icon className="h-5 w-5" />
-                <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-app-strong px-2.5 py-1.5 text-xs font-medium text-white shadow-card group-hover:block">
-                  {item.label}
-                </span>
+                {expanded ? (
+                  <span className="truncate text-sm font-medium">{item.label}</span>
+                ) : (
+                  <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-app-strong px-2.5 py-1.5 text-xs font-medium text-white shadow-card group-hover:block">
+                    {item.label}
+                  </span>
+                )}
               </Link>
             )
           })}
@@ -536,6 +587,9 @@ function AppRail({
 
         {currentSiteId ? (
           <div className="mt-4 border-t border-app-line pt-4">
+            {expanded ? (
+              <div className="pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-app-soft">Apps</div>
+            ) : null}
             <nav className="space-y-2">
               {siteAppsNav.map((item) => {
                 const Icon = item.icon
@@ -546,12 +600,16 @@ function AppRail({
                   <Link
                     key={`site-app-${item.label}-${href}`}
                     href={href}
-                    className={`group relative app-rail-item ${isActive ? 'app-rail-item-active' : 'app-rail-item-idle'}`}
+                    className={`group relative ${expanded ? 'app-rail-link' : 'app-rail-item'} ${isActive ? 'app-rail-item-active' : 'app-rail-item-idle'}`}
                   >
                     <Icon className="h-5 w-5" />
-                    <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-app-strong px-2.5 py-1.5 text-xs font-medium text-white shadow-card group-hover:block">
-                      {item.label}
-                    </span>
+                    {expanded ? (
+                      <span className="truncate text-sm font-medium">{item.label}</span>
+                    ) : (
+                      <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-app-strong px-2.5 py-1.5 text-xs font-medium text-white shadow-card group-hover:block">
+                        {item.label}
+                      </span>
+                    )}
                   </Link>
                 )
               })}
@@ -562,17 +620,31 @@ function AppRail({
 
       <div className="border-t border-app-line px-3 py-4">
         <div className="space-y-2">
-          <div className="group relative app-rail-user">
-            {(user?.name || 'U').slice(0, 1).toUpperCase()}
-            <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-app-strong px-2.5 py-1.5 text-xs font-medium text-white shadow-card group-hover:block">
-              {user?.email || 'User'}
-            </span>
-          </div>
-          <button onClick={logout} className="group relative app-rail-item app-rail-item-idle w-full">
+          {expanded ? (
+            <div className="flex items-center gap-3 rounded-lg border border-app-line bg-white px-3 py-3">
+              <div className="app-rail-user h-10 w-10 shrink-0">{(user?.name || 'U').slice(0, 1).toUpperCase()}</div>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium text-app-strong">{user?.name || 'User'}</div>
+                <div className="truncate text-xs text-app-muted">{user?.email || 'Signed in'}</div>
+              </div>
+            </div>
+          ) : (
+            <div className="group relative app-rail-user">
+              {(user?.name || 'U').slice(0, 1).toUpperCase()}
+              <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-app-strong px-2.5 py-1.5 text-xs font-medium text-white shadow-card group-hover:block">
+                {user?.email || 'User'}
+              </span>
+            </div>
+          )}
+          <button onClick={logout} className={`${expanded ? 'app-rail-link justify-between' : 'group relative app-rail-item'} app-rail-item-idle w-full`}>
             <LogOut className="h-5 w-5" />
-            <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-app-strong px-2.5 py-1.5 text-xs font-medium text-white shadow-card group-hover:block">
-              Sign out
-            </span>
+            {expanded ? (
+              <span className="text-sm font-medium">Sign out</span>
+            ) : (
+              <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-app-strong px-2.5 py-1.5 text-xs font-medium text-white shadow-card group-hover:block">
+                Sign out
+              </span>
+            )}
           </button>
         </div>
       </div>
