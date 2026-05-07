@@ -2,18 +2,18 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowRight, Globe, KeyRound, Plus, Star, Users } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { Activity, ArrowRight, Globe, KeyRound, Mail, Plus, Star, Store, Users } from 'lucide-react'
 import { FilterPills } from '@/components/ui/filter-pills'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { MetricCard } from '@/components/ui/metric-card'
 import { SearchInput } from '@/components/ui/search-input'
+import { StatusChip } from '@/components/ui/status-chip'
 import { TrackingStatusChip } from '@/components/ui/tracking-status-chip'
-import { formatRelativeTimeLabel } from '@/lib/dashboard-metadata'
 import { sitesApi } from '@/lib/api'
-import {
-  getSiteTrackingRank,
-  getSiteTrackingState,
-  type SiteTrackingLabel,
-} from '@/lib/tracking-status'
+import { formatRelativeTimeLabel } from '@/lib/dashboard-metadata'
+import { getWebsiteAppStatuses } from '@/lib/site-apps'
+import { getSiteTrackingRank, getSiteTrackingState, type SiteTrackingLabel } from '@/lib/tracking-status'
 import type { CreateSiteInput, Site } from '@/lib/types'
 
 const RECENT_SITES_KEY = 'woosaas-recent-sites'
@@ -47,15 +47,15 @@ export default function SitesPage() {
     }
   }
 
-  const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
+  const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
     try {
       await sitesApi.create(form)
       setForm({ name: '', domain: '' })
       setShowForm(false)
       await loadSites()
     } catch (err) {
-      console.error('Failed to create site', err)
+      console.error('Failed to create website', err)
     }
   }
 
@@ -87,21 +87,13 @@ export default function SitesPage() {
         return getSiteTrackingState(site).label === statusFilter
       })
       .sort((left, right) => {
-        const leftState = getSiteTrackingState(left)
-        const rightState = getSiteTrackingState(right)
-        const rankDifference =
-          getSiteTrackingRank(leftState.label) - getSiteTrackingRank(rightState.label)
-
+        const rankDifference = getSiteTrackingRank(getSiteTrackingState(left).label) - getSiteTrackingRank(getSiteTrackingState(right).label)
         if (rankDifference !== 0) {
           return rankDifference
         }
 
-        const leftTime =
-          Date.parse(left.tracking_last_event_at || left.tracking_last_checked_at || left.created_at) || 0
-        const rightTime =
-          Date.parse(
-            right.tracking_last_event_at || right.tracking_last_checked_at || right.created_at
-          ) || 0
+        const leftTime = Date.parse(left.tracking_last_event_at || left.tracking_last_checked_at || left.created_at) || 0
+        const rightTime = Date.parse(right.tracking_last_event_at || right.tracking_last_checked_at || right.created_at) || 0
 
         return rightTime - leftTime
       })
@@ -138,6 +130,9 @@ export default function SitesPage() {
     )
   }, [sites])
 
+  const activeSites = statusCounts.Active
+  const connectedSites = statusCounts.Active + statusCounts.Verified
+
   const togglePinnedSite = (siteId: string) => {
     if (typeof window === 'undefined') {
       return
@@ -153,7 +148,7 @@ export default function SitesPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex min-h-[60vh] items-center justify-center">
         <LoadingSpinner />
       </div>
     )
@@ -161,35 +156,66 @@ export default function SitesPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      <div className="panel-header">
-        <div>
-          <h2 className="text-2xl font-semibold text-app-strong">Site Registry</h2>
-          <p className="mt-2 text-sm text-app-muted">
-            Create stores, inspect readiness, and jump into configuration or analytics.
-          </p>
-        </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="btn-primary"
-        >
-          <Plus className="mr-1.5 h-4 w-4" />
-          {showForm ? 'Cancel' : 'Add Site'}
-        </button>
-      </div>
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.7fr_1fr]">
+        <div className="card px-6 py-6">
+          <div className="panel-header">
+            <div>
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-app-subtle px-3 py-1 text-xs font-medium text-app-muted">
+                <Store className="h-3.5 w-3.5" />
+                Website registry
+              </div>
+              <h2 className="text-2xl font-semibold text-app-strong">Websites</h2>
+              <p className="mt-2 max-w-2xl text-sm text-app-muted">
+                Each website is now the container for apps, setup, ownership, and future operational workflows.
+              </p>
+            </div>
+            <button onClick={() => setShowForm((value) => !value)} className="btn-primary">
+              <Plus className="mr-1.5 h-4 w-4" />
+              {showForm ? 'Cancel' : 'Add Website'}
+            </button>
+          </div>
 
-      {/* Create form */}
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+            <MetricCard icon={<Globe className="h-4 w-4" />} label="Websites" value={sites.length.toString()} helper="Configured website workspaces" />
+            <MetricCard icon={<Activity className="h-4 w-4" />} label="Analytics Live" value={activeSites.toString()} tone={activeSites > 0 ? 'good' : 'warn'} helper="Streaming production events" />
+            <MetricCard icon={<Users className="h-4 w-4" />} label="Apps Ready" value={connectedSites.toString()} tone={connectedSites > 0 ? 'good' : 'neutral'} helper="Websites connected to the first app" />
+            <MetricCard icon={<Mail className="h-4 w-4" />} label="Future Apps" value={(sites.length * 2).toString()} helper="Reserved slots for Support and Email" />
+          </div>
+        </div>
+
+        <div className="card px-6 py-6">
+          <div className="text-base font-semibold text-app-strong">Registry Focus</div>
+          <div className="mt-2 text-sm text-app-muted">
+            Keep websites clean and ready so future apps can inherit the same ownership, setup, and customer context.
+          </div>
+          <div className="mt-5 space-y-2">
+            <Link href="/dashboard" className="site-switcher-footer">
+              Workspace home
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link href={sites[0] ? `/dashboard/sites/${sites[0].id}` : '/dashboard/sites'} className="site-switcher-footer">
+              Website home pattern
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link href={sites[0] ? `/dashboard/${sites[0].id}/overview` : '/dashboard/sites'} className="site-switcher-footer">
+              Analytics app
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {showForm && (
         <form onSubmit={handleCreate} className="card animate-slide-up px-6 py-6">
-          <h3 className="mb-4 text-base font-semibold text-app-strong">New Site</h3>
+          <h3 className="mb-4 text-base font-semibold text-app-strong">New Website</h3>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-app-strong">Site Name</label>
+              <label className="mb-1.5 block text-sm font-medium text-app-strong">Website Name</label>
               <input
                 type="text"
-                placeholder="My Store"
+                placeholder="Main Storefront"
                 value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                onChange={(event) => setForm({ ...form, name: event.target.value })}
                 className="input"
                 required
               />
@@ -200,7 +226,7 @@ export default function SitesPage() {
                 type="url"
                 placeholder="https://example.com"
                 value={form.domain}
-                onChange={(e) => setForm({ ...form, domain: e.target.value })}
+                onChange={(event) => setForm({ ...form, domain: event.target.value })}
                 className="input"
                 required
               />
@@ -209,7 +235,7 @@ export default function SitesPage() {
           <div className="mt-5 flex justify-end">
             <button type="submit" className="btn-primary">
               <Plus className="mr-1.5 h-4 w-4" />
-              Create Site
+              Create Website
             </button>
           </div>
         </form>
@@ -220,16 +246,14 @@ export default function SitesPage() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-lg bg-app-subtle text-app-muted">
             <Plus className="h-7 w-7" />
           </div>
-          <h3 className="text-lg font-semibold text-app-strong">No sites yet</h3>
-          <p className="mt-2 text-sm text-app-muted">Add your first website to start tracking analytics.</p>
+          <h3 className="text-lg font-semibold text-app-strong">No websites yet</h3>
+          <p className="mt-2 text-sm text-app-muted">Create the first website to activate the workspace and analytics app.</p>
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Filter bar */}
           <div className="card p-3">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <SearchInput value={query} onChange={setQuery} placeholder="Search websites..." className="w-full xl:max-w-sm" />
-
               <FilterPills
                 value={statusFilter}
                 onChange={setStatusFilter}
@@ -244,14 +268,14 @@ export default function SitesPage() {
 
           {filteredSites.length === 0 && (
             <div className="card p-12 text-center">
-              <p className="text-app-muted">No sites match this filter yet.</p>
+              <p className="text-app-muted">No websites match this filter yet.</p>
             </div>
           )}
 
           {pinnedSites.length > 0 && (
             <SiteSection
               title="Pinned Websites"
-              description="Priority stores you switch into often."
+              description="Priority website workspaces you revisit often."
               sites={pinnedSites}
               pinnedSiteIds={pinnedSiteIds}
               onTogglePinned={togglePinnedSite}
@@ -261,7 +285,7 @@ export default function SitesPage() {
           {recentSites.length > 0 && (
             <SiteSection
               title="Recent Websites"
-              description="Recently opened sites from your analytics workspace."
+              description="Recently opened website workspaces from your day-to-day flow."
               sites={recentSites}
               pinnedSiteIds={pinnedSiteIds}
               onTogglePinned={togglePinnedSite}
@@ -271,7 +295,7 @@ export default function SitesPage() {
           {allSites.length > 0 && (
             <SiteSection
               title="All Websites"
-              description="Full registry ordered by tracking health and recent activity."
+              description="Full registry ordered by readiness and most recent activity."
               sites={allSites}
               pinnedSiteIds={pinnedSiteIds}
               onTogglePinned={togglePinnedSite}
@@ -303,7 +327,7 @@ function SiteSection({
           <h3 className="text-base font-semibold text-app-strong">{title}</h3>
           <p className="mt-1 text-sm text-app-muted">{description}</p>
         </div>
-        <div className="text-xs font-medium text-app-soft">{sites.length} sites</div>
+        <div className="text-xs font-medium text-app-soft">{sites.length} websites</div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -331,6 +355,7 @@ function SiteCard({
 }) {
   const trackingState = getSiteTrackingState(site)
   const lastSignal = site.tracking_last_event_at || site.tracking_last_checked_at || site.created_at
+  const apps = getWebsiteAppStatuses(site)
 
   return (
     <div className="card px-6 py-5">
@@ -365,17 +390,26 @@ function SiteCard({
 
       <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <SiteFact icon={<Globe className="h-4 w-4" />} label="Domain" value={site.domain} />
-        <SiteFact icon={<ActivityBadge />} label="Last signal" value={formatRelativeTimeLabel(lastSignal)} />
-        <SiteFact icon={<Users className="h-4 w-4" />} label="Next step" value={trackingState.label === 'Pending' ? 'Complete setup' : 'Review data'} />
+        <SiteFact icon={<ActivityDot />} label="Last signal" value={formatRelativeTimeLabel(lastSignal)} />
+        <SiteFact icon={<Store className="h-4 w-4" />} label="Entry point" value="Website home" />
+      </div>
+
+      <div className="mt-4">
+        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-app-soft">Apps</div>
+        <div className="flex flex-wrap gap-2">
+          {apps.map((app) => (
+            <StatusChip key={app.key} label={`${app.title}: ${app.label}`} tone={app.tone} />
+          ))}
+        </div>
       </div>
 
       <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-        <Link href={`/dashboard/${site.id}/overview`} className="btn-primary">
-          View Analytics
+        <Link href={`/dashboard/sites/${site.id}`} className="btn-primary">
+          Open website
           <ArrowRight className="ml-1.5 h-4 w-4" />
         </Link>
-        <Link href={`/dashboard/sites/${site.id}/onboarding`} className="btn-secondary">
-          Setup
+        <Link href={`/dashboard/${site.id}/overview`} className="btn-secondary">
+          View analytics
         </Link>
         <Link href={`/dashboard/sites/${site.id}/team`} className="btn-ghost">
           <Users className="mr-1.5 h-4 w-4" />
@@ -395,7 +429,7 @@ function SiteFact({
   label,
   value,
 }: {
-  icon: React.ReactNode
+  icon: ReactNode
   label: string
   value: string
 }) {
@@ -410,6 +444,6 @@ function SiteFact({
   )
 }
 
-function ActivityBadge() {
+function ActivityDot() {
   return <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
 }

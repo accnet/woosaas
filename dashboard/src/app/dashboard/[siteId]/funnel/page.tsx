@@ -205,7 +205,7 @@ export default function FunnelPage() {
 
       <AnalyticsPageHeader
         title="Conversion Funnel"
-        description="Step-by-step movement from traffic to purchase across the active date range."
+        description="Step-by-step movement from traffic to purchase for this website across the active date range."
         controls={
           <>
             {refreshing ? <StatusChip label="Refreshing" tone="info" /> : null}
@@ -322,7 +322,7 @@ export default function FunnelPage() {
 
             <SectionCard
               title="Bottleneck Analysis"
-              description="The largest drop-off is translated into a next area to inspect."
+              description="The largest drop-off is translated into the next area to inspect inside this website workspace."
             >
               <div className="space-y-4">
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">

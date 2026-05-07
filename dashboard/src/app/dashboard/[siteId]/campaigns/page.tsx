@@ -128,7 +128,7 @@ export default function CampaignsPage() {
 
       <AnalyticsPageHeader
         title="Campaigns"
-        description="Performance by campaign, source, and medium for the selected attribution window."
+        description="Campaign performance for this website across source, medium, and attributed revenue."
         controls={
           <>
             {refreshing ? <StatusChip label="Refreshing" tone="info" /> : null}
@@ -182,7 +182,7 @@ export default function CampaignsPage() {
 
       <SectionCard
         title="Campaign Breakdown"
-        description="Compare campaign traffic quality, conversion efficiency, and monetization in one place."
+        description="Compare campaign traffic quality, conversion efficiency, and monetization for this website."
         icon={<Tags className="h-4 w-4" />}
         className="overflow-hidden px-0 py-0"
         action={

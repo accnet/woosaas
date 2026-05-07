@@ -23,7 +23,7 @@ export function StatusChip({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${toneClass} ${className}`.trim()}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-semibold leading-none ${toneClass} ${className}`.trim()}
     >
       {icon ? <span className="flex h-3.5 w-3.5 items-center justify-center">{icon}</span> : null}
       {label}

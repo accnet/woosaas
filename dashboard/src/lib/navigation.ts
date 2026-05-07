@@ -3,15 +3,17 @@ import {
   Bot,
   ChartColumn,
   Download,
+  House,
   Globe,
   HeartPulse,
   KeyRound,
   LayoutDashboard,
+  LifeBuoy,
   LineChart,
+  Mail,
   Megaphone,
   Package,
   PanelLeft,
-  Settings2,
   ShoppingCart,
   Target,
   Users,
@@ -24,17 +26,28 @@ export type NavItem = {
 }
 
 export const appNav: NavItem[] = [
-  { href: '/dashboard', label: 'Portfolio', icon: LayoutDashboard },
-  { href: '/dashboard/sites', label: 'Sites', icon: Globe },
+  { href: '/dashboard', label: 'Workspace', icon: LayoutDashboard },
+  { href: '/dashboard/sites', label: 'Websites', icon: Globe },
+]
+
+export const siteAppsNav: NavItem[] = [
+  { href: '/dashboard/sites/[siteId]', label: 'Home', icon: House },
   { href: '/dashboard/[siteId]/overview', label: 'Analytics', icon: ChartColumn },
-  { href: '/dashboard/sites', label: 'Settings', icon: Settings2 },
+  { href: '/dashboard/sites/[siteId]/support-tickets', label: 'Support Tickets', icon: LifeBuoy },
+  { href: '/dashboard/sites/[siteId]/email-campaigns', label: 'Email Campaigns', icon: Mail },
 ]
 
 export const siteAnalyticsNav: NavItem[] = [
   { href: 'overview', label: 'Overview', icon: ChartColumn },
   { href: 'trend', label: 'Trend', icon: LineChart },
+]
+
+export const siteAcquisitionNav: NavItem[] = [
   { href: 'sources', label: 'Sources', icon: Target },
   { href: 'campaigns', label: 'Campaigns', icon: Megaphone },
+]
+
+export const siteCommerceNav: NavItem[] = [
   { href: 'pages', label: 'Pages', icon: PanelLeft },
   { href: 'products', label: 'Products', icon: Package },
   { href: 'funnel', label: 'Funnel', icon: ShoppingCart },
@@ -60,7 +73,7 @@ export function getCurrentSiteId(pathname: string) {
     return analyticsMatch[1]
   }
 
-  const setupMatch = pathname.match(/^\/dashboard\/sites\/([^/]+)\//)
+  const setupMatch = pathname.match(/^\/dashboard\/sites\/([^/]+)(?:\/|$)/)
   if (setupMatch?.[1]) {
     return setupMatch[1]
   }
@@ -86,6 +99,34 @@ export function isSiteSetupRoute(pathname: string) {
   return /^\/dashboard\/sites\/[^/]+\//.test(pathname)
 }
 
+export function isSiteWorkspaceRoute(pathname: string) {
+  return /^\/dashboard\/sites\/[^/]+(?:\/|$)/.test(pathname)
+}
+
+export function isAnalyticsRoute(pathname: string) {
+  return /^\/dashboard\/(?!sites\/)[^/]+\//.test(pathname)
+}
+
+export function getCurrentSiteApp(pathname: string) {
+  if (/^\/dashboard\/sites\/[^/]+\/support-tickets(?:\/|$)/.test(pathname)) {
+    return 'Support Tickets'
+  }
+
+  if (/^\/dashboard\/sites\/[^/]+\/email-campaigns(?:\/|$)/.test(pathname)) {
+    return 'Email Campaigns'
+  }
+
+  if (/^\/dashboard\/sites\/[^/]+(?:\/|$)/.test(pathname)) {
+    return 'Website Home'
+  }
+
+  if (/^\/dashboard\/(?!sites\/)[^/]+\/.+/.test(pathname)) {
+    return 'Analytics'
+  }
+
+  return null
+}
+
 export function buildAnalyticsHref(siteId: string, section: string) {
   return `/dashboard/${siteId}/${section}`
 }
@@ -103,30 +144,54 @@ export function getAppHref(href: string, siteId: string | null) {
 }
 
 export function resolveSiteRoute(pathname: string, nextSiteId: string) {
-  const section = getCurrentSiteSection(pathname)
-  if (!section) {
-    return `/dashboard/${nextSiteId}/overview`
+  if (isSiteWorkspaceRoute(pathname)) {
+    const match = pathname.match(/^\/dashboard\/sites\/[^/]+(\/.*)?$/)
+    const suffix = match?.[1] || ''
+    return `/dashboard/sites/${nextSiteId}${suffix}`
   }
 
-  if (isSiteSetupRoute(pathname)) {
-    return buildSetupHref(nextSiteId, `/dashboard/sites/[siteId]/${section}`)
+  if (isAnalyticsRoute(pathname)) {
+    const match = pathname.match(/^\/dashboard\/[^/]+(\/.*)?$/)
+    const suffix = match?.[1] || '/overview'
+    return `/dashboard/${nextSiteId}${suffix}`
   }
 
-  return buildAnalyticsHref(nextSiteId, section)
+  return `/dashboard/sites/${nextSiteId}`
 }
 
 export function buildPageMeta(pathname: string) {
   if (pathname === '/dashboard') {
     return {
-      title: 'Portfolio',
-      description: 'Track rollout status, site readiness, and recent activity across stores.',
+      title: 'Workspace',
+      description: 'Track website readiness, app adoption, and operational priorities across the workspace.',
     }
   }
 
   if (pathname === '/dashboard/sites') {
     return {
-      title: 'Site Registry',
-      description: 'Create stores, inspect readiness, and manage connected websites.',
+      title: 'Websites',
+      description: 'Create websites, inspect readiness, and jump into apps or setup flows.',
+    }
+  }
+
+  if (/^\/dashboard\/sites\/[^/]+$/.test(pathname)) {
+    return {
+      title: 'Website Home',
+      description: 'Manage this website and enter the apps that run on top of it.',
+    }
+  }
+
+  if (pathname.includes('/support-tickets')) {
+    return {
+      title: 'Support Tickets',
+      description: 'Ticketing workspace for this website.',
+    }
+  }
+
+  if (pathname.includes('/email-campaigns')) {
+    return {
+      title: 'Email Campaigns',
+      description: 'Campaign workspace for this website.',
     }
   }
 
@@ -138,13 +203,13 @@ export function buildPageMeta(pathname: string) {
     }
   }
 
-  const analyticsSection = [...siteAnalyticsNav, ...siteOperationsNav].find((item) =>
+  const analyticsSection = [...siteAnalyticsNav, ...siteAcquisitionNav, ...siteCommerceNav, ...siteOperationsNav].find((item) =>
     pathname.includes(`/${item.href}`)
   )
   if (analyticsSection) {
     return {
       title: analyticsSection.label,
-      description: `Operational analytics view for ${analyticsSection.label.toLowerCase()}.`,
+      description: `Analytics workspace for ${analyticsSection.label.toLowerCase()}.`,
     }
   }
 

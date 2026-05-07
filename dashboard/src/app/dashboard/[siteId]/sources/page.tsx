@@ -57,7 +57,7 @@ export default function SourcesPage() {
 
       <AnalyticsPageHeader
         title="Traffic Sources"
-        description="Which channels and mediums are driving visits, users, and revenue."
+        description="Which channels and mediums are driving visits, users, and revenue for this website."
         controls={
           <DateRangeSelect
             value={dateRange}
@@ -80,7 +80,7 @@ export default function SourcesPage() {
 
       <SectionCard
         title="Source Breakdown"
-        description="Acquisition performance by source and medium."
+        description="Acquisition performance by source and medium inside the analytics app."
         icon={<RadioTower className="h-4 w-4" />}
         className="overflow-hidden px-0 py-0"
       >

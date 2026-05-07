@@ -85,7 +85,7 @@ export default function ExportsPage() {
     <div className="space-y-8">
       <AnalyticsPageHeader
         title="Exports"
-        description="Create direct CSV extracts and keep a lightweight record of recently prepared exports."
+        description="Create CSV extracts from the analytics app and keep a lightweight record of recently prepared exports."
         controls={
           <StatusChip
             label={`${recentExports.filter((item) => item.status === 'ready').length} ready`}

@@ -22,7 +22,7 @@
 
   body {
     @apply antialiased;
-    background: #f3f6fa;
+    background: #f5f7fb;
     color: #172033;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
@@ -71,11 +71,11 @@
 
   .bg-app {
     background:
-      linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(243,246,250,0.92) 100%);
+      linear-gradient(180deg, rgba(255,255,255,0.86) 0%, rgba(245,247,251,0.96) 100%);
   }
 
   .bg-app-panel {
-    background: #f7f9fc;
+    background: #f8fafc;
   }
 
   .border-app-line {
@@ -105,11 +105,11 @@
   .card {
     @apply rounded-lg border bg-white transition-shadow duration-200;
     border-color: #dbe3ee;
-    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04), 0 12px 32px rgba(17, 24, 39, 0.04);
+    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.03), 0 10px 24px rgba(17, 24, 39, 0.035);
   }
 
   .card:hover {
-    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04), 0 18px 36px rgba(17, 24, 39, 0.06);
+    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04), 0 14px 28px rgba(17, 24, 39, 0.05);
   }
 
   .card-header {
@@ -159,7 +159,7 @@
   .btn-primary {
     @apply btn text-white;
     background: #0f6cde;
-    box-shadow: 0 10px 24px rgba(15, 108, 222, 0.16);
+    box-shadow: 0 6px 14px rgba(15, 108, 222, 0.14);
   }
 
   .btn-primary:hover {
@@ -173,7 +173,7 @@
   }
 
   .btn-secondary:hover {
-    background: #f8fafc;
+    background: #f6f9fc;
   }
 
   .btn-ghost {
@@ -231,33 +231,34 @@
   .table-container {
     @apply overflow-hidden rounded-lg border bg-white;
     border-color: #dbe3ee;
-    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04), 0 12px 32px rgba(17, 24, 39, 0.04);
+    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.03), 0 10px 24px rgba(17, 24, 39, 0.035);
   }
 
   .table-header {
-    background: #f8fafc;
+    background: #f7f9fc;
+    border-bottom: 1px solid #e6edf5;
   }
 
   .table-header th {
-    @apply px-4 py-2.5 text-left text-xs font-semibold uppercase text-app-soft;
+    @apply px-4 py-2.5 text-left text-[11px] font-semibold uppercase text-app-soft;
 
     letter-spacing: 0.08em;
   }
 
   .table-body {
-    divide-color: #edf2f7;
+    divide-color: #edf1f6;
   }
 
   .table-row {
-    @apply transition-colors duration-150;
+    @apply border-b border-slate-100 transition-colors duration-150;
   }
 
   .table-row:hover {
-    background: #fbfdff;
+    background: #f9fbfe;
   }
 
   .table-cell {
-    @apply whitespace-nowrap px-4 py-3 text-sm;
+    @apply whitespace-nowrap px-4 py-3.5 text-sm;
 
     color: #314056;
   }
@@ -316,9 +317,9 @@
   }
 
   .nav-item-active {
-    background: #172033;
-    color: white;
-    box-shadow: 0 10px 24px rgba(23, 32, 51, 0.16);
+    background: #edf4ff;
+    color: #0f6cde;
+    box-shadow: inset 0 0 0 1px #cfe0f7;
   }
 
   .icon-button {
@@ -335,11 +336,11 @@
   .app-rail-logo {
     @apply flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold text-white;
     background: #0f6cde;
-    box-shadow: 0 10px 24px rgba(15, 108, 222, 0.16);
+    box-shadow: 0 6px 14px rgba(15, 108, 222, 0.14);
   }
 
   .app-rail-item {
-    @apply inline-flex h-11 w-11 items-center justify-center rounded-xl transition;
+    @apply inline-flex h-11 w-11 items-center justify-center rounded-lg transition;
   }
 
   .app-rail-item-idle {
@@ -352,21 +353,22 @@
   }
 
   .app-rail-item-active {
-    background: #172033;
-    color: white;
-    box-shadow: 0 10px 24px rgba(23, 32, 51, 0.16);
+    background: #edf4ff;
+    color: #0f6cde;
+    box-shadow: inset 0 0 0 1px #cfe0f7;
   }
 
   .app-rail-user {
-    @apply flex h-11 w-11 items-center justify-center rounded-xl text-sm font-semibold;
+    @apply flex h-11 w-11 items-center justify-center rounded-lg text-sm font-semibold;
     background: #eef3f8;
     color: #172033;
   }
 
   .site-switcher-trigger {
-    @apply flex w-full items-center justify-between gap-2 rounded-lg border bg-white px-3.5 py-2 text-left shadow-card transition;
+    @apply flex w-full items-center justify-between gap-2 rounded-lg border bg-white px-3.5 py-2 text-left transition;
 
     border-color: #dbe3ee;
+    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.03);
   }
 
   .site-switcher-trigger:hover {
@@ -376,6 +378,7 @@
   .site-switcher-panel {
     @apply absolute left-0 top-[calc(100%+0.5rem)] z-30 w-full overflow-hidden rounded-xl border bg-white shadow-card;
     border-color: #dbe3ee;
+    box-shadow: 0 18px 40px rgba(17, 24, 39, 0.08);
   }
 
   .site-switcher-row {
@@ -418,7 +421,7 @@
   }
 
   .site-switcher-footer:hover {
-    background: #f8fafc;
+    background: #f6f9fc;
   }
 
   .site-list-row {
@@ -431,12 +434,12 @@
   }
 
   .panel-header {
-    @apply mb-4 flex flex-wrap items-start justify-between gap-3;
+    @apply mb-5 flex flex-wrap items-start justify-between gap-3;
 
   }
 
   .metric-grid {
-    @apply grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-4;
+    @apply grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-4;
   }
 
   .mobile-shell-overlay {

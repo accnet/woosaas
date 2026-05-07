@@ -6,11 +6,11 @@ export function TableLoadingSkeleton({
   columns?: number
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-app-line bg-white">
+    <div className="table-container">
       <div className="table-header">
         <div className="grid gap-0" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
           {Array.from({ length: columns }).map((_, index) => (
-            <div key={index} className="px-6 py-3">
+            <div key={index} className="px-4 py-2.5">
               <div className="h-3 w-20 animate-pulse rounded bg-slate-200" />
             </div>
           ))}
@@ -24,7 +24,7 @@ export function TableLoadingSkeleton({
             style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
           >
             {Array.from({ length: columns }).map((__, columnIndex) => (
-              <div key={columnIndex} className="px-6 py-4">
+              <div key={columnIndex} className="px-4 py-3.5">
                 <div className="h-4 animate-pulse rounded bg-slate-100" />
               </div>
             ))}

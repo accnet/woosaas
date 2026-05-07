@@ -178,7 +178,7 @@ export default function PagesPage() {
 
       <AnalyticsPageHeader
         title="Top Pages"
-        description="Landing pages and content paths ranked by traffic, conversion signals, and revenue."
+        description="Landing pages and content paths ranked by traffic, conversion signals, and revenue for this website."
         controls={
           <>
             {refreshing ? <StatusChip label="Refreshing" tone="info" /> : null}
@@ -229,7 +229,7 @@ export default function PagesPage() {
 
       <SectionCard
         title="Page Performance"
-        description="Scan page-level traffic, value, and period-over-period momentum using one consistent pattern."
+        description="Scan page-level traffic, value, and period-over-period momentum inside the analytics app."
         icon={<FileText className="h-4 w-4" />}
         className="overflow-hidden px-0 py-0"
         action={

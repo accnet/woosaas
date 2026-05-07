@@ -79,7 +79,7 @@ export default function ProductsPage() {
 
       <AnalyticsPageHeader
         title="Top Products"
-        description="Product interest, cart activity, and purchase conversion."
+        description="Product interest, cart activity, and purchase conversion for this website."
         controls={
           <DateRangeSelect
             value={dateRange}
@@ -102,7 +102,7 @@ export default function ProductsPage() {
 
       <SectionCard
         title="Product Conversion"
-        description="Views, cart behavior, purchases, and revenue by product."
+        description="Views, cart behavior, purchases, and revenue by product inside the analytics app."
         icon={<Package className="h-4 w-4" />}
         className="overflow-hidden px-0 py-0"
       >

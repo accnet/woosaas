@@ -86,7 +86,7 @@ export default function BotsPage() {
     <div className="space-y-8">
       <AnalyticsPageHeader
         title="Bot Traffic"
-        description="Scored traffic, suspicious reasons, and rule coverage compared against trusted human activity."
+        description="Scored traffic, suspicious reasons, and rule coverage for this website compared against trusted human activity."
         controls={
           <>
             {refreshing ? <StatusChip label="Refreshing" tone="info" /> : null}

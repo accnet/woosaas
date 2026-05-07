@@ -33,8 +33,11 @@ export function TableSection({
       action={action}
       className={`overflow-hidden px-0 py-0 ${className}`.trim()}
     >
-      <div className="overflow-x-auto">{children}</div>
-      {isEmpty && emptyBody ? <EmptyState icon={emptyIcon} title={emptyTitle} body={emptyBody} /> : null}
+      {isEmpty && emptyBody ? (
+        <EmptyState icon={emptyIcon} title={emptyTitle} body={emptyBody} />
+      ) : (
+        <div className="overflow-x-auto">{children}</div>
+      )}
     </SectionCard>
   )
 }

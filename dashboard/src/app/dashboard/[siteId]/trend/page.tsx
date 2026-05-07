@@ -52,7 +52,7 @@ export default function TrendPage() {
 
       <AnalyticsPageHeader
         title="Trend Analysis"
-        description="Historical movement across the key acquisition and conversion metrics."
+        description="Historical movement across the core analytics app metrics for this website."
         controls={
           <DateRangeSelect
             value={dateRange}
@@ -75,7 +75,7 @@ export default function TrendPage() {
 
       <SectionCard
         title="Metric Timeline"
-        description="Daily movement for pageviews, sessions, and purchases."
+        description="Daily movement for the website metrics tracked inside the analytics app."
         icon={<LineChartIcon className="h-4 w-4" />}
       >
         {trend.length > 0 ? (

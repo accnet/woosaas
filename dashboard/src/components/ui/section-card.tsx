@@ -18,20 +18,20 @@ export function SectionCard({
   return (
     <div className={`card px-6 py-6 ${className}`.trim()}>
       <div className="panel-header">
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-3">
           {icon ? (
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-app-subtle text-app-strong">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-app-subtle text-app-strong">
               {icon}
             </div>
           ) : null}
-          <div>
-            <h3 className="text-base font-semibold text-app-strong">{title}</h3>
-            {description ? <p className="mt-1 text-sm text-app-muted">{description}</p> : null}
+          <div className="min-w-0">
+            <h3 className="text-[15px] font-semibold text-app-strong">{title}</h3>
+            {description ? <p className="mt-1 max-w-3xl text-sm leading-5 text-app-muted">{description}</p> : null}
           </div>
         </div>
         {action}
       </div>
-      <div className="mt-5">{children}</div>
+      <div className="mt-4">{children}</div>
     </div>
   )
 }

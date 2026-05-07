@@ -149,7 +149,7 @@ export default function RealtimePage() {
 
       <AnalyticsPageHeader
         title="Realtime Activity"
-        description="Short-window activity feed with explicit live state, refresh control, and feed filtering."
+        description="Short-window analytics feed for this website with explicit live state, refresh control, and filtering."
         controls={
           <StatusChip
             label={liveStatus === 'refreshing' ? 'Refreshing' : liveStatus === 'live' ? 'Live' : 'Paused'}
@@ -242,7 +242,7 @@ export default function RealtimePage() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_0.85fr]">
         <SectionCard
           title="Live Feed"
-          description="Newest human events in the active window, filtered in real time."
+          description="Newest human events for this website in the active window, filtered in real time."
           action={<StatusChip label={`${filteredEvents.length} rows`} tone="neutral" />}
           className="overflow-hidden px-0 py-0"
         >

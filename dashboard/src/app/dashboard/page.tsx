@@ -2,15 +2,16 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, AlertTriangle, ArrowRight, CircleAlert, Globe, Layers3, Plus, ShieldCheck, TimerOff } from 'lucide-react'
+import { Activity, AlertTriangle, ArrowRight, Globe, Layers3, LifeBuoy, Mail, Plus, ShieldCheck, Store } from 'lucide-react'
+import { EmptyState } from '@/components/ui/empty-state'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { MetricCard } from '@/components/ui/metric-card'
-import { EmptyState } from '@/components/ui/empty-state'
-import { DetailNote } from '@/components/ui/detail-note'
+import { SectionCard } from '@/components/ui/section-card'
 import { StatusChip } from '@/components/ui/status-chip'
 import { TrackingStatusChip } from '@/components/ui/tracking-status-chip'
-import { formatRelativeTimeLabel } from '@/lib/dashboard-metadata'
 import { sitesApi } from '@/lib/api'
+import { formatRelativeTimeLabel } from '@/lib/dashboard-metadata'
+import { getWorkspaceAppSummaries, getWebsiteAppStatuses } from '@/lib/site-apps'
 import { getSiteTrackingState } from '@/lib/tracking-status'
 import type { Site } from '@/lib/types'
 import { useAuthStore } from '@/store/auth'
@@ -26,7 +27,7 @@ export default function DashboardPage() {
         const res = await sitesApi.list()
         setSites(res.data)
       } catch (err) {
-        console.error('Failed to load sites', err)
+        console.error('Failed to load workspace sites', err)
       } finally {
         setLoadingSites(false)
       }
@@ -35,271 +36,255 @@ export default function DashboardPage() {
     void loadSites()
   }, [])
 
-  if (!user) {
-    return null
-  }
-
   const activeSites = sites.filter((site) => getSiteTrackingState(site).label === 'Active').length
-  const verifiedSites = sites.filter((site) => getSiteTrackingState(site).label === 'Verified').length
-  const pendingSites = sites.filter((site) => getSiteTrackingState(site).label === 'Pending').length
+  const connectedAnalyticsSites = sites.filter((site) => getSiteTrackingState(site).label !== 'Pending').length
 
-  // Sites that need attention: pending for > 24h or no signal in 7 days
   const needsAttentionSites = useMemo(() => {
     const now = Date.now()
     return sites.filter((site) => {
       const lastSignal = site.tracking_last_event_at || site.tracking_last_checked_at || site.created_at
       const lastSignalTime = new Date(lastSignal).getTime()
       const state = getSiteTrackingState(site)
-      
-      // Pending sites that were created > 24h ago
+
       if (state.label === 'Pending') {
-        const createdTime = new Date(site.created_at).getTime()
-        return now - createdTime > 24 * 60 * 60 * 1000
+        return now - new Date(site.created_at).getTime() > 24 * 60 * 60 * 1000
       }
-      
-      // Sites with no events for 7+ days
-      if (state.label === 'Verified' && lastSignalTime) {
+
+      if (state.label === 'Verified') {
         return now - lastSignalTime > 7 * 24 * 60 * 60 * 1000
       }
-      
+
       return false
-    }).slice(0, 4)
+    })
   }, [sites])
 
-  const hasIssues = needsAttentionSites.length > 0
+  const workspaceApps = useMemo(() => getWorkspaceAppSummaries(sites), [sites])
+  const featuredSites = useMemo(() => sites.slice(0, 6), [sites])
 
-  // Smart runbook based on workspace state
-  const runbookSteps = useMemo(() => {
-    if (sites.length === 0) {
-      return [
-        { icon: <Plus className="h-4 w-4" />, title: 'Create a site', body: 'Add store name and canonical domain.', href: '/dashboard/sites' },
-        { icon: <ShieldCheck className="h-4 w-4" />, title: 'Get API key', body: 'Open API Keys and issue a credential for the plugin.', href: undefined },
-        { icon: <Layers3 className="h-4 w-4" />, title: 'Install plugin', body: 'Configure the WordPress plugin and verify collection.', href: undefined },
-      ]
-    }
-    
-    if (hasIssues) {
-      return [
-        { icon: <AlertTriangle className="h-4 w-4" />, title: `Resolve ${needsAttentionSites.length} site issue(s)`, body: 'Sites need setup completion or have not received events.', href: `/dashboard/sites` },
-        { icon: <ShieldCheck className="h-4 w-4" />, title: 'Review API keys', body: 'Ensure credentials are active for all sites.', href: undefined },
-        { icon: <Activity className="h-4 w-4" />, title: 'Check analytics', body: 'Use Overview and Health pages to confirm pipeline.', href: undefined },
-      ]
-    }
-    
-    return [
-      { icon: <Activity className="h-4 w-4" />, title: 'Monitor traffic', body: `All ${sites.length} site(s) are active. Watch realtime activity.`, href: undefined },
-      { icon: <ShieldCheck className="h-4 w-4" />, title: 'Optimize tracking', body: 'Review events, funnels, and conversion data.', href: undefined },
-      { icon: <Globe className="h-4 w-4" />, title: 'Explore analytics', body: 'Dive into Sources, Campaigns, and Customer 360 insights.', href: undefined },
-    ]
-  }, [sites.length, hasIssues, needsAttentionSites.length])
+  if (!user) {
+    return null
+  }
 
   return (
-    <div className="space-y-5">
-
-      {/* Workspace Summary */}
+    <div className="space-y-6">
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.7fr_1fr]">
         <div className="card px-6 py-6">
           <div className="panel-header">
             <div>
               <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-app-subtle px-3 py-1 text-xs font-medium text-app-muted">
                 <Layers3 className="h-3.5 w-3.5" />
-                Workspace summary
+                Workspace home
               </div>
               <h2 className="text-2xl font-semibold text-app-strong">Welcome back, {user.name}</h2>
               <p className="mt-2 max-w-2xl text-sm text-app-muted">
-                This view shows which stores are actively sending events, which ones are verified but quiet,
-                and which installations still need setup work.
+                Run your websites as app workspaces. Analytics is live today, while Support Tickets and Email Campaigns
+                already have reserved space in the product structure.
               </p>
             </div>
-            <Link href="/dashboard/sites" className="btn-primary">
-              <Plus className="mr-1.5 h-4 w-4" />
-              New Site
-            </Link>
-          </div>
-
-          <div className="metric-grid">
-            <MetricCard
-              icon={<Globe className="h-4 w-4" />}
-              label="Total Sites"
-              value={sites.length.toString()}
-              tone="neutral"
-              helper="Tracked stores in this workspace"
-            />
-            <MetricCard
-              icon={<ShieldCheck className="h-4 w-4" />}
-              label="Active"
-              value={activeSites.toString()}
-              tone="good"
-              helper="Recently received production events"
-            />
-            <MetricCard
-              icon={<Activity className="h-4 w-4" />}
-              label="Verified"
-              value={verifiedSites.toString()}
-              tone="neutral"
-              helper="Connected, but not yet actively streaming"
-            />
-            <MetricCard
-              icon={<CircleAlert className="h-4 w-4" />}
-              label="Pending"
-              value={pendingSites.toString()}
-              tone="warn"
-              helper="Still waiting on setup or validation"
-            />
-          </div>
-        </div>
-
-        <div className="card px-6 py-6">
-          <div className="mb-5">
-            <h3 className="text-base font-semibold text-app-strong">Runbook</h3>
-            <p className="mt-1 text-sm text-app-muted">
-              {sites.length === 0
-                ? 'Start by adding your first connected website.'
-                : hasIssues
-                  ? `${needsAttentionSites.length} site(s) require action.`
-                  : `All ${sites.length} site(s) look healthy.`}
-            </p>
-          </div>
-          <div className="space-y-3">
-            {runbookSteps.map((step, i) => (
-              step.href ? (
-                <Link key={i} href={step.href}>
-                  <DetailNote icon={step.icon} title={step.title} body={step.body} />
-                </Link>
-              ) : (
-                <DetailNote key={i} icon={step.icon} title={step.title} body={step.body} />
-              )
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Needs Attention */}
-      {hasIssues && (
-        <section className="space-y-4">
-          <div className="panel-header">
-            <div>
-              <h2 className="section-title flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-amber-500" />
-                Needs Attention
-              </h2>
-              <p className="section-desc">Sites that require setup completion or have not received events recently.</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            {needsAttentionSites.map((site) => {
-              const state = getSiteTrackingState(site)
-              const isPending = state.label === 'Pending'
-              return (
-                <div key={`attention-${site.id}`} className="card px-6 py-5 border-l-4 border-l-amber-400">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="truncate text-base font-semibold text-app-strong">{site.name}</h3>
-                        <StatusChip label={isPending ? 'Pending' : 'Stale'} tone="warn" />
-                      </div>
-                      <p className="truncate text-sm text-app-muted">{site.domain}</p>
-                      <p className="mt-2 text-sm text-app-soft">
-                        {isPending
-                          ? 'Setup not yet completed. Finish onboarding to start collecting events.'
-                          : 'No events received for over 7 days. Check pipeline health.'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <Link href={`/dashboard/${site.id}/overview`} className="btn-primary">
-                      Open Analytics
-                    </Link>
-                    <Link href={`/dashboard/sites/${site.id}/onboarding`} className="btn-secondary">
-                      Setup Guide
-                    </Link>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* Site Portfolio */}
-      <section className="space-y-4">
-        <div className="panel-header">
-          <div>
-            <h2 className="section-title">Site Portfolio</h2>
-            <p className="section-desc">Recent tracking state and the quickest next action for each store.</p>
-          </div>
-          {sites.length > 0 && (
-            <Link href="/dashboard/sites" className="btn-secondary">
-              View all
-              <ArrowRight className="ml-1.5 h-4 w-4" />
-            </Link>
-          )}
-        </div>
-
-        {loadingSites ? (
-          <LoadingSpinner className="py-20" />
-        ) : sites.length === 0 ? (
-          <div className="card px-8 py-16 text-center">
-            <EmptyState
-              icon={<Plus className="h-7 w-7" />}
-              title="No sites yet"
-              body="Add the first store, issue an API key, then wire the WordPress plugin to start filling the dashboard."
-              className="mx-auto max-w-md px-0 py-0"
-            />
-            <div className="mt-6">
+            <div className="flex flex-wrap gap-2">
+              <Link href="/dashboard/sites" className="btn-secondary">
+                View websites
+              </Link>
               <Link href="/dashboard/sites" className="btn-primary">
                 <Plus className="mr-1.5 h-4 w-4" />
-                Add first site
+                New website
               </Link>
             </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
-            {sites.slice(0, 6).map((site) => {
-              const trackingState = getSiteTrackingState(site)
-              const lastSignal = site.tracking_last_event_at || site.tracking_last_checked_at || site.created_at
 
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+            <MetricCard
+              icon={<Globe className="h-4 w-4" />}
+              label="Websites"
+              value={sites.length.toString()}
+              helper="Tracked websites in this workspace"
+            />
+            <MetricCard
+              icon={<Activity className="h-4 w-4" />}
+              label="Analytics Live"
+              value={activeSites.toString()}
+              tone={activeSites > 0 ? 'good' : 'warn'}
+              helper="Websites actively streaming events"
+            />
+            <MetricCard
+              icon={<ShieldCheck className="h-4 w-4" />}
+              label="Apps Ready"
+              value={connectedAnalyticsSites.toString()}
+              tone={connectedAnalyticsSites > 0 ? 'good' : 'neutral'}
+              helper="Websites already connected to the first app"
+            />
+            <MetricCard
+              icon={<AlertTriangle className="h-4 w-4" />}
+              label="Needs Attention"
+              value={needsAttentionSites.length.toString()}
+              tone={needsAttentionSites.length > 0 ? 'warn' : 'neutral'}
+              helper="Websites blocked on setup or recent signal"
+            />
+          </div>
+        </div>
+
+        <SectionCard
+          title="Rollout Focus"
+          description="What to do next as the product expands from analytics into a multi-app website workspace."
+          icon={<Store className="h-4 w-4" />}
+        >
+          <div className="space-y-2">
+            <QuickAction
+              href="/dashboard/sites"
+              title="Curate website portfolio"
+              body="Keep names, domains, and ownership clean before more apps arrive."
+            />
+            <QuickAction
+              href={sites[0] ? `/dashboard/sites/${sites[0].id}` : '/dashboard/sites'}
+              title="Use website home as the entrypoint"
+              body="Website-level app navigation is now the main mental model."
+            />
+            <QuickAction
+              href={sites[0] ? `/dashboard/${sites[0].id}/overview` : '/dashboard/sites'}
+              title="Keep analytics stable"
+              body="Existing analytics reports stay intact while the shell evolves around them."
+            />
+          </div>
+        </SectionCard>
+      </section>
+
+      <SectionCard
+        title="App Portfolio"
+        description="Workspace-level status for the apps that belong to each website."
+        icon={<Layers3 className="h-4 w-4" />}
+      >
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          {workspaceApps.map((app) => (
+            <div key={app.key} className="rounded-lg border border-app-line bg-white p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-app-subtle text-app-strong">
+                  {app.key === 'analytics' ? <Activity className="h-5 w-5" /> : app.key === 'supportTickets' ? <LifeBuoy className="h-5 w-5" /> : <Mail className="h-5 w-5" />}
+                </div>
+                <StatusChip label={app.label} tone={app.tone} />
+              </div>
+              <div className="mt-4 text-base font-semibold text-app-strong">{app.title}</div>
+              <p className="mt-2 text-sm text-app-muted">{app.detail}</p>
+            </div>
+          ))}
+        </div>
+      </SectionCard>
+
+      {needsAttentionSites.length > 0 ? (
+        <SectionCard
+          title="Needs Attention"
+          description="Websites that should be unblocked before you expand into more operational apps."
+          icon={<AlertTriangle className="h-4 w-4" />}
+        >
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            {needsAttentionSites.slice(0, 4).map((site) => {
+              const trackingState = getSiteTrackingState(site)
               return (
-                <div key={site.id} className="card px-6 py-5">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
+                <div key={site.id} className="rounded-lg border border-app-line bg-slate-50 p-5">
+                  <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-app-subtle text-sm font-semibold text-app-strong">
-                          {site.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="truncate text-base font-semibold text-app-strong">{site.name}</h3>
-                          <p className="truncate text-sm text-app-muted">{site.domain}</p>
-                        </div>
-                      </div>
+                      <div className="truncate text-base font-semibold text-app-strong">{site.name}</div>
+                      <div className="truncate text-sm text-app-muted">{site.domain}</div>
                     </div>
                     <TrackingStatusChip site={site} />
                   </div>
-
-                  <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <InfoCell label="Status detail" value={trackingState.detail} />
-                    <InfoCell label="Last signal" value={formatRelativeTimeLabel(lastSignal)} />
-                    <InfoCell label="Next step" value={trackingState.label === 'Pending' ? 'Finish setup' : 'Review analytics'} />
-                  </div>
-
-                  <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-                    <Link href={`/dashboard/${site.id}/overview`} className="btn-primary">
-                      Open Analytics
+                  <p className="mt-3 text-sm text-app-muted">{trackingState.detail}</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Link href={`/dashboard/sites/${site.id}`} className="btn-secondary">
+                      Website home
                     </Link>
-                    <Link href={`/dashboard/sites/${site.id}/api-keys`} className="btn-secondary">
-                      API Keys
-                    </Link>
-                    <Link href={`/dashboard/sites/${site.id}/onboarding`} className="btn-ghost">
-                      Setup Guide
+                    <Link href={`/dashboard/sites/${site.id}/onboarding`} className="btn-primary">
+                      Finish setup
                     </Link>
                   </div>
                 </div>
               )
             })}
           </div>
+        </SectionCard>
+      ) : null}
+
+      <SectionCard
+        title="Website Workspaces"
+        description="Every website is now the container for apps, setup, and future operational surfaces."
+        icon={<Globe className="h-4 w-4" />}
+        action={
+          sites.length > 0 ? (
+            <Link href="/dashboard/sites" className="btn-secondary">
+              Open registry
+              <ArrowRight className="ml-1.5 h-4 w-4" />
+            </Link>
+          ) : null
+        }
+      >
+        {loadingSites ? (
+          <LoadingSpinner className="py-16" />
+        ) : featuredSites.length === 0 ? (
+          <EmptyState
+            icon={<Plus className="h-7 w-7" />}
+            title="No websites yet"
+            body="Create the first website to activate the workspace model and unlock analytics."
+          />
+        ) : (
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            {featuredSites.map((site) => (
+              <WorkspaceSiteCard key={site.id} site={site} />
+            ))}
+          </div>
         )}
-      </section>
+      </SectionCard>
+    </div>
+  )
+}
+
+function QuickAction({ href, title, body }: { href: string; title: string; body: string }) {
+  return (
+    <Link href={href} className="site-switcher-footer">
+      <div>
+        <div className="text-sm font-semibold text-app-strong">{title}</div>
+        <div className="mt-1 text-sm text-app-muted">{body}</div>
+      </div>
+      <ArrowRight className="h-4 w-4" />
+    </Link>
+  )
+}
+
+function WorkspaceSiteCard({ site }: { site: Site }) {
+  const trackingState = getSiteTrackingState(site)
+  const lastSignal = site.tracking_last_event_at || site.tracking_last_checked_at || site.created_at
+  const apps = getWebsiteAppStatuses(site)
+
+  return (
+    <div className="rounded-lg border border-app-line bg-white p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-base font-semibold text-app-strong">{site.name}</div>
+          <div className="truncate text-sm text-app-muted">{site.domain}</div>
+        </div>
+        <TrackingStatusChip site={site} />
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <InfoCell label="Tracking detail" value={trackingState.detail} />
+        <InfoCell label="Last signal" value={formatRelativeTimeLabel(lastSignal)} />
+      </div>
+
+      <div className="mt-4">
+        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-app-soft">Apps</div>
+        <div className="flex flex-wrap gap-2">
+          {apps.map((app) => (
+            <StatusChip key={app.key} label={`${app.title}: ${app.label}`} tone={app.tone} />
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+        <Link href={`/dashboard/sites/${site.id}`} className="btn-primary">
+          Open website
+        </Link>
+        <Link href={`/dashboard/${site.id}/overview`} className="btn-secondary">
+          Analytics
+        </Link>
+      </div>
     </div>
   )
 }

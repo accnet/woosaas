@@ -109,7 +109,7 @@ export default function CustomersPage() {
     <div className="space-y-8">
       <AnalyticsPageHeader
         title="Customer 360"
-        description="Browse customer profiles, search by identity, and drill from summary signals into recent behavior."
+        description="Browse customer profiles for this website and drill from summary signals into recent behavior."
         controls={
           <>
             {refreshing ? <StatusChip label="Refreshing" tone="info" /> : null}
@@ -162,7 +162,7 @@ export default function CustomersPage() {
 
       <TableSection
         title="Customer Directory"
-        description="Search by email or client id, then pivot into profile detail, orders, and event timeline."
+        description="Search by email or client id, then pivot into profile detail, orders, and event timeline inside the analytics app."
         action={
           <div className="flex flex-col gap-3 sm:min-w-[340px]">
             <div className="flex items-center justify-end gap-2">

@@ -32,13 +32,13 @@ export function MetricCard({
   const DeltaIcon = delta === null || delta === undefined ? null : delta === 0 ? Minus : isDeltaPositive ? ArrowUpRight : ArrowDownRight
 
   return (
-    <div className="card px-5 py-5">
+    <div className="card px-5 py-4.5">
       <div className="flex items-center justify-between">
-        <div className="text-sm font-medium text-app-muted">{label}</div>
-        <div className={`flex h-9 w-9 items-center justify-center rounded-md ${toneClass}`}>{icon}</div>
+        <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-app-soft">{label}</div>
+        <div className={`flex h-8 w-8 items-center justify-center rounded-md ${toneClass}`}>{icon}</div>
       </div>
-      <div className="mt-4 flex items-center gap-2">
-        <div className={`text-3xl font-semibold text-app-strong ${valueClassName}`.trim()}>{value}</div>
+      <div className="mt-3 flex items-center gap-2">
+        <div className={`text-[1.85rem] font-semibold leading-none text-app-strong ${valueClassName}`.trim()}>{value}</div>
         {live && (
           <div className="relative h-2.5 w-2.5">
             <div className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
@@ -48,7 +48,7 @@ export function MetricCard({
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {delta !== null && delta !== undefined && DeltaIcon ? (
-          <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold ${
+          <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
             delta === 0
               ? 'bg-app-subtle text-app-muted'
               : isDeltaPositive
@@ -59,12 +59,11 @@ export function MetricCard({
             {delta > 0 ? '+' : ''}{delta.toFixed(1)}%
           </span>
         ) : null}
-        {helper ? <span className="text-sm text-app-muted">{helper}</span> : null}
+        {helper ? <span className="text-sm leading-5 text-app-muted">{helper}</span> : null}
       </div>
       {delta !== null && delta !== undefined && deltaLabel ? (
-        <div className="mt-1 text-xs text-app-soft">{deltaLabel}</div>
+        <div className="mt-1 text-[11px] text-app-soft">{deltaLabel}</div>
       ) : null}
     </div>
   )
 }
-

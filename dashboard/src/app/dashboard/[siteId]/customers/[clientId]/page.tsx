@@ -126,7 +126,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ clien
 
       <AnalyticsPageHeader
         title="Customer Detail"
-        description="Identity, order value, timeline, and acquisition context for this individual profile."
+        description="Identity, order value, timeline, and acquisition context for this website customer profile."
       />
 
       {error ? (

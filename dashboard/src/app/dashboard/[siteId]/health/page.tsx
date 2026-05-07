@@ -245,7 +245,7 @@ export default function HealthPage() {
     <div className="space-y-8">
       <AnalyticsPageHeader
         title="Pipeline Health"
-        description="Queue, consumer, delivery, and verification signals organized into one operational view."
+        description="Queue, consumer, delivery, and verification signals for this website organized into one operational view."
         controls={
           <div className="flex items-center gap-2">
             <StatusChip label={health.status} tone={overallTone} />

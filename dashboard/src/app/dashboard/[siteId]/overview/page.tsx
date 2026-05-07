@@ -109,8 +109,8 @@ export default function OverviewPage() {
     <div className="space-y-5">
 
       <AnalyticsPageHeader
-        title="Performance Summary"
-        description="Core traffic, conversion, and revenue signals for the selected period."
+        title="Analytics Overview"
+        description="Snapshot of the analytics app for this website, covering traffic, conversion, and revenue signals."
         controls={
           <DateRangeSelect
             value={dateRange}
@@ -163,7 +163,7 @@ export default function OverviewPage() {
         />
       </div>
 
-      <SectionCard title="Traffic Trend" description="Multi-metric trajectory for the active date range.">
+      <SectionCard title="Traffic Trend" description="Multi-metric trajectory inside the analytics app for the active date range.">
         {trend.length > 0 ? (
           <MultiLineChart
             data={trend}
@@ -179,7 +179,7 @@ export default function OverviewPage() {
       </SectionCard>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <SectionCard title="Commerce Funnel" description="Step counts across the purchase journey." icon={<ShoppingCart className="h-4 w-4" />}>
+        <SectionCard title="Commerce Funnel" description="Step counts across the website purchase journey." icon={<ShoppingCart className="h-4 w-4" />}>
           <div className="space-y-4">
             <DetailRow label="Product Views" value={overview?.product_views?.toLocaleString() || '0'} />
             <DetailRow label="Add to Cart" value={overview?.add_to_carts?.toLocaleString() || '0'} />
@@ -189,7 +189,7 @@ export default function OverviewPage() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Audience Quality" description="User volume and browsing depth." icon={<Users className="h-4 w-4" />}>
+        <SectionCard title="Audience Quality" description="User volume and browsing depth within this website workspace." icon={<Users className="h-4 w-4" />}>
           <div className="space-y-4">
             <DetailRow label="Unique Users" value={overview?.users?.toLocaleString() || '0'} />
             <DetailRow label="Sessions" value={overview?.sessions?.toLocaleString() || '0'} />
@@ -198,7 +198,7 @@ export default function OverviewPage() {
         </SectionCard>
       </div>
 
-      <SectionCard title="Top Pages" description="Highest-traffic pages in the selected period." icon={<PanelLeft className="h-4 w-4" />} className="overflow-hidden px-0 py-0">
+      <SectionCard title="Top Pages" description="Highest-traffic pages for this website in the selected period." icon={<PanelLeft className="h-4 w-4" />} className="overflow-hidden px-0 py-0">
         {pages.length > 0 ? (
           <DataTable columns={pageColumns} data={pages} keyExtractor={(p) => p.path} />
         ) : (

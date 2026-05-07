@@ -18,12 +18,14 @@ export function DataTable<T>({
   emptyTitle = 'No data',
   emptyBody = 'No rows match the current criteria.',
   keyExtractor,
+  framed = false,
 }: {
   columns: Column<T>[]
   data: T[]
   emptyTitle?: string
   emptyBody?: string
   keyExtractor: (item: T) => string
+  framed?: boolean
 }) {
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
@@ -55,7 +57,8 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className={framed ? 'table-container' : ''}>
+      <div className="overflow-x-auto">
       <table className="min-w-full">
         <thead className="table-header">
           <tr>
@@ -66,7 +69,7 @@ export function DataTable<T>({
               return (
                 <th
                   key={col.key}
-                  className={`px-6 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-app-soft ${
+                  className={`px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-app-soft ${
                     col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
                   } ${col.sortable ? 'cursor-pointer select-none hover:text-app-strong' : ''}`}
                   onClick={() => col.sortable && handleSort(col.key)}
@@ -106,13 +109,14 @@ export function DataTable<T>({
           ) : (
             <tr>
               <td colSpan={columns.length} className="px-6 py-16 text-center">
-                <div className="text-sm font-medium text-app-muted">{emptyTitle}</div>
-                <div className="mt-1 text-sm text-app-soft">{emptyBody}</div>
+                <div className="text-[15px] font-semibold text-app-strong">{emptyTitle}</div>
+                <div className="mt-2 text-sm text-app-soft">{emptyBody}</div>
               </td>
             </tr>
           )}
         </tbody>
       </table>
+      </div>
     </div>
   )
 }
