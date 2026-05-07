@@ -1,15 +1,26 @@
 'use client'
 
 import Link from 'next/link'
-import { use, useEffect, useState } from 'react'
-import { ArrowLeft, BadgeDollarSign, ShoppingBag, ShoppingCart, UserRound } from 'lucide-react'
-import { LoadingSpinner } from '@/components/ui/loading-spinner'
-import { MetricCard } from '@/components/ui/metric-card'
+import { use, useEffect, useMemo, useState } from 'react'
+import {
+  ArrowLeft,
+  BadgeDollarSign,
+  Clock3,
+  ShoppingBag,
+  ShoppingCart,
+  UserRound,
+} from 'lucide-react'
+import { AnalyticsPageHeader } from '@/components/ui/analytics-page-header'
 import { DetailRow } from '@/components/ui/detail-row'
 import { EmptyState } from '@/components/ui/empty-state'
+import { InlineErrorState } from '@/components/ui/inline-error-state'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { MetricCard } from '@/components/ui/metric-card'
+import { SectionCard } from '@/components/ui/section-card'
+import { StatusChip } from '@/components/ui/status-chip'
 import { useSiteId } from '@/hooks/use-site-id'
-import { statsApi } from '@/lib/api'
-import type { Customer, CustomerEvent, CustomerDetailResponse } from '@/lib/types'
+import { getApiErrorMessage, statsApi } from '@/lib/api'
+import type { Customer, CustomerDetailResponse, CustomerEvent } from '@/lib/types'
 
 export default function CustomerDetailPage({ params }: { params: Promise<{ clientId: string }> }) {
   const siteId = useSiteId()
@@ -17,106 +28,227 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ clien
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [events, setEvents] = useState<CustomerEvent[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
+    let cancelled = false
+
     const loadData = async () => {
-      setLoading(true)
+      if (!customer) {
+        setLoading(true)
+      } else {
+        setRefreshing(true)
+      }
+
+      setError(null)
+
       try {
         const res = await statsApi.customer(siteId, clientId, 50)
         const data = res.data as CustomerDetailResponse
-        setCustomer(data.customer)
-        setEvents(data.events)
+        if (!cancelled) {
+          setCustomer(data.customer)
+          setEvents(data.events)
+        }
       } catch (err) {
-        console.error('Failed to load customer profile', err)
+        if (!cancelled) {
+          setError(getApiErrorMessage(err, 'Customer profile could not be loaded right now.'))
+        }
       } finally {
-        setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          setRefreshing(false)
+        }
       }
     }
 
     void loadData()
-  }, [clientId, siteId])
 
-  if (loading) {
+    return () => {
+      cancelled = true
+    }
+  }, [clientId, reloadKey, siteId])
+
+  const purchaseEvents = useMemo(
+    () => events.filter((event) => event.event_name === 'purchase' || event.order_id),
+    [events]
+  )
+
+  if (loading && !customer) {
     return <LoadingSpinner className="py-16" />
   }
 
   if (!customer) {
     return (
-      <div className="card p-12 text-center">
-        <EmptyState body="Customer not found" />
-      </div>
+      <InlineErrorState
+        body={error || 'Customer not found.'}
+        onRetry={() => setReloadKey((value) => value + 1)}
+      />
     )
   }
 
   return (
     <div className="space-y-8">
-      <Link
-        href={`/dashboard/${siteId}/customers`}
-        className="link text-sm inline-flex items-center gap-1"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Customers
-      </Link>
-
-      <div className="card px-6 py-6">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-14 h-14 rounded-full bg-app-subtle text-app-strong flex items-center justify-center text-xl font-bold">
-            {(customer.email || '?').charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-app-strong">{customer.email || 'Anonymous'}</h1>
-            <p className="text-app-muted text-sm">Client ID: {customer.client_id}</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <MetricCard icon={<ShoppingBag className="h-4 w-4" />} label="Sessions" value={customer.total_sessions?.toLocaleString() || '0'} />
-          <MetricCard icon={<ShoppingCart className="h-4 w-4" />} label="Orders" value={customer.total_orders?.toLocaleString() || '0'} />
-          <MetricCard icon={<BadgeDollarSign className="h-4 w-4" />} label="Revenue" value={`$${(customer.total_revenue || 0).toFixed(2)}`} />
-          <MetricCard icon={<UserRound className="h-4 w-4" />} label="LTV" value={`$${(customer.ltv || 0).toFixed(2)}`} />
-        </div>
-      </div>
-
-      <div className="card overflow-hidden">
-        <div className="panel-header border-b border-slate-100 px-6 py-4">
-          <div>
-            <h3 className="text-base font-semibold text-app-strong">Recent Events</h3>
-            <p className="mt-1 text-sm text-app-muted">Last 50 recorded events for this customer.</p>
-          </div>
-        </div>
-        {events.length > 0 ? (
-          <div className="divide-y divide-slate-100">
-            {events.map((event, i) => (
-              <div key={i} className="px-6 py-3 flex items-center justify-between text-sm">
-                <div className="flex items-center gap-3">
-                  <span className="badge-info">{event.event_name}</span>
-                  <span className="text-app-muted">{event.path || '-'}</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  {event.revenue > 0 && (
-                    <span className="text-app-muted font-medium">${event.revenue.toFixed(2)}</span>
-                  )}
-                  <span className="text-app-soft text-xs">{event.event_time ? new Date(event.event_time).toLocaleString() : '-'}</span>
-                </div>
+      <div className="sticky top-20 z-10 rounded-lg border border-app-line bg-white px-5 py-4 shadow-card">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <Link href={`/dashboard/${siteId}/customers`} className="link inline-flex items-center gap-1 text-sm">
+              <ArrowLeft className="h-4 w-4" />
+              Back to Customers
+            </Link>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-app-subtle text-lg font-semibold text-app-strong">
+                {(customer.email || '?').charAt(0).toUpperCase()}
               </div>
-            ))}
+              <div className="min-w-0">
+                <div className="truncate text-lg font-semibold text-app-strong">
+                  {customer.email || 'Anonymous customer'}
+                </div>
+                <div className="truncate text-sm text-app-muted">Client ID {customer.client_id}</div>
+              </div>
+            </div>
           </div>
-        ) : (
-          <EmptyState body="No recent events" />
-        )}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusChip label={customer.customer_type || 'Profile'} tone="info" />
+            <StatusChip label={customer.email ? 'Known identity' : 'Anonymous'} tone={customer.email ? 'good' : 'neutral'} />
+            <button
+              type="button"
+              className="btn-secondary gap-2"
+              onClick={() => setReloadKey((value) => value + 1)}
+            >
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="card px-6 py-6">
-        <h3 className="text-base font-semibold text-app-strong mb-4">Customer Details</h3>
-        <div className="space-y-0">
-          <DetailRow label="Client ID" value={customer.client_id} />
-          <DetailRow label="Email" value={customer.email || '-'} />
-          <DetailRow label="First Seen" value={customer.first_seen ? new Date(customer.first_seen).toLocaleString() : '-'} />
-          <DetailRow label="Last Seen" value={customer.last_seen ? new Date(customer.last_seen).toLocaleString() : '-'} />
-          <DetailRow label="Customer Type" value={customer.customer_type || '-'} />
-          <DetailRow label="Device" value={customer.primary_device || '-'} />
-          <DetailRow label="Browser" value={customer.primary_browser || '-'} />
-        </div>
+      <AnalyticsPageHeader
+        title="Customer Detail"
+        description="Identity, order value, timeline, and acquisition context for this individual profile."
+      />
+
+      {error ? (
+        <InlineErrorState
+          body={error}
+          compact
+          onRetry={() => setReloadKey((value) => value + 1)}
+        />
+      ) : null}
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+        <MetricCard icon={<ShoppingBag className="h-4 w-4" />} label="Sessions" value={customer.total_sessions.toLocaleString()} />
+        <MetricCard icon={<ShoppingCart className="h-4 w-4" />} label="Orders" value={customer.total_orders.toLocaleString()} />
+        <MetricCard icon={<BadgeDollarSign className="h-4 w-4" />} label="Revenue" value={`$${customer.total_revenue.toFixed(2)}`} />
+        <MetricCard icon={<UserRound className="h-4 w-4" />} label="LTV" value={`$${customer.ltv.toFixed(2)}`} helper={`AOV $${customer.avg_order_value.toFixed(2)}`} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+        <SectionCard
+          title="Summary"
+          description="Top-level profile, value, and acquisition context."
+          action={<StatusChip label={`${events.length} timeline events`} tone="neutral" />}
+        >
+          <div className="space-y-4">
+            <DetailRow label="Last source" value={customer.last_source || '(direct)'} />
+            <DetailRow label="Last medium" value={customer.last_medium || '(none)'} />
+            <DetailRow label="Last campaign" value={customer.last_campaign || '(none)'} />
+            <DetailRow label="Primary device" value={customer.primary_device || '-'} />
+            <DetailRow label="Primary browser" value={customer.primary_browser || '-'} />
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Identity" description="Persistent identifiers and lifecycle timestamps.">
+          <div className="space-y-4">
+            <DetailRow label="Client ID" value={customer.client_id} />
+            <DetailRow label="Email" value={customer.email || '-'} />
+            <DetailRow label="User ID" value={customer.user_id || '-'} />
+            <DetailRow label="First seen" value={customer.first_seen ? new Date(customer.first_seen).toLocaleString() : '-'} />
+            <DetailRow label="Last seen" value={customer.last_seen ? new Date(customer.last_seen).toLocaleString() : '-'} />
+          </div>
+        </SectionCard>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <SectionCard
+          title="Orders"
+          description="Purchase events tied to this customer profile."
+          action={<StatusChip label={`${purchaseEvents.length} order events`} tone="good" />}
+        >
+          {purchaseEvents.length > 0 ? (
+            <div className="space-y-3">
+              {purchaseEvents.map((event, index) => (
+                <div key={`${event.order_id}-${event.event_time}-${index}`} className="rounded-lg border border-app-line bg-white px-4 py-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <div className="text-sm font-semibold text-app-strong">
+                        Order {event.order_id || 'Purchase event'}
+                      </div>
+                      <div className="mt-1 text-xs text-app-muted">
+                        {event.product_name || event.path || 'Purchase captured'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <StatusChip label={event.currency || 'USD'} tone="neutral" />
+                      <StatusChip label={`$${event.revenue.toFixed(2)}`} tone="good" />
+                    </div>
+                  </div>
+                  <div className="mt-3 text-xs text-app-muted">
+                    {event.event_time ? new Date(event.event_time).toLocaleString() : '-'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={<ShoppingCart className="h-12 w-12" />}
+              title="No orders yet"
+              body="Purchase events for this customer will appear here once revenue-bearing activity is recorded."
+            />
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title="Timeline"
+          description="Most recent events across browsing, product, and purchase behavior."
+          action={<StatusChip label={`${events.length} events`} tone="neutral" />}
+        >
+          {events.length > 0 ? (
+            <div className="space-y-3">
+              {events.map((event, index) => (
+                <div key={`${event.event_name}-${event.event_time}-${index}`} className="rounded-lg border border-app-line bg-white px-4 py-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusChip label={event.event_name} tone="info" />
+                        {event.order_id ? <StatusChip label={`Order ${event.order_id}`} tone="good" /> : null}
+                      </div>
+                      <div className="mt-2 truncate text-sm font-medium text-app-strong">
+                        {event.path || event.product_name || '-'}
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-3 text-xs text-app-muted">
+                        <span>Source: {event.source || '(direct)'}</span>
+                        <span>Medium: {event.medium || '(none)'}</span>
+                        <span>Campaign: {event.campaign || '(none)'}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-app-muted">
+                      <Clock3 className="h-3.5 w-3.5" />
+                      {event.event_time ? new Date(event.event_time).toLocaleString() : '-'}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={<Clock3 className="h-12 w-12" />}
+              title="No recent activity"
+              body="Timeline events will appear once this customer has tracked browsing or commerce activity."
+            />
+          )}
+        </SectionCard>
       </div>
     </div>
   )

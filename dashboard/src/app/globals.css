@@ -47,6 +47,28 @@
 }
 
 @layer components {
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   .bg-app {
     background:
       linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(243,246,250,0.92) 100%);
@@ -336,7 +358,7 @@
   }
 
   .site-switcher-trigger {
-    @apply flex w-full items-center justify-between gap-3 rounded-lg border bg-white px-4 py-3 text-left shadow-card transition;
+    @apply flex w-full items-center justify-between gap-3 rounded-lg border bg-white px-4 py-2.5 text-left shadow-card transition;
     border-color: #dbe3ee;
   }
 
@@ -412,11 +434,11 @@
   }
 
   .mobile-shell-backdrop {
-    @apply absolute inset-0 bg-slate-950/35;
+    @apply absolute inset-0 bg-slate-950/35 animate-fade-in;
   }
 
   .mobile-shell-drawer {
-    @apply relative z-10 flex h-full w-full max-w-[420px] flex-col bg-white shadow-2xl;
+    @apply relative z-10 flex h-full w-full max-w-[420px] animate-slide-up flex-col bg-white shadow-2xl;
   }
 
   .mobile-app-link {
@@ -436,6 +458,14 @@
 }
 
 @layer utilities {
+  .animate-fade-in {
+    animation: fade-in 180ms ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 220ms ease-out;
+  }
+
   .text-balance {
     text-wrap: balance;
   }

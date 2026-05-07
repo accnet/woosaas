@@ -1,247 +1,274 @@
 'use client'
 
 import Link from 'next/link'
-import { use, useEffect, useState } from 'react'
-import { ArrowRight, CheckCircle2, Download, KeyRound, Settings2, ShieldCheck } from 'lucide-react'
-import { LoadingSpinner } from '@/components/ui/loading-spinner'
-import { MetricCard } from '@/components/ui/metric-card'
-import { DetailNote } from '@/components/ui/detail-note'
-import { SectionCard } from '@/components/ui/section-card'
+import { use, useEffect, useMemo, useState } from 'react'
+import {
+  ArrowRight,
+  CheckCircle2,
+  Download,
+  KeyRound,
+  RefreshCw,
+  Settings2,
+  ShieldCheck,
+} from 'lucide-react'
+import { AnalyticsPageHeader } from '@/components/ui/analytics-page-header'
 import { EmptyState } from '@/components/ui/empty-state'
-import { sitesApi } from '@/lib/api'
-import type { Site } from '@/lib/types'
+import { InlineErrorState } from '@/components/ui/inline-error-state'
+import { MetricCard } from '@/components/ui/metric-card'
+import { SectionCard } from '@/components/ui/section-card'
+import { StatusChip } from '@/components/ui/status-chip'
+import { TrackingStatusChip } from '@/components/ui/tracking-status-chip'
+import { getApiErrorMessage, sitesApi } from '@/lib/api'
+import { getSiteTrackingState } from '@/lib/tracking-status'
+import type { APIKey, Site } from '@/lib/types'
 
-const STEPS = [
-  {
-    icon: 'key',
-    title: 'Get API Key',
-    description: 'Generate an API key for your site that the WooCommerce plugin uses.',
-  },
-  {
-    icon: 'download',
-    title: 'Install Plugin',
-    description: 'Download and install the Woosaas plugin for WooCommerce.',
-  },
-  {
-    icon: 'settings',
-    title: 'Configure Plugin',
-    description: 'Enter your API key in the plugin settings and activate the tracking features.',
-  },
-  {
-    icon: 'check',
-    title: 'Verify Setup',
-    description: 'Confirm that data is flowing properly by verifying the connection.',
-  },
-]
+type StepState = 'complete' | 'current' | 'blocked'
 
-function StepIcon({ icon, completed, current }: { icon: string; completed: boolean; current: boolean }) {
-  const className = "w-5 h-5"
-
-  if (completed) {
-    return (
-      <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-        <svg className={`${className} text-emerald-600`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-        </svg>
-      </div>
-    )
+function StepBadge({ state }: { state: StepState }) {
+  if (state === 'complete') {
+    return <StatusChip label="Complete" tone="good" />
   }
-
-  if (current) {
-    return (
-      <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
-        <svg className={`${className} animate-spin text-primary-600`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
-        </svg>
-      </div>
-    )
+  if (state === 'current') {
+    return <StatusChip label="Next" tone="info" />
   }
-
-  return (
-    <div className="w-10 h-10 rounded-full bg-surface-100 flex items-center justify-center">
-      <svg className={`${className} text-surface-400`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        {icon === 'key' && (
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
-        )}
-        {icon === 'download' && (
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-        )}
-        {icon === 'settings' && (
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
-        )}
-        {icon === 'check' && (
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        )}
-      </svg>
-    </div>
-  )
+  return <StatusChip label="Blocked" tone="warn" />
 }
 
 export default function OnboardingPage({ params }: { params: Promise<{ siteId: string }> }) {
   const { siteId } = use(params)
   const [site, setSite] = useState<Site | null>(null)
-  const [apiKey, setApiKey] = useState('')
+  const [apiKeys, setApiKeys] = useState<APIKey[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true)
-      try {
-        const [siteRes, keyRes] = await Promise.all([
-          sitesApi.get(siteId),
-          sitesApi.getApiKeys(siteId),
-        ])
-        setSite(siteRes.data)
+    let cancelled = false
 
-        const keys = keyRes.data
-        if (keys.length > 0) {
-          setApiKey(keys[0].key_prefix)
+    const loadData = async () => {
+      if (!site) {
+        setLoading(true)
+      } else {
+        setRefreshing(true)
+      }
+
+      setError(null)
+
+      try {
+        const [siteRes, keyRes] = await Promise.all([sitesApi.get(siteId), sitesApi.getApiKeys(siteId)])
+        if (!cancelled) {
+          setSite(siteRes.data)
+          setApiKeys(keyRes.data)
         }
       } catch (err) {
-        console.error('Failed to load onboarding data', err)
+        if (!cancelled) {
+          setError(getApiErrorMessage(err, 'Onboarding data could not be loaded right now.'))
+        }
       } finally {
-        setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          setRefreshing(false)
+        }
       }
     }
 
     void loadData()
-  }, [siteId])
 
-  if (loading) {
-    return <LoadingSpinner className="py-16" />
+    return () => {
+      cancelled = true
+    }
+  }, [reloadKey, siteId])
+
+  const stepModel = useMemo(() => {
+    if (!site) {
+      return { steps: [], progress: 0, nextStep: null as null | { title: string; detail: string } }
+    }
+
+    const trackingState = getSiteTrackingState(site)
+    const hasKey = apiKeys.length > 0
+    const isVerified = trackingState.label === 'Verified' || trackingState.label === 'Active'
+    const isActive = trackingState.label === 'Active'
+
+    const steps = [
+      {
+        title: 'Generate API key',
+        description: 'Issue a credential that the WooCommerce plugin can use.',
+        state: hasKey ? 'complete' : 'current',
+        href: `/dashboard/sites/${siteId}/api-keys`,
+        cta: hasKey ? 'Manage keys' : 'Generate key',
+      },
+      {
+        title: 'Install plugin',
+        description: 'Place the Woosaas plugin in WordPress and activate it.',
+        state: isVerified ? 'complete' : hasKey ? 'current' : 'blocked',
+        href: `/dashboard/sites/${siteId}/api-keys`,
+        cta: 'Use issued key',
+      },
+      {
+        title: 'Configure plugin',
+        description: 'Enter the issued key and site domain in WooCommerce settings.',
+        state: isVerified ? 'complete' : hasKey ? 'current' : 'blocked',
+        href: `/dashboard/sites/${siteId}/api-keys`,
+        cta: 'Review key and domain',
+      },
+      {
+        title: 'Verify live collection',
+        description: 'Use Health and Realtime to confirm the first events are flowing.',
+        state: isActive ? 'complete' : isVerified ? 'current' : 'blocked',
+        href: `/dashboard/${siteId}/health`,
+        cta: 'Open health checks',
+      },
+    ] as Array<{
+      title: string
+      description: string
+      state: StepState
+      href: string
+      cta: string
+    }>
+
+    const progress = steps.filter((step) => step.state === 'complete').length
+    const nextStep = steps.find((step) => step.state === 'current') ?? null
+
+    return {
+      steps,
+      progress,
+      nextStep:
+        nextStep && site
+          ? {
+              title: nextStep.title,
+              detail: nextStep.description,
+            }
+          : null,
+    }
+  }, [apiKeys, site, siteId])
+
+  if (loading && !site) {
+    return <SectionCard title="Loading setup" description="Preparing onboarding context..." children={<div className="py-12" />} />
   }
 
   if (!site) {
-    return (
-      <div className="card"><EmptyState body="Site not found" /></div>
-    )
+    return <div className="card"><EmptyState body={error || 'Site not found'} /></div>
   }
 
-  const completedSteps = apiKey ? 1 : 0
-  const setupCompletion = `${completedSteps}/${STEPS.length}`
+  const trackingState = getSiteTrackingState(site)
+  const primaryKey = apiKeys[0]
 
   return (
     <div className="space-y-8">
-      <div className="panel-header">
-        <div>
-          <h2 className="text-2xl font-semibold text-app-strong">Setup Guide</h2>
-          <p className="mt-2 text-sm text-app-muted">
-            Bring <span className="font-medium text-app-strong">{site.name}</span> online and validate that tracking is flowing.
-          </p>
-        </div>
+      <AnalyticsPageHeader
+        title="Setup Guide"
+        description={`Bring ${site.name} online with a clear checklist, progress readout, and next blocking step.`}
+        controls={
+          <>
+            {refreshing ? <StatusChip label="Refreshing" tone="info" /> : null}
+            <TrackingStatusChip site={site} />
+            <button type="button" className="btn-secondary gap-2" onClick={() => setReloadKey((value) => value + 1)}>
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`.trim()} />
+              Refresh
+            </button>
+          </>
+        }
+      />
+
+      {error ? (
+        <InlineErrorState
+          body={error}
+          compact
+          onRetry={() => setReloadKey((value) => value + 1)}
+        />
+      ) : null}
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+        <MetricCard icon={<CheckCircle2 className="h-4 w-4" />} label="Progress" value={`${stepModel.progress}/${stepModel.steps.length}`} helper="Completed onboarding steps" />
+        <MetricCard icon={<KeyRound className="h-4 w-4" />} label="API Keys" value={apiKeys.length.toString()} helper={primaryKey ? `${primaryKey.key_prefix}...` : 'No credential issued yet'} />
+        <MetricCard icon={<ShieldCheck className="h-4 w-4" />} label="Tracking State" value={trackingState.label} helper={trackingState.detail} valueClassName="text-2xl" />
+        <MetricCard icon={<Settings2 className="h-4 w-4" />} label="Next Blocker" value={stepModel.nextStep?.title || 'All steps complete'} helper={stepModel.nextStep?.detail || 'The site is fully active.'} valueClassName="truncate text-2xl" />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <MetricCard icon={<CheckCircle2 className="h-4 w-4" />} label="Progress" value={setupCompletion} helper="Core onboarding milestones" valueClassName="text-2xl" />
-        <MetricCard icon={<KeyRound className="h-4 w-4" />} label="API Key" value={apiKey ? 'Issued' : 'Missing'} helper="Required before plugin configuration" valueClassName="text-2xl" />
-        <MetricCard icon={<ShieldCheck className="h-4 w-4" />} label="Target Domain" value={site.domain} helper="WordPress store expected to send events" valueClassName="text-2xl truncate" />
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <SectionCard title="Checklist" description="Run these steps in order to activate store tracking." icon={<Settings2 className="h-4 w-4" />}>
-          <div className="space-y-8">
-        {STEPS.map((step, index) => {
-          const completed = index === 0 ? !!apiKey : false
-          const current = index === 0 && !apiKey
-
-          return (
-            <div key={index} className="flex gap-4">
-              <div className="flex flex-col items-center">
-                <StepIcon icon={step.icon} completed={completed} current={current} />
-                {index < STEPS.length - 1 && (
-                  <div className={`w-0.5 h-full min-h-[2rem] ${completed ? 'bg-emerald-200' : 'bg-surface-200'}`} />
-                )}
-              </div>
-              <div className="flex-1 pb-8">
-                <h3 className="mb-1 text-base font-semibold text-app-strong">{step.title}</h3>
-                <p className="mb-4 text-sm text-app-muted">{step.description}</p>
-
-                {index === 0 && (
-                  <div className="space-y-3">
-                    {apiKey ? (
-                      <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                        <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-emerald-600" />
-                        <div>
-                          <p className="text-sm font-medium text-emerald-700">API Key Generated</p>
-                          <code className="text-xs text-emerald-600 font-mono">{apiKey.slice(0, 16)}...</code>
-                        </div>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.12fr_0.88fr]">
+        <SectionCard title="Checklist" description="A clearer stepper-style flow with blocking state and direct calls to action.">
+          <div className="space-y-5">
+            {stepModel.steps.map((step, index) => (
+              <div key={step.title} className="rounded-lg border border-app-line bg-white px-4 py-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-app-subtle text-sm font-semibold text-app-strong">
+                        {index + 1}
                       </div>
-                    ) : (
-                      <div className="flex gap-3">
-                        <Link
-                          href={`/dashboard/sites/${siteId}/api-keys`}
-                          className="btn-primary text-sm"
-                        >
-                          Generate API Key
-                        </Link>
-                      </div>
-                    )}
+                      <div className="text-sm font-semibold text-app-strong">{step.title}</div>
+                    </div>
+                    <p className="mt-3 text-sm text-app-muted">{step.description}</p>
                   </div>
-                )}
-
-                {index === 2 && apiKey && (
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="mb-2 text-sm font-medium text-app-strong">Plugin Configuration</p>
-                    <ol className="ml-5 list-decimal space-y-1 text-sm text-app-muted">
-                      <li>Install the Woosaas plugin on your WordPress site</li>
-                      <li>Go to WooCommerce → Settings → Woosaas</li>
-                      <li>Enter your API key: <code className="rounded bg-slate-200 px-1.5 py-0.5 text-xs font-mono">{apiKey.slice(0, 16)}...</code></li>
-                      <li>Enter your site domain: <code className="rounded bg-slate-200 px-1.5 py-0.5 text-xs font-mono">{site.domain}</code></li>
-                      <li>Save settings and verify the connection</li>
-                    </ol>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <StepBadge state={step.state} />
+                    <Link href={step.href} className="btn-secondary px-3 py-2 text-sm">
+                      {step.cta}
+                    </Link>
                   </div>
-                )}
-
-                {index === 3 && (
-                  <Link
-                    href={`/dashboard/${siteId}/health`}
-                    className="btn-primary text-sm"
-                  >
-                    Verify Connection
-                  </Link>
-                )}
+                </div>
               </div>
-            </div>
-          )
-        })}
+            ))}
           </div>
         </SectionCard>
 
         <div className="space-y-6">
-          <SectionCard title="Operator Notes" description="Current prerequisites for plugin activation." icon={<Download className="h-4 w-4" />}>
-            <div className="space-y-3">
-              <DetailNote
-                icon={<ArrowRight className="h-4 w-4" />}
-                title="Plugin location"
-                body="WordPress plugin is managed outside this repo at /var/www/site1.local/wp-content/plugins/plugin."
-              />
-              <DetailNote
-                icon={<ArrowRight className="h-4 w-4" />}
-                title="Credential state"
-                body={apiKey ? 'A key is available and ready to be entered in WooCommerce settings.' : 'No key is present yet. Generate one before continuing.'}
-                tone={apiKey ? 'good' : 'warn'}
-              />
-              <DetailNote
-                icon={<ArrowRight className="h-4 w-4" />}
-                title="Verification"
-                body="Use the Health page after setup to confirm the first events are reaching the pipeline."
-              />
+          <SectionCard title="Next Blocking Step" description="The single next action to unblock progress.">
+            {stepModel.nextStep ? (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-4">
+                <div className="text-sm font-semibold text-blue-800">{stepModel.nextStep.title}</div>
+                <p className="mt-2 text-sm text-blue-700">{stepModel.nextStep.detail}</p>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-4">
+                <div className="text-sm font-semibold text-emerald-800">Setup complete</div>
+                <p className="mt-2 text-sm text-emerald-700">
+                  This site is already streaming live events. Use Realtime and Health for ongoing verification.
+                </p>
+              </div>
+            )}
+          </SectionCard>
+
+          <SectionCard title="Operator Notes" description="Current setup context for this site.">
+            <div className="space-y-4">
+              <div className="rounded-lg border border-app-line bg-app-panel px-4 py-4">
+                <div className="text-sm font-semibold text-app-strong">Target domain</div>
+                <p className="mt-2 text-sm text-app-muted">{site.domain}</p>
+              </div>
+              <div className="rounded-lg border border-app-line bg-app-panel px-4 py-4">
+                <div className="text-sm font-semibold text-app-strong">Key status</div>
+                <p className="mt-2 text-sm text-app-muted">
+                  {primaryKey
+                    ? `First available key prefix: ${primaryKey.key_prefix}...`
+                    : 'No API key has been issued yet.'}
+                </p>
+              </div>
+              <div className="rounded-lg border border-app-line bg-app-panel px-4 py-4">
+                <div className="text-sm font-semibold text-app-strong">Verification route</div>
+                <p className="mt-2 text-sm text-app-muted">
+                  Start with Health, then cross-check Realtime once the plugin is active.
+                </p>
+              </div>
             </div>
           </SectionCard>
 
-          <div className="card px-6 py-6">
-            <h3 className="text-base font-semibold text-app-strong">Next Actions</h3>
-            <div className="mt-4 space-y-3">
-              <Link href={`/dashboard/sites/${siteId}/api-keys`} className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3 text-sm text-app-strong transition hover:border-slate-300 hover:bg-slate-50">
-                <span>Manage API keys</span>
-                <ArrowRight className="h-4 w-4" />
+          <SectionCard title="Quick Links" description="Jump directly into the next operational screens.">
+            <div className="space-y-3">
+              <Link href={`/dashboard/sites/${siteId}/api-keys`} className="flex items-center justify-between rounded-lg border border-app-line bg-white px-4 py-3 text-sm font-medium text-app-strong transition hover:border-slate-300">
+                Manage API keys
+                <ArrowRight className="h-4 w-4 text-app-muted" />
               </Link>
-              <Link href={`/dashboard/${siteId}/health`} className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3 text-sm text-app-strong transition hover:border-slate-300 hover:bg-slate-50">
-                <span>Open health checks</span>
-                <ArrowRight className="h-4 w-4" />
+              <Link href={`/dashboard/${siteId}/health`} className="flex items-center justify-between rounded-lg border border-app-line bg-white px-4 py-3 text-sm font-medium text-app-strong transition hover:border-slate-300">
+                Open health checks
+                <ArrowRight className="h-4 w-4 text-app-muted" />
+              </Link>
+              <Link href={`/dashboard/${siteId}/realtime`} className="flex items-center justify-between rounded-lg border border-app-line bg-white px-4 py-3 text-sm font-medium text-app-strong transition hover:border-slate-300">
+                Open realtime
+                <ArrowRight className="h-4 w-4 text-app-muted" />
               </Link>
             </div>
-          </div>
+          </SectionCard>
         </div>
       </div>
     </div>

@@ -7,6 +7,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { MetricCard } from '@/components/ui/metric-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { DetailNote } from '@/components/ui/detail-note'
+import { TrackingStatusChip } from '@/components/ui/tracking-status-chip'
 import { formatRelativeTimeLabel } from '@/lib/dashboard-metadata'
 import { sitesApi } from '@/lib/api'
 import { getSiteTrackingState } from '@/lib/tracking-status'
@@ -146,8 +147,6 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
             {sites.slice(0, 6).map((site) => {
               const trackingState = getSiteTrackingState(site)
-              const badgeColor = trackingState.label === 'Active' ? 'badge-success' :
-                trackingState.label === 'Verified' ? 'badge-info' : 'badge-warning'
               const lastSignal = site.tracking_last_event_at || site.tracking_last_checked_at || site.created_at
 
               return (
@@ -164,7 +163,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
                     </div>
-                    <span className={badgeColor}>{trackingState.label}</span>
+                    <TrackingStatusChip site={site} />
                   </div>
 
                   <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">

@@ -1,145 +1,358 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { AlertTriangle, HeartPulse, ListChecks, RadioTower, ShieldCheck, Users } from 'lucide-react'
-import { LoadingSpinner } from '@/components/ui/loading-spinner'
-import { MetricCard } from '@/components/ui/metric-card'
-import { SectionCard } from '@/components/ui/section-card'
+import Link from 'next/link'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  AlertTriangle,
+  ArrowRight,
+  DatabaseZap,
+  HeartPulse,
+  PackageCheck,
+  RefreshCw,
+  ShieldCheck,
+  Users,
+} from 'lucide-react'
+import { AnalyticsPageHeader } from '@/components/ui/analytics-page-header'
 import { DetailRow } from '@/components/ui/detail-row'
-import { DetailNote } from '@/components/ui/detail-note'
-import { statsApi } from '@/lib/api'
+import { InlineErrorState } from '@/components/ui/inline-error-state'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { SectionCard } from '@/components/ui/section-card'
+import { StatusChip } from '@/components/ui/status-chip'
+import { statsApi, getApiErrorMessage } from '@/lib/api'
 import { useSiteId } from '@/hooks/use-site-id'
 import type { PipelineHealth } from '@/lib/types'
+
+type Tone = 'neutral' | 'good' | 'warn' | 'danger'
+
+function formatDateTime(value: string | null) {
+  if (!value) {
+    return 'N/A'
+  }
+  return new Date(value).toLocaleString()
+}
+
+function formatAge(seconds: number) {
+  if (seconds <= 0) {
+    return 'Just now'
+  }
+  if (seconds < 60) {
+    return `${seconds}s ago`
+  }
+  if (seconds < 3600) {
+    return `${Math.round(seconds / 60)}m ago`
+  }
+  return `${Math.round(seconds / 3600)}h ago`
+}
+
+function toneFromStatus(status: PipelineHealth['status']): Tone {
+  switch (status) {
+    case 'healthy':
+      return 'good'
+    case 'degraded':
+      return 'danger'
+    case 'waiting':
+    case 'idle':
+      return 'warn'
+    default:
+      return 'neutral'
+  }
+}
+
+function detailToneToRowTone(tone: Tone): 'neutral' | 'good' | 'warn' {
+  if (tone === 'good') {
+    return 'good'
+  }
+  if (tone === 'warn' || tone === 'danger') {
+    return 'warn'
+  }
+  return 'neutral'
+}
 
 export default function HealthPage() {
   const siteId = useSiteId()
   const [health, setHealth] = useState<PipelineHealth | null>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
+    let cancelled = false
+
     const loadData = async () => {
-      setLoading(true)
+      if (!health) {
+        setLoading(true)
+      } else {
+        setRefreshing(true)
+      }
+
+      setError(null)
+
       try {
         const res = await statsApi.health(siteId)
-        setHealth(res.data)
+        if (!cancelled) {
+          setHealth(res.data)
+        }
       } catch (err) {
-        console.error('Failed to load health data', err)
+        if (!cancelled) {
+          setError(getApiErrorMessage(err, 'Pipeline health could not be loaded right now.'))
+        }
       } finally {
-        setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          setRefreshing(false)
+        }
       }
     }
 
     void loadData()
-  }, [siteId])
 
-  if (loading) {
+    return () => {
+      cancelled = true
+    }
+  }, [reloadKey, siteId])
+
+  const groups = useMemo(() => {
+    if (!health) {
+      return []
+    }
+
+    const collectionTone: Tone =
+      !health.last_processed_at || health.last_processed_age_seconds > 900 ? 'warn' : 'good'
+    const processingTone: Tone =
+      health.consumer_count === 0 && health.stream_length > 0
+        ? 'danger'
+        : health.queue_depth > 1000
+          ? 'warn'
+          : 'good'
+    const deliveryTone: Tone = health.dead_letter_length > 0 ? 'danger' : 'good'
+    const verificationTone = toneFromStatus(health.status)
+
+    return [
+      {
+        title: 'Collection',
+        description: 'Event intake freshness and stream readiness.',
+        tone: collectionTone,
+        icon: <DatabaseZap className="h-4 w-4" />,
+        summary: health.last_processed_at
+          ? `Last processed ${formatAge(health.last_processed_age_seconds)}`
+          : 'No processed events yet',
+        checks: [
+          { label: 'Input stream', value: health.stream, tone: 'neutral' as const },
+          { label: 'Stream length', value: health.stream_length.toLocaleString(), tone: 'neutral' as const },
+          {
+            label: 'Last processed age',
+            value: health.last_processed_at ? formatAge(health.last_processed_age_seconds) : 'N/A',
+            tone: detailToneToRowTone(collectionTone),
+          },
+        ],
+      },
+      {
+        title: 'Processing',
+        description: 'Workers, backlog, and queue pressure.',
+        tone: processingTone,
+        icon: <Users className="h-4 w-4" />,
+        summary: `${health.consumer_count.toLocaleString()} consumers with ${health.queue_depth.toLocaleString()} queued items`,
+        checks: [
+          {
+            label: 'Consumer group',
+            value: health.consumer_group,
+            tone: 'neutral' as const,
+          },
+          {
+            label: 'Consumers',
+            value: health.consumer_count.toLocaleString(),
+            tone: detailToneToRowTone(processingTone),
+          },
+          {
+            label: 'Pending / Lag',
+            value: `${health.pending.toLocaleString()} / ${health.lag.toLocaleString()}`,
+            tone: detailToneToRowTone(processingTone),
+          },
+        ],
+      },
+      {
+        title: 'Delivery',
+        description: 'Downstream delivery quality and dead-letter risk.',
+        tone: deliveryTone,
+        icon: <PackageCheck className="h-4 w-4" />,
+        summary:
+          health.dead_letter_length > 0
+            ? `${health.dead_letter_length.toLocaleString()} dead-letter events need review`
+            : 'No dead-letter backlog detected',
+        checks: [
+          {
+            label: 'Dead stream',
+            value: health.dead_stream,
+            tone: 'neutral' as const,
+          },
+          {
+            label: 'Dead-letter length',
+            value: health.dead_letter_length.toLocaleString(),
+            tone: detailToneToRowTone(deliveryTone),
+          },
+          {
+            label: 'Last delivered ID',
+            value: health.last_delivered_id || 'N/A',
+            tone: 'neutral' as const,
+          },
+        ],
+      },
+      {
+        title: 'Verification',
+        description: 'Operator-facing interpretation of current state.',
+        tone: verificationTone,
+        icon: <ShieldCheck className="h-4 w-4" />,
+        summary: health.message,
+        checks: [
+          {
+            label: 'Pipeline status',
+            value: health.status,
+            tone: detailToneToRowTone(verificationTone),
+          },
+          {
+            label: 'Last processed at',
+            value: formatDateTime(health.last_processed_at),
+            tone: 'neutral' as const,
+          },
+          {
+            label: 'Last checked at',
+            value: formatDateTime(health.checked_at),
+            tone: 'neutral' as const,
+          },
+        ],
+      },
+    ]
+  }, [health])
+
+  if (loading && !health) {
     return <LoadingSpinner className="py-16" />
   }
 
-  const isHealthy = health?.status === 'healthy'
+  if (!health) {
+    return (
+      <InlineErrorState
+        body={error || 'No health data is available for this site yet.'}
+        onRetry={() => setReloadKey((value) => value + 1)}
+      />
+    )
+  }
 
-  const healthItems: Array<{
-    label: string
-    value: string
-    status: 'success' | 'warning' | 'danger' | 'neutral'
-  }> = [
-    {
-      label: 'Pipeline Status',
-      value: health?.status || 'Unknown',
-      status: health?.status === 'healthy' ? 'success' : health?.status === 'degraded' ? 'warning' : 'danger' as const,
-    },
-    {
-      label: 'Stream',
-      value: health?.stream || '-',
-      status: 'neutral' as const,
-    },
-    {
-      label: 'Consumer Group',
-      value: health?.consumer_group || '-',
-      status: 'neutral' as const,
-    },
-    {
-      label: 'Consumers',
-      value: health?.consumer_count?.toString() || '0',
-      status: (health?.consumer_count ?? 0) > 0 ? 'success' as const : 'warning' as const,
-    },
-  ]
+  const overallTone = toneFromStatus(health.status)
+  const needsAttention = health.status !== 'healthy'
 
   return (
     <div className="space-y-8">
-      <div className="panel-header">
-        <div>
-          <h2 className="text-2xl font-semibold text-app-strong">Pipeline Health</h2>
-          <p className="mt-2 text-sm text-app-muted">
-            Queue, consumer, and freshness signals for ingestion and processing reliability.
-          </p>
-        </div>
-      </div>
+      <AnalyticsPageHeader
+        title="Pipeline Health"
+        description="Queue, consumer, delivery, and verification signals organized into one operational view."
+        controls={
+          <div className="flex items-center gap-2">
+            <StatusChip label={health.status} tone={overallTone} />
+            <button
+              type="button"
+              className="btn-secondary gap-2"
+              onClick={() => setReloadKey((value) => value + 1)}
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`.trim()} />
+              Refresh
+            </button>
+          </div>
+        }
+      />
+
+      {error ? (
+        <InlineErrorState
+          body={error}
+          compact
+          onRetry={() => setReloadKey((value) => value + 1)}
+        />
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-        {healthItems.map((item) => (
-          <MetricCard
-            key={item.label}
-            label={item.label}
-            value={item.value}
-            icon={<div className="h-2.5 w-2.5 rounded-full bg-current" />}
-            tone={item.status === 'success' ? 'good' : item.status === 'warning' || item.status === 'danger' ? 'warn' : 'neutral'}
-          />
+        {groups.map((group) => (
+          <div key={group.title} className="card px-5 py-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-app-subtle text-app-strong">
+                {group.icon}
+              </div>
+              <StatusChip label={group.tone} tone={group.tone} />
+            </div>
+            <div className="mt-4 text-base font-semibold text-app-strong">{group.title}</div>
+            <p className="mt-1 text-sm text-app-muted">{group.description}</p>
+            <p className="mt-4 text-sm text-app-strong">{group.summary}</p>
+          </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.25fr_0.9fr]">
-        <SectionCard title="Operational Detail" description="Current state of the Redis stream and worker group." icon={<ListChecks className="h-4 w-4" />}>
-          <div className="space-y-4">
-            <DetailRow label="Status" value={isHealthy ? 'Healthy' : 'Degraded'} tone={isHealthy ? 'good' : 'warn'} />
-            <DetailRow label="Message" value={health?.message || '-'} />
-            <DetailRow label="Stream Length" value={health?.stream_length?.toLocaleString() || '0'} />
-            <DetailRow label="Queue Depth" value={health?.queue_depth?.toLocaleString() || '0'} />
-            <DetailRow label="Pending" value={health?.pending?.toLocaleString() || '0'} />
-            <DetailRow label="Lag" value={health?.lag?.toLocaleString() || '0'} />
-            <DetailRow label="Dead Letter Length" value={health?.dead_letter_length?.toLocaleString() || '0'} />
-            <DetailRow label="Last Processed" value={health?.last_processed_at ? new Date(health.last_processed_at).toLocaleString() : 'N/A'} />
-            <DetailRow label="Last Checked" value={health?.checked_at ? new Date(health.checked_at).toLocaleString() : 'N/A'} />
-          </div>
-        </SectionCard>
-
-        <div className="space-y-6">
-          <SectionCard title="Quick Read" description="Fast interpretation of the current pipeline state." icon={<HeartPulse className="h-4 w-4" />}>
-            <div className="space-y-3">
-              <DetailNote
-                icon={isHealthy ? <ShieldCheck className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-                title={isHealthy ? 'Processing is healthy' : 'Pipeline needs attention'}
-                body={health?.message || 'No pipeline message available.'}
-                tone={isHealthy ? 'good' : 'warn'}
-              />
-              <DetailNote
-                icon={<RadioTower className="h-4 w-4" />}
-                title="Queue depth"
-                body={`Current queue depth is ${health?.queue_depth?.toLocaleString() || '0'} with pending count ${health?.pending?.toLocaleString() || '0'}.`}
-              />
-              <DetailNote
-                icon={<Users className="h-4 w-4" />}
-                title="Consumers"
-                body={`${health?.consumer_count?.toString() || '0'} active consumer(s) in group ${health?.consumer_group || '-'}.`}
-              />
-            </div>
-          </SectionCard>
-
-          {!isHealthy && (
-            <div className="card border-amber-200 bg-amber-50 px-6 py-6">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-600" />
-                <div>
-                  <h3 className="text-sm font-semibold text-amber-800">Pipeline Degraded</h3>
-                  <p className="mt-1 text-sm text-amber-700">
-                    {health?.message || 'There may be issues with data processing.'}
-                  </p>
-                </div>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        {groups.map((group) => (
+          <SectionCard
+            key={group.title}
+            title={group.title}
+            description={group.description}
+            action={<StatusChip label={group.tone} tone={group.tone} />}
+          >
+            <div className="space-y-4">
+              <p className="text-sm text-app-muted">{group.summary}</p>
+              <div className="space-y-2">
+                {group.checks.map((check) => (
+                  <DetailRow
+                    key={check.label}
+                    label={check.label}
+                    value={check.value}
+                    tone={check.tone}
+                  />
+                ))}
               </div>
             </div>
-          )}
-        </div>
+          </SectionCard>
+        ))}
       </div>
+
+      {needsAttention ? (
+        <SectionCard
+          title="Needs Attention"
+          description="Quick actions are surfaced here when the pipeline is not fully healthy."
+          icon={<AlertTriangle className="h-4 w-4" />}
+        >
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
+                <HeartPulse className="h-4 w-4" />
+                Current state
+              </div>
+              <p className="mt-2 text-sm text-amber-700">{health.message}</p>
+            </div>
+
+            <Link
+              href={`/dashboard/${siteId}/realtime`}
+              className="rounded-lg border border-app-line bg-white p-4 transition hover:border-slate-300"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-semibold text-app-strong">Inspect live traffic</div>
+                <ArrowRight className="h-4 w-4 text-app-muted" />
+              </div>
+              <p className="mt-2 text-sm text-app-muted">
+                Check whether new human events are still arriving in realtime.
+              </p>
+            </Link>
+
+            <Link
+              href={`/dashboard/sites/${siteId}/onboarding`}
+              className="rounded-lg border border-app-line bg-white p-4 transition hover:border-slate-300"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-semibold text-app-strong">Review setup</div>
+                <ArrowRight className="h-4 w-4 text-app-muted" />
+              </div>
+              <p className="mt-2 text-sm text-app-muted">
+                Re-check tracking prerequisites, plugin setup, and site-level collection steps.
+              </p>
+            </Link>
+          </div>
+        </SectionCard>
+      ) : null}
     </div>
   )
 }

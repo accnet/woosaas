@@ -2,8 +2,11 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowRight, Globe, KeyRound, Plus, Search, Star, Users } from 'lucide-react'
+import { ArrowRight, Globe, KeyRound, Plus, Star, Users } from 'lucide-react'
+import { FilterPills } from '@/components/ui/filter-pills'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { SearchInput } from '@/components/ui/search-input'
+import { TrackingStatusChip } from '@/components/ui/tracking-status-chip'
 import { formatRelativeTimeLabel } from '@/lib/dashboard-metadata'
 import { sitesApi } from '@/lib/api'
 import {
@@ -225,44 +228,17 @@ export default function SitesPage() {
           {/* Filter bar */}
           <div className="card p-3">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-              <div className="relative w-full xl:max-w-sm">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-soft" />
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search websites..."
-                  className="input pl-9"
-                />
-              </div>
+              <SearchInput value={query} onChange={setQuery} placeholder="Search websites..." className="w-full xl:max-w-sm" />
 
-              <div className="flex flex-wrap items-center gap-2">
-              {FILTER_OPTIONS.map((option) => {
-                const count =
-                  option.value === 'All'
-                    ? sites.length
-                    : statusCounts[option.value]
-
-                const isActive = statusFilter === option.value
-
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setStatusFilter(option.value)}
-                    className={`rounded-md px-4 py-2 text-sm font-medium transition-all ${
-                      isActive
-                        ? 'bg-app-strong text-white shadow-soft'
-                        : 'bg-slate-50 text-app-muted hover:bg-slate-100'
-                    }`}
-                  >
-                    {option.label}
-                    <span className={`ml-2 text-xs ${isActive ? 'text-slate-200' : 'text-app-soft'}`}>
-                      {count}
-                    </span>
-                  </button>
-                )
-              })}
-              </div>
+              <FilterPills
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={FILTER_OPTIONS.map((option) => ({
+                  value: option.value,
+                  label: option.label,
+                  count: option.value === 'All' ? sites.length : statusCounts[option.value],
+                }))}
+              />
             </div>
           </div>
 
@@ -354,8 +330,6 @@ function SiteCard({
   onTogglePinned: () => void
 }) {
   const trackingState = getSiteTrackingState(site)
-  const badgeColor = trackingState.label === 'Active' ? 'badge-success' :
-    trackingState.label === 'Verified' ? 'badge-info' : 'badge-warning'
   const lastSignal = site.tracking_last_event_at || site.tracking_last_checked_at || site.created_at
 
   return (
@@ -383,7 +357,7 @@ function SiteCard({
           >
             <Star className={`h-4 w-4 ${pinned ? 'fill-current' : ''}`} />
           </button>
-          <span className={badgeColor}>{trackingState.label}</span>
+          <TrackingStatusChip site={site} />
         </div>
       </div>
 

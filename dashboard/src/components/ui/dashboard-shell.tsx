@@ -2,8 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ChevronRight, LogOut, Menu, Plus, Search, Settings2, ShieldCheck, Star, X } from 'lucide-react'
+import { ChevronRight, LogOut, Menu, Plus, Settings2, ShieldCheck, Star, X } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
+import { SearchInput } from '@/components/ui/search-input'
+import { StatusChip } from '@/components/ui/status-chip'
+import { TrackingStatusChip } from '@/components/ui/tracking-status-chip'
 import { sitesApi } from '@/lib/api'
 import { formatRelativeTimeLabel } from '@/lib/dashboard-metadata'
 import { appNav, buildAnalyticsHref, buildPageMeta, buildSetupHref, getAppHref, getCurrentSiteId, resolveSiteRoute, siteAnalyticsNav, siteOperationsNav, siteSetupNav } from '@/lib/navigation'
@@ -14,18 +17,6 @@ import { useAuthStore } from '@/store/auth'
 const RECENT_SITES_KEY = 'woosaas-recent-sites'
 const PINNED_SITES_KEY = 'woosaas-pinned-sites'
 
-function getTrackingBadgeClass(site: Site) {
-  const state = getSiteTrackingState(site)
-  const badgeClass =
-    state.label === 'Active'
-      ? 'badge-success'
-      : state.label === 'Verified'
-        ? 'badge-info'
-        : 'badge-warning'
-
-  return { state, badgeClass }
-}
-
 function SiteSwitcherOption({
   site,
   active,
@@ -34,6 +25,7 @@ function SiteSwitcherOption({
   onSelect,
   onTogglePinned,
   onKeyDown,
+  rowRef,
 }: {
   site: Site
   active: boolean
@@ -42,12 +34,14 @@ function SiteSwitcherOption({
   onSelect: () => void
   onTogglePinned: () => void
   onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void
+  rowRef?: (node: HTMLDivElement | null) => void
 }) {
-  const { state, badgeClass } = getTrackingBadgeClass(site)
+  const state = getSiteTrackingState(site)
   const lastSignal = site.tracking_last_event_at || site.tracking_last_checked_at || site.created_at
 
   return (
     <div
+      ref={rowRef}
       role="button"
       tabIndex={0}
       onClick={onSelect}
@@ -71,7 +65,7 @@ function SiteSwitcherOption({
         </div>
         <div className="truncate text-xs text-app-muted">{site.name}</div>
         <div className="mt-1 flex items-center gap-2">
-          <span className={badgeClass}>{state.label}</span>
+          <TrackingStatusChip site={site} />
           <span className="truncate text-[11px] text-app-soft">Last signal {formatRelativeTimeLabel(lastSignal)}</span>
         </div>
       </div>
@@ -88,7 +82,7 @@ function SiteDirectoryRow({
   pinned?: boolean
   onNavigate?: () => void
 }) {
-  const { state, badgeClass } = getTrackingBadgeClass(site)
+  const state = getSiteTrackingState(site)
   const lastSignal = site.tracking_last_event_at || site.tracking_last_checked_at || site.created_at
 
   return (
@@ -98,7 +92,7 @@ function SiteDirectoryRow({
           <div className="truncate text-sm font-medium text-app-strong">{site.name}</div>
           <div className="flex shrink-0 items-center gap-2">
             {pinned && <Star className="h-4 w-4 fill-current text-amber-500" />}
-            <span className={badgeClass}>{state.label}</span>
+            <TrackingStatusChip site={site} />
           </div>
         </div>
         <div className="truncate text-xs text-app-muted">{site.domain}</div>
@@ -152,6 +146,19 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMobileNavOpen(false)
   }, [pathname])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return
+    }
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = mobileNavOpen ? 'hidden' : previousOverflow
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [mobileNavOpen])
 
   return (
     <div className="min-h-screen bg-app">
@@ -223,10 +230,12 @@ function AppRail({
               <Link
                 key={`${item.label}-${href}`}
                 href={href}
-                className={`app-rail-item ${isActive ? 'app-rail-item-active' : 'app-rail-item-idle'}`}
-                title={item.label}
+                className={`group relative app-rail-item ${isActive ? 'app-rail-item-active' : 'app-rail-item-idle'}`}
               >
                 <Icon className="h-5 w-5" />
+                <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-app-strong px-2.5 py-1.5 text-xs font-medium text-white shadow-card group-hover:block">
+                  {item.label}
+                </span>
               </Link>
             )
           })}
@@ -235,11 +244,17 @@ function AppRail({
 
       <div className="border-t border-app-line px-3 py-4">
         <div className="space-y-2">
-          <div className="app-rail-user" title={user?.email || 'User'}>
+          <div className="group relative app-rail-user">
             {(user?.name || 'U').slice(0, 1).toUpperCase()}
+            <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-app-strong px-2.5 py-1.5 text-xs font-medium text-white shadow-card group-hover:block">
+              {user?.email || 'User'}
+            </span>
           </div>
-          <button onClick={logout} className="app-rail-item app-rail-item-idle w-full" title="Sign out">
+          <button onClick={logout} className="group relative app-rail-item app-rail-item-idle w-full">
             <LogOut className="h-5 w-5" />
+            <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-app-strong px-2.5 py-1.5 text-xs font-medium text-white shadow-card group-hover:block">
+              Sign out
+            </span>
           </button>
         </div>
       </div>
@@ -401,6 +416,7 @@ function SiteSidebarContent({
 }) {
   const [pinnedSiteIds, setPinnedSiteIds] = useState<string[]>([])
   const [recentSiteIds, setRecentSiteIds] = useState<string[]>([])
+  const [query, setQuery] = useState('')
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -410,19 +426,30 @@ function SiteSidebarContent({
     setRecentSiteIds(JSON.parse(window.localStorage.getItem(RECENT_SITES_KEY) || '[]'))
   }, [siteId, pathname])
 
+  const matchesQuery = (entry: Site) => {
+    if (!query.trim()) {
+      return true
+    }
+
+    const haystack = `${entry.name} ${entry.domain}`.toLowerCase()
+    return haystack.includes(query.trim().toLowerCase())
+  }
+
   const pinnedSites = pinnedSiteIds
     .map((pinnedId) => sites.find((entry) => entry.id === pinnedId))
-    .filter((entry): entry is Site => !!entry)
+    .filter((entry): entry is Site => !!entry && matchesQuery(entry))
 
   const recentSites = recentSiteIds
     .map((recentId) => sites.find((entry) => entry.id === recentId))
-    .filter((entry): entry is Site => !!entry && !pinnedSiteIds.includes(entry.id))
+    .filter((entry): entry is Site => !!entry && !pinnedSiteIds.includes(entry.id) && matchesQuery(entry))
 
   const connectedSites = sites.filter(
-    (entry) => !pinnedSiteIds.includes(entry.id) && !recentSiteIds.includes(entry.id)
+    (entry) => !pinnedSiteIds.includes(entry.id) && !recentSiteIds.includes(entry.id) && matchesQuery(entry)
   )
 
   if (site) {
+    const trackingState = getSiteTrackingState(site)
+
     return (
       <div className={compact ? 'space-y-6' : 'space-y-7'}>
         <CurrentSiteCard site={site} />
@@ -453,6 +480,32 @@ function SiteSidebarContent({
 
         <div className="rounded-lg border border-app-line bg-slate-50 px-4 py-4">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-app-strong">
+            <TrackingStatusChip site={site} />
+            Recommendations
+          </div>
+          <div className="space-y-2">
+            {trackingState.label !== 'Active' ? (
+              <>
+                <Link href={`/dashboard/sites/${siteId}/onboarding`} className="site-switcher-footer" onClick={onNavigate}>
+                  Finish onboarding
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+                <Link href={`/dashboard/${siteId}/health`} className="site-switcher-footer" onClick={onNavigate}>
+                  Review pipeline health
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </>
+            ) : (
+              <Link href={`/dashboard/${siteId}/realtime`} className="site-switcher-footer" onClick={onNavigate}>
+                Watch realtime traffic
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-app-line bg-slate-50 px-4 py-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-app-strong">
             <ShieldCheck className="h-4 w-4 text-emerald-600" />
             Environment
           </div>
@@ -473,6 +526,8 @@ function SiteSidebarContent({
 
   return (
     <div className="space-y-5">
+      {sites.length > 6 ? <SearchInput value={query} onChange={setQuery} placeholder="Search websites" /> : null}
+
       {pinnedSites.length > 0 && (
         <div>
           <div className="pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-app-soft">
@@ -530,7 +585,7 @@ function SiteSidebarContent({
           </div>
         ) : (
           <div className="rounded-lg border border-dashed border-app-line bg-slate-50 px-4 py-6 text-sm text-app-muted">
-            No connected websites yet.
+            {query ? 'No connected websites match this search.' : 'No connected websites yet.'}
           </div>
         )}
       </div>
@@ -544,7 +599,7 @@ function SiteSidebarContent({
 }
 
 function CurrentSiteCard({ site }: { site: Site }) {
-  const { state: trackingState, badgeClass } = getTrackingBadgeClass(site)
+  const trackingState = getSiteTrackingState(site)
   const lastSignal = site.tracking_last_event_at || site.tracking_last_checked_at || site.created_at
 
   return (
@@ -554,7 +609,7 @@ function CurrentSiteCard({ site }: { site: Site }) {
           <div className="truncate text-sm font-semibold text-app-strong">{site.domain}</div>
           <div className="mt-1 text-xs text-app-muted">{site.name}</div>
         </div>
-        <span className={badgeClass}>{trackingState.label}</span>
+        <TrackingStatusChip site={site} />
       </div>
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div className="rounded-md bg-white px-3 py-2.5">
@@ -588,7 +643,7 @@ function SidebarGroup({
       <div className="pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-app-soft">
         {title}
       </div>
-      <nav className="space-y-1.5">
+      <nav className="space-y-1">
         {items.map((item) => {
           const Icon = item.icon
           const href = buildHref(item.href)
@@ -630,6 +685,8 @@ function TopNav({
 }) {
   const router = useRouter()
   const searchRef = useRef<HTMLInputElement | null>(null)
+  const switcherRef = useRef<HTMLDivElement | null>(null)
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [recentSiteIds, setRecentSiteIds] = useState<string[]>([])
@@ -659,6 +716,27 @@ function TopNav({
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null
+      if (target && switcherRef.current && !switcherRef.current.contains(target)) {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('touchstart', handlePointerDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('touchstart', handlePointerDown)
+    }
   }, [open])
 
   const filteredSites = sites.filter((site) => {
@@ -700,6 +778,14 @@ function TopNav({
 
     setHighlightedSiteId(visibleSites[0]?.id ?? null)
   }, [open, query, visibleSites])
+
+  useEffect(() => {
+    if (!open || !highlightedSiteId) {
+      return
+    }
+
+    rowRefs.current[highlightedSiteId]?.scrollIntoView({ block: 'nearest' })
+  }, [highlightedSiteId, open])
 
   const handleSelectSite = (nextSiteId: string) => {
     const nextHref = resolveSiteRoute(pathname, nextSiteId)
@@ -768,7 +854,7 @@ function TopNav({
             <Menu className="h-4 w-4" />
           </button>
 
-          <div className="relative min-w-0 flex-1 sm:min-w-[320px] sm:max-w-[460px]">
+          <div ref={switcherRef} className="relative min-w-0 flex-1 sm:min-w-[320px] sm:max-w-[460px]">
             <button onClick={() => setOpen((value) => !value)} className="site-switcher-trigger">
               <div className="min-w-0 text-left">
                 <div className="truncate text-sm font-semibold text-app-strong">
@@ -784,17 +870,13 @@ function TopNav({
             {open && (
               <div className="site-switcher-panel">
                 <div className="border-b border-app-line p-3">
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-soft" />
-                    <input
-                      ref={searchRef}
-                      value={query}
-                      onChange={(event) => setQuery(event.target.value)}
-                      onKeyDown={handleSearchKeyDown}
-                      placeholder="Search websites..."
-                      className="input pl-9"
-                    />
-                  </div>
+                  <SearchInput
+                    inputRef={searchRef}
+                    value={query}
+                    onChange={setQuery}
+                    onKeyDown={handleSearchKeyDown}
+                    placeholder="Search websites..."
+                  />
                 </div>
 
                 <div className="max-h-[380px] overflow-y-auto p-2">
@@ -812,6 +894,9 @@ function TopNav({
                               active={site.id === siteId}
                               pinned
                               highlighted={site.id === highlightedSiteId}
+                              rowRef={(node) => {
+                                rowRefs.current[site.id] = node
+                              }}
                               onSelect={() => handleSelectSite(site.id)}
                               onTogglePinned={() => togglePinnedSite(site.id)}
                               onKeyDown={(event) => handleSiteRowKeyDown(event, site.id)}
@@ -836,6 +921,9 @@ function TopNav({
                               active={site.id === siteId}
                               pinned={pinnedSiteIds.includes(site.id)}
                               highlighted={site.id === highlightedSiteId}
+                              rowRef={(node) => {
+                                rowRefs.current[site.id] = node
+                              }}
                               onSelect={() => handleSelectSite(site.id)}
                               onTogglePinned={() => togglePinnedSite(site.id)}
                               onKeyDown={(event) => handleSiteRowKeyDown(event, site.id)}
@@ -858,6 +946,9 @@ function TopNav({
                         active={site.id === siteId}
                         pinned={pinnedSiteIds.includes(site.id)}
                         highlighted={site.id === highlightedSiteId}
+                        rowRef={(node) => {
+                          rowRefs.current[site.id] = node
+                        }}
                         onSelect={() => handleSelectSite(site.id)}
                         onTogglePinned={() => togglePinnedSite(site.id)}
                         onKeyDown={(event) => handleSiteRowKeyDown(event, site.id)}
