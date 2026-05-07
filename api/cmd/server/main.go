@@ -42,7 +42,7 @@ func main() {
 	repo := sites.NewRepository(pg)
 	jwtManager := auth.NewJWTManager(cfg.JWTSecret, cfg.JWTExpiry)
 
-	router := api.NewRouter(repo, jwtManager, redis, ch)
+	router := api.NewRouter(repo, jwtManager, redis, ch, cfg.CORSAllowedOrigins)
 	engine := router.Setup()
 
 	engine.GET("/metrics", observability.Metrics())

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BarChart3, DollarSign, Gauge, MousePointerClick, ShoppingCart, Users, PanelLeft } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
-import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { AnalyticsPageSkeleton } from '@/components/ui/analytics-page-skeleton'
 import { LineChart, MultiLineChart } from '@/components/ui/charts'
 import { MetricCard } from '@/components/ui/metric-card'
 import { SectionCard } from '@/components/ui/section-card'
@@ -83,7 +83,7 @@ export default function OverviewPage() {
   }
 
   if (loading) {
-    return <LoadingSpinner className="py-16" />
+    return <AnalyticsPageSkeleton cols={5} />
   }
 
   const pagesPerSession =
@@ -132,6 +132,7 @@ export default function OverviewPage() {
           value={overview?.pageviews?.toLocaleString() || '0'}
           delta={calcDelta(overview?.pageviews, prevOverview?.pageviews)}
           helper="Total tracked page loads"
+          sparklineData={trend.map((t) => t.pageviews ?? 0)}
         />
         <MetricCard
           icon={<Users className="h-4 w-4" />}
@@ -139,6 +140,8 @@ export default function OverviewPage() {
           value={overview?.sessions?.toLocaleString() || '0'}
           delta={calcDelta(overview?.sessions, prevOverview?.sessions)}
           helper="Unique browsing sessions"
+          tone="neutral"
+          sparklineData={trend.map((t) => t.sessions ?? 0)}
         />
         <MetricCard
           icon={<DollarSign className="h-4 w-4" />}
@@ -146,6 +149,8 @@ export default function OverviewPage() {
           value={`$${(overview?.revenue || 0).toFixed(2)}`}
           delta={calcDelta(overview?.revenue, prevOverview?.revenue)}
           helper="Attributed order revenue"
+          tone={overview?.revenue ? 'good' : 'neutral'}
+          sparklineData={trend.map((t) => t.revenue ?? 0)}
         />
         <MetricCard
           icon={<Gauge className="h-4 w-4" />}
@@ -153,6 +158,7 @@ export default function OverviewPage() {
           value={`${(overview?.conversion_rate || 0).toFixed(2)}%`}
           delta={calcDelta(overview?.conversion_rate, prevOverview?.conversion_rate)}
           helper="Purchase rate per session"
+          tone={overview?.conversion_rate ? 'good' : 'neutral'}
         />
         <MetricCard
           icon={<BarChart3 className="h-4 w-4" />}

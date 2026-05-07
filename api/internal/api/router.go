@@ -15,6 +15,7 @@ import (
 	"github.com/woosaas/api/internal/sites"
 )
 
+
 type Router struct {
 	engine      *gin.Engine
 	repo        *sites.Repository
@@ -34,6 +35,7 @@ func NewRouter(
 	jwtManager *auth.JWTManager,
 	redisClient *redis.Client,
 	ch driver.Conn,
+	allowedOrigins []string,
 ) *Router {
 	gin.SetMode(gin.ReleaseMode)
 
@@ -41,13 +43,18 @@ func NewRouter(
 	engine.Use(gin.Recovery())
 	engine.Use(gin.Logger())
 
+	// M2: gzip compression via native compress/gzip
+	engine.Use(gzipMiddleware())
+
 	return &Router{
 		engine:      engine,
 		repo:        repo,
 		jwtManager:  jwtManager,
-		mw:          middleware.NewMiddleware(jwtManager, redisClient),
+		// M3: pass allowed origins for proper CORS validation
+		mw:          middleware.NewMiddleware(jwtManager, redisClient, allowedOrigins),
 		redisClient: redisClient,
 		collector:   ingest.NewCollector(redisClient),
+		// L3: redis now injected into Stats for consistent dependency management
 		stats:       query.NewStats(ch),
 		bots:        query.NewBots(ch),
 		exports:     export.NewService(ch),

@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
+
 
 type Config struct {
 	// Server
@@ -15,6 +17,9 @@ type Config struct {
 	// JWT
 	JWTSecret string
 	JWTExpiry time.Duration
+
+	// CORS
+	CORSAllowedOrigins []string
 
 	// PostgreSQL
 	PostgresHost     string
@@ -40,15 +45,25 @@ type Config struct {
 	WorkerBatchSize     int
 	WorkerFlushInterval int
 	WorkerMaxRetries    int
+
+	// Security
+	IPHashSalt string
 }
 
 func Load() *Config {
+	corsOrigins := getEnvSlice("CORS_ALLOWED_ORIGINS", []string{
+		"http://localhost:3000",
+		"http://localhost:3001",
+	})
+
 	return &Config{
 		Port: getEnv("PORT", "8080"),
 		Host: getEnv("HOST", "0.0.0.0"),
 
 		JWTSecret: getEnv("JWT_SECRET", "change-me-in-production"),
 		JWTExpiry: getDurationEnv("JWT_EXPIRY", 24*time.Hour),
+
+		CORSAllowedOrigins: corsOrigins,
 
 		PostgresHost:     getEnv("POSTGRES_HOST", "localhost"),
 		PostgresPort:     getEnv("POSTGRES_PORT", "5432"),
@@ -70,6 +85,8 @@ func Load() *Config {
 		WorkerBatchSize:     getEnvInt("WORKER_BATCH_SIZE", 1000),
 		WorkerFlushInterval: getEnvInt("WORKER_FLUSH_INTERVAL", 2),
 		WorkerMaxRetries:    getEnvInt("WORKER_MAX_RETRIES", 3),
+
+		IPHashSalt: getEnv("IP_HASH_SALT", "woosaas-salt-default"),
 	}
 }
 
@@ -116,6 +133,22 @@ func getDurationEnv(key string, defaultValue time.Duration) time.Duration {
 	if value := os.Getenv(key); value != "" {
 		if d, err := time.ParseDuration(value); err == nil {
 			return d
+		}
+	}
+	return defaultValue
+}
+
+func getEnvSlice(key string, defaultValue []string) []string {
+	if value := os.Getenv(key); value != "" {
+		parts := strings.Split(value, ",")
+		result := make([]string, 0, len(parts))
+		for _, p := range parts {
+			if p = strings.TrimSpace(p); p != "" {
+				result = append(result, p)
+			}
+		}
+		if len(result) > 0 {
+			return result
 		}
 	}
 	return defaultValue

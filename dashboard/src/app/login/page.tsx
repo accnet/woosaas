@@ -37,23 +37,74 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-radial bg-app relative overflow-hidden">
-      <div className="absolute inset-0 bg-grid opacity-50" />
-      <div className="absolute top-1/4 -right-32 w-96 h-96 bg-app-accent/20 rounded-full blur-3xl" />
-      <div className="absolute bottom-1/4 -left-32 w-96 h-96 bg-app-accent/10 rounded-full blur-3xl" />
+    <div className="relative min-h-screen overflow-hidden bg-gradient-radial bg-app flex items-center justify-center">
+      {/* Background grid */}
+      <div className="absolute inset-0 bg-grid opacity-40" />
 
-      <div className="relative w-full max-w-md mx-4">
+      {/* Gradient orbs */}
+      <div className="absolute -right-48 top-1/4 h-[500px] w-[500px] rounded-full bg-blue-500/10 blur-3xl" />
+      <div className="absolute -left-48 bottom-1/4 h-[400px] w-[400px] rounded-full bg-indigo-500/8 blur-3xl" />
+      <div className="absolute left-1/2 top-0 h-[300px] w-[600px] -translate-x-1/2 rounded-full bg-blue-400/6 blur-3xl" />
+
+      {/* Floating decorative stat cards */}
+      <div className="pointer-events-none absolute right-[8%] top-[12%] hidden animate-float xl:block">
+        <div className="card-static w-52 rounded-xl px-4 py-3 opacity-80">
+          <div className="text-[10px] font-semibold uppercase tracking-widest text-app-soft">Pageviews Today</div>
+          <div className="mt-1.5 text-2xl font-bold text-app-strong">12,847</div>
+          <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M7 17L17 7M17 7H7M17 7v10" /></svg>
+            +18.4%
+          </div>
+        </div>
+      </div>
+
+      <div className="pointer-events-none absolute bottom-[18%] right-[6%] hidden animate-float-delayed xl:block">
+        <div className="card-static w-48 rounded-xl px-4 py-3 opacity-75">
+          <div className="text-[10px] font-semibold uppercase tracking-widest text-app-soft">Revenue</div>
+          <div className="mt-1.5 text-xl font-bold text-emerald-700">$4,209.80</div>
+          <div className="mt-1 text-xs text-app-muted">Last 7 days</div>
+        </div>
+      </div>
+
+      <div className="pointer-events-none absolute left-[7%] top-[25%] hidden animate-float-slow xl:block">
+        <div className="card-static w-44 rounded-xl px-4 py-3 opacity-70">
+          <div className="text-[10px] font-semibold uppercase tracking-widest text-app-soft">Conversion</div>
+          <div className="mt-1.5 text-xl font-bold text-app-strong">3.24%</div>
+          <div className="mt-1 flex items-center gap-1.5">
+            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            <span className="text-xs text-emerald-700">Tracking live</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="pointer-events-none absolute bottom-[28%] left-[9%] hidden animate-float xl:block" style={{ animationDelay: '3s' }}>
+        <div className="card-static w-40 rounded-xl px-4 py-3 opacity-65">
+          <div className="text-[10px] font-semibold uppercase tracking-widest text-app-soft">Active Users</div>
+          <div className="mt-1.5 flex items-center gap-2">
+            <div className="text-xl font-bold text-app-strong">147</div>
+            <div className="relative h-2.5 w-2.5">
+              <div className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <div className="absolute inset-0 rounded-full bg-emerald-500" />
+            </div>
+          </div>
+          <div className="mt-1 text-xs text-app-muted">Right now</div>
+        </div>
+      </div>
+
+      {/* Login card */}
+      <div className="relative w-full max-w-md mx-4 z-10">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-app-accent shadow-soft mb-4">
-            <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl shadow-soft mb-4" style={{ background: 'linear-gradient(135deg, #1a7cf8 0%, #0f6cde 60%, #0a56c0 100%)' }}>
+            <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 7l-8 8-4-4-6 6" />
+              <path d="M16 7h6v6" />
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-app-strong">Welcome back</h1>
           <p className="text-app-muted mt-1">Sign in to your Woosaas Analytics account</p>
         </div>
 
-        <div className="card p-8">
+        <div className="card-glass p-8">
           {error && (
             <div className="mb-6 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
               <div className="flex items-center gap-2">
@@ -117,7 +168,7 @@ export default function LoginPage() {
         </div>
 
         <p className="mt-6 text-center text-sm text-app-muted">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <Link href="/register" className="link">
             Create one
           </Link>

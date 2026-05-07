@@ -3,10 +3,8 @@
 import {
   LineChart as RechartsLineChart,
   BarChart as RechartsBarChart,
-  AreaChart as RechartsAreaChart,
   Line,
   Bar,
-  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -14,6 +12,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts'
+import ReactECharts from 'echarts-for-react'
 import type { TrendPoint } from '@/lib/types'
 
 interface BaseChartProps {
@@ -83,40 +82,61 @@ export function LineChart({ data, dataKey, height = 300 }: LineChartProps) {
   )
 }
 
-export function MultiLineChart({ data, lines, height = 300 }: MultiLineChartProps) {
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <RechartsLineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-        <XAxis
-          dataKey="date"
-          tick={{ fontSize: 12, fill: '#94a3b8' }}
-          tickLine={false}
-          axisLine={{ stroke: '#e2e8f0' }}
-        />
-        <YAxis
-          tick={{ fontSize: 12, fill: '#94a3b8' }}
-          tickLine={false}
-          axisLine={false}
-          width={60}
-        />
-        <Tooltip contentStyle={defaultTooltipStyle} />
-        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }} />
-        {lines.map((line) => (
-          <Line
-            key={line.dataKey}
-            type="monotone"
-            dataKey={line.dataKey}
-            name={line.name}
-            stroke={line.color}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4, fill: line.color, strokeWidth: 2, stroke: '#fff' }}
-          />
-        ))}
-      </RechartsLineChart>
-    </ResponsiveContainer>
-  )
+export function MultiLineChart({ data, lines, height = 320 }: MultiLineChartProps) {
+  const option = {
+    grid: { left: 0, right: 16, top: 12, bottom: 32, containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: data.map((d) => d.date),
+      axisLine: { lineStyle: { color: '#e2e8f0' } },
+      axisTick: { show: false },
+      axisLabel: { color: '#94a3b8', fontSize: 11 },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: '#94a3b8', fontSize: 11 },
+      splitLine: { lineStyle: { color: '#f1f5f9', type: 'dashed' as const } },
+    },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#fff',
+      borderColor: '#e2e8f0',
+      borderWidth: 1,
+      textStyle: { fontSize: 12, color: '#314056' },
+      extraCssText: 'box-shadow: 0 4px 16px rgba(0,0,0,0.08); border-radius: 8px;',
+    },
+    legend: {
+      bottom: 0,
+      itemWidth: 10,
+      itemHeight: 10,
+      textStyle: { fontSize: 12, color: '#5e6b84' },
+      icon: 'circle',
+    },
+    series: lines.map((l) => ({
+      name: l.name,
+      type: 'line',
+      smooth: true,
+      symbol: 'none',
+      data: data.map((d) => (d as unknown as Record<string, number>)[l.dataKey] ?? 0),
+      lineStyle: { color: l.color, width: 2.5 },
+      itemStyle: { color: l.color },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: l.color + '22' },
+            { offset: 1, color: l.color + '00' },
+          ],
+        },
+      },
+    })),
+  }
+
+  return <ReactECharts option={option} style={{ height }} notMerge />
 }
 
 export function BarChart({ data, bars, dataKey = 'name', height = 300 }: BarChartProps) {
@@ -144,7 +164,7 @@ export function BarChart({ data, bars, dataKey = 'name', height = 300 }: BarChar
             dataKey={bar.dataKey}
             name={bar.name}
             fill={bar.color}
-            radius={[2, 2, 0, 0]}
+            radius={[3, 3, 0, 0]}
           />
         ))}
       </RechartsBarChart>
@@ -152,38 +172,60 @@ export function BarChart({ data, bars, dataKey = 'name', height = 300 }: BarChar
   )
 }
 
-export function AreaChart({ data, areas, height = 300 }: AreaChartProps) {
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <RechartsAreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-        <XAxis
-          dataKey="date"
-          tick={{ fontSize: 12, fill: '#94a3b8' }}
-          tickLine={false}
-          axisLine={{ stroke: '#e2e8f0' }}
-        />
-        <YAxis
-          tick={{ fontSize: 12, fill: '#94a3b8' }}
-          tickLine={false}
-          axisLine={false}
-          width={60}
-        />
-        <Tooltip contentStyle={defaultTooltipStyle} />
-        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }} />
-        {areas.map((area) => (
-          <Area
-            key={area.dataKey}
-            type="monotone"
-            dataKey={area.dataKey}
-            name={area.name}
-            stroke={area.color}
-            fill={area.color}
-            fillOpacity={0.1}
-            strokeWidth={2}
-          />
-        ))}
-      </RechartsAreaChart>
-    </ResponsiveContainer>
-  )
+export function AreaChart({ data, areas, height = 320 }: AreaChartProps) {
+  const option = {
+    grid: { left: 0, right: 16, top: 12, bottom: 32, containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: data.map((d) => d.date),
+      axisLine: { lineStyle: { color: '#e2e8f0' } },
+      axisTick: { show: false },
+      axisLabel: { color: '#94a3b8', fontSize: 11 },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: '#94a3b8', fontSize: 11 },
+      splitLine: { lineStyle: { color: '#f1f5f9', type: 'dashed' as const } },
+    },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#fff',
+      borderColor: '#e2e8f0',
+      borderWidth: 1,
+      textStyle: { fontSize: 12, color: '#314056' },
+      extraCssText: 'box-shadow: 0 4px 16px rgba(0,0,0,0.08); border-radius: 8px;',
+    },
+    legend: {
+      bottom: 0,
+      itemWidth: 10,
+      itemHeight: 10,
+      textStyle: { fontSize: 12, color: '#5e6b84' },
+      icon: 'circle',
+    },
+    series: areas.map((a) => ({
+      name: a.name,
+      type: 'line',
+      smooth: true,
+      symbol: 'none',
+      stack: 'total',
+      data: data.map((d) => (d as unknown as Record<string, number>)[a.dataKey] ?? 0),
+      lineStyle: { color: a.color, width: 2 },
+      itemStyle: { color: a.color },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: a.color + '30' },
+            { offset: 1, color: a.color + '05' },
+          ],
+        },
+      },
+    })),
+  }
+
+  return <ReactECharts option={option} style={{ height }} notMerge />
 }

@@ -16,30 +16,43 @@ import (
 )
 
 type Middleware struct {
-	jwtManager *auth.JWTManager
-	redis      *redis.Client
+	jwtManager     *auth.JWTManager
+	redis          *redis.Client
+	allowedOrigins map[string]struct{}
 }
 
-func NewMiddleware(jwtManager *auth.JWTManager, redis *redis.Client) *Middleware {
+func NewMiddleware(jwtManager *auth.JWTManager, redis *redis.Client, allowedOrigins []string) *Middleware {
+	origins := make(map[string]struct{}, len(allowedOrigins))
+	for _, o := range allowedOrigins {
+		origins[strings.TrimRight(o, "/")] = struct{}{}
+	}
 	return &Middleware{
-		jwtManager: jwtManager,
-		redis:      redis,
+		jwtManager:     jwtManager,
+		redis:          redis,
+		allowedOrigins: origins,
 	}
 }
 
-// CORS handles Cross-Origin Resource Sharing
+// CORS handles Cross-Origin Resource Sharing with a proper origin whitelist.
+// Setting Access-Control-Allow-Origin to "*" while also sending
+// Access-Control-Allow-Credentials: true is invalid per the spec and is
+// rejected by all modern browsers — this version fixes that.
 func (m *Middleware) CORS() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		origin := c.GetHeader("Origin")
-		if origin == "" {
-			origin = "*"
-		}
+		origin := strings.TrimRight(c.GetHeader("Origin"), "/")
 
-		c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+		// Always vary on Origin so CDNs/proxies don't cache the wrong header
 		c.Writer.Header().Set("Vary", "Origin")
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Api-Key, X-Site-ID, Authorization")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+
+		if origin != "" {
+			if _, ok := m.allowedOrigins[origin]; ok {
+				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+				c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+			}
+			// Unrecognised origins get no ACAO header — browser blocks the request
+		}
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(http.StatusNoContent)
@@ -50,7 +63,7 @@ func (m *Middleware) CORS() gin.HandlerFunc {
 	}
 }
 
-// JWT auth for dashboard APIs
+// JWTAuth validates Bearer tokens and sets user_id / email in the context.
 func (m *Middleware) JWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
@@ -86,11 +99,10 @@ func (m *Middleware) JWTAuth() gin.HandlerFunc {
 	}
 }
 
-// API key auth for event collection
+// APIKeyAuth validates the API key (header or query param) and caches the
+// result in Redis for 5 minutes to avoid per-request DB lookups.
 func (m *Middleware) APIKeyAuth(repo *sites.Repository) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Accept API key from X-Api-Key header or api_key query param
-		// (sendBeacon cannot set custom headers, so query param is required)
 		apiKey := c.GetHeader("X-Api-Key")
 		if apiKey == "" {
 			apiKey = c.Query("api_key")
@@ -114,11 +126,9 @@ func (m *Middleware) APIKeyAuth(repo *sites.Repository) gin.HandlerFunc {
 				c.Next()
 				return
 			}
-
 			m.redis.Del(c.Request.Context(), cacheKey)
 		}
 
-		// Validate API key and get site_id
 		site, err := repo.ValidateAPIKey(c.Request.Context(), apiKey)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid API key"})
@@ -133,7 +143,8 @@ func (m *Middleware) APIKeyAuth(repo *sites.Repository) gin.HandlerFunc {
 	}
 }
 
-// Rate limit: 100 requests/minute per site
+// RateLimit enforces 100 requests/minute per site.
+// Now returns Retry-After and X-RateLimit-* headers for proper client UX.
 func (m *Middleware) RateLimit() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		siteID := c.GetString("site_id")
@@ -144,9 +155,11 @@ func (m *Middleware) RateLimit() gin.HandlerFunc {
 			siteID = "unknown"
 		}
 
+		const limit int64 = 100
 		key := "rate:" + siteID + ":" + strconv.FormatInt(time.Now().Unix()/60, 10)
 		count, err := m.redis.Incr(c.Request.Context(), key).Result()
 		if err != nil {
+			// Redis unavailable — fail open (don't block traffic)
 			c.Next()
 			return
 		}
@@ -155,8 +168,20 @@ func (m *Middleware) RateLimit() gin.HandlerFunc {
 			m.redis.Expire(c.Request.Context(), key, 60*time.Second)
 		}
 
-		if count > 100 {
-			c.JSON(http.StatusTooManyRequests, gin.H{"error": "Rate limit exceeded"})
+		remaining := limit - count
+		if remaining < 0 {
+			remaining = 0
+		}
+		c.Header("X-RateLimit-Limit", strconv.FormatInt(limit, 10))
+		c.Header("X-RateLimit-Remaining", strconv.FormatInt(remaining, 10))
+
+		if count > limit {
+			retryAfter := int64(60 - (time.Now().Unix() % 60))
+			c.Header("Retry-After", strconv.FormatInt(retryAfter, 10))
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error":       "Rate limit exceeded",
+				"retry_after": retryAfter,
+			})
 			c.Abort()
 			return
 		}
@@ -165,21 +190,18 @@ func (m *Middleware) RateLimit() gin.HandlerFunc {
 	}
 }
 
-// Metrics records HTTP request metrics
+// Metrics records HTTP request metrics via Prometheus.
 func (m *Middleware) Metrics() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
-
 		c.Next()
-
 		duration := time.Since(start)
 		status := strconv.Itoa(c.Writer.Status())
-
 		observability.RecordRequest(c.Request.Method, c.FullPath(), status, duration)
 	}
 }
 
-// Recovery handles panics
+// Recovery handles panics and logs structured errors.
 func (m *Middleware) Recovery(logger *observability.StructuredLogger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {

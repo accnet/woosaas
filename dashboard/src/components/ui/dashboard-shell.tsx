@@ -541,7 +541,10 @@ function AppRail({
     >
       <div className={`relative flex h-20 items-center border-b border-app-line px-3 ${expanded ? 'justify-between' : 'justify-center'}`}>
         <Link href="/dashboard" className="app-rail-logo" title="Woosaas">
-          W
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 7l-8 8-4-4-6 6" />
+            <path d="M16 7h6v6" />
+          </svg>
         </Link>
         {expanded ? (
           <button type="button" onClick={onToggleExpanded} className="icon-button hidden xl:inline-flex" aria-label="Collapse app rail">
@@ -1186,14 +1189,16 @@ function TopNav({
             <Menu className="h-4 w-4" />
           </button>
 
-          <div className="hidden items-center gap-2 rounded-full bg-app-subtle px-3 py-1.5 text-xs font-medium text-app-muted 2xl:inline-flex">
-            <span>Workspace</span>
-            <ChevronRight className="h-3.5 w-3.5" />
-            <span>{currentSite ? currentSite.domain : 'Workspace'}</span>
+          <div className="hidden items-center gap-1.5 rounded-full bg-app-subtle px-3 py-1.5 text-xs font-medium text-app-muted md:inline-flex">
+            <span className="text-app-soft">Workspace</span>
+            <ChevronRight className="h-3 w-3 text-app-soft" />
+            <span className={currentSite ? 'text-app-muted' : 'text-app-strong'}>
+              {currentSite ? currentSite.domain : 'Workspace'}
+            </span>
             {currentApp ? (
               <>
-                <ChevronRight className="h-3.5 w-3.5" />
-                <span>{currentApp}</span>
+                <ChevronRight className="h-3 w-3 text-app-soft" />
+                <span className="font-semibold text-app-strong">{currentApp}</span>
               </>
             ) : null}
           </div>
@@ -1201,15 +1206,22 @@ function TopNav({
 
         <div className="flex min-w-0 items-center gap-4">
           <div className="hidden min-w-0 xl:block">
-            <div className="text-sm font-semibold text-app-strong">{page.title}</div>
-            <div className="mt-1 flex items-center gap-2 truncate text-xs text-app-muted">
-              {currentApp ? (
-                <span className="inline-flex shrink-0 items-center rounded-full bg-app-subtle px-2 py-0.5 text-[11px] font-semibold text-app-soft">
-                  {currentApp}
-                </span>
+            <div className="flex items-center gap-1.5 text-sm">
+              {currentSite ? (
+                <>
+                  <span className="font-medium text-app-muted">{currentSite.domain}</span>
+                  {currentApp ? (
+                    <>
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-app-soft" />
+                      <span className="font-medium text-app-muted">{currentApp}</span>
+                    </>
+                  ) : null}
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-app-soft" />
+                </>
               ) : null}
-              <span className="truncate">{page.description}</span>
+              <span className="font-semibold text-app-strong">{page.title}</span>
             </div>
+            <div className="mt-1 truncate text-xs text-app-muted">{page.description}</div>
           </div>
 
           <div className="flex items-center gap-2">

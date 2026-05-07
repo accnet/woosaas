@@ -10,15 +10,28 @@ import (
 )
 
 type Stats struct {
-	ch driver.Conn
+	ch    driver.Conn
+	cache *statsCache
 }
 
 func NewStats(ch driver.Conn) *Stats {
 	return &Stats{ch: ch}
 }
 
-// GetOverview returns overview stats for a site
+// NewStatsWithCache creates a Stats instance with Redis caching enabled.
+func NewStatsWithCache(ch driver.Conn, r *redis.Client) *Stats {
+	return &Stats{ch: ch, cache: newStatsCache(r)}
+}
+
+// GetOverview returns overview stats. Results are cached for 3 minutes.
 func (s *Stats) GetOverview(ctx context.Context, siteID, from, to, timezone string) (*OverviewStats, error) {
+	const ttl = 3 * time.Minute
+	key := cacheKey("overview", siteID, from, to, timezone)
+	var cached OverviewStats
+	if s.cache.get(ctx, key, &cached) {
+		return &cached, nil
+	}
+
 	query := `
 		SELECT 
 			toInt64(countIf(event_name = 'pageview')) as pageviews,
@@ -63,6 +76,7 @@ func (s *Stats) GetOverview(ctx context.Context, siteID, from, to, timezone stri
 		stats.AOV = stats.Revenue / float64(stats.Orders)
 	}
 
+	s.cache.set(ctx, key, &stats, ttl)
 	return &stats, nil
 }
 
@@ -81,20 +95,27 @@ type OverviewStats struct {
 	ConvertingSessions int64   `json:"converting_sessions"`
 }
 
-// GetTrend returns time series data
+// granularityFormats maps granularity strings to ClickHouse date format strings.
+// Using a map avoids fmt.Sprintf-into-SQL antipattern (L1).
+var granularityFormats = map[string]string{
+	"hour":  "%Y-%m-%d %H:00:00",
+	"day":   "%Y-%m-%d",
+	"week":  "%Y-W%V",
+	"month": "%Y-%m",
+}
+
+// GetTrend returns time series data. Results are cached for 5 minutes.
 func (s *Stats) GetTrend(ctx context.Context, siteID, from, to, timezone, granularity string) ([]TrendPoint, error) {
-	var dateFormat string
-	switch granularity {
-	case "hour":
-		dateFormat = "%Y-%m-%d %H:00:00"
-	case "day":
-		dateFormat = "%Y-%m-%d"
-	case "week":
-		dateFormat = "%Y-W%V"
-	case "month":
-		dateFormat = "%Y-%m"
-	default:
-		dateFormat = "%Y-%m-%d"
+	const ttl = 5 * time.Minute
+	key := cacheKey("trend", siteID, from, to, granularity)
+	var cached []TrendPoint
+	if s.cache.get(ctx, key, &cached) {
+		return cached, nil
+	}
+
+	dateFormat, ok := granularityFormats[granularity]
+	if !ok {
+		dateFormat = granularityFormats["day"]
 	}
 
 	query := fmt.Sprintf(`
@@ -126,6 +147,9 @@ func (s *Stats) GetTrend(ctx context.Context, siteID, from, to, timezone, granul
 		points = append(points, point)
 	}
 
+	if points != nil {
+		s.cache.set(ctx, key, points, ttl)
+	}
 	return points, nil
 }
 
@@ -138,8 +162,15 @@ type TrendPoint struct {
 	Revenue   float64   `json:"revenue"`
 }
 
-// GetSources returns traffic source breakdown
+// GetSources returns traffic source breakdown. Results are cached for 5 minutes.
 func (s *Stats) GetSources(ctx context.Context, siteID, from, to string) ([]SourceStats, error) {
+	const ttl = 5 * time.Minute
+	key := cacheKey("sources", siteID, from, to)
+	var cached []SourceStats
+	if s.cache.get(ctx, key, &cached) {
+		return cached, nil
+	}
+
 	query := `
 		SELECT if(source = '', 'direct', source) as source, if(medium = '', '', medium) as medium,
 			toInt64(countIf(event_name = 'pageview')) as pageviews,
@@ -171,6 +202,9 @@ func (s *Stats) GetSources(ctx context.Context, siteID, from, to string) ([]Sour
 		sources = append(sources, stat)
 	}
 
+	if sources != nil {
+		s.cache.set(ctx, key, sources, ttl)
+	}
 	return sources, nil
 }
 
@@ -185,8 +219,15 @@ type SourceStats struct {
 	ConversionRate float64 `json:"conversion_rate"`
 }
 
-// GetCampaigns returns campaign-level attribution performance.
+// GetCampaigns returns campaign-level attribution performance. Cached 5 minutes.
 func (s *Stats) GetCampaigns(ctx context.Context, siteID, from, to string) ([]CampaignStats, error) {
+	const ttl = 5 * time.Minute
+	key := cacheKey("campaigns", siteID, from, to)
+	var cached []CampaignStats
+	if s.cache.get(ctx, key, &cached) {
+		return cached, nil
+	}
+
 	query := `
 		SELECT
 			if(source = '', 'direct', source) as source,
@@ -240,6 +281,9 @@ func (s *Stats) GetCampaigns(ctx context.Context, siteID, from, to string) ([]Ca
 		campaigns = append(campaigns, stat)
 	}
 
+	if campaigns != nil {
+		s.cache.set(ctx, key, campaigns, ttl)
+	}
 	return campaigns, nil
 }
 
@@ -260,9 +304,19 @@ type CampaignStats struct {
 	MSCLKIDEvents     int64   `json:"msclkid_events"`
 }
 
-// GetPages returns top pages by traffic
+// GetPages returns top pages. C2: single-pass query with period flag avoids 20 repeated param bindings.
+// Results are cached for 5 minutes.
 func (s *Stats) GetPages(ctx context.Context, siteID, from, to, previousFrom, previousTo string, limit int) ([]PageStats, error) {
-	query := `
+	const ttl = 5 * time.Minute
+	key := cacheKey("pages", siteID, from, to, previousFrom, previousTo, fmt.Sprintf("%d", limit))
+	var cached []PageStats
+	if s.cache.get(ctx, key, &cached) {
+		return cached, nil
+	}
+
+	// Single-pass: ClickHouse evaluates each countIf once over the combined date range.
+	// The outer WHERE spans previousFrom→to so all periods are in one scan.
+	const q = `
 		SELECT
 			path,
 			toInt64(countIf(event_name = 'pageview' AND event_time >= ? AND event_time <= ?)) as pageviews,
@@ -270,27 +324,19 @@ func (s *Stats) GetPages(ctx context.Context, siteID, from, to, previousFrom, pr
 			toInt64(countIf(event_name = 'product_view' AND event_time >= ? AND event_time <= ?)) as product_views,
 			toInt64(countIf(event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as purchases,
 			toFloat64(sumIf(revenue, event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as total_revenue,
-			toInt64(countIf(event_name = 'pageview' AND event_time >= ? AND event_time <= ?)) as previous_pageviews,
-			toInt64(uniqExactIf(session_id, event_time >= ? AND event_time <= ?)) as previous_sessions,
-			toInt64(countIf(event_name = 'product_view' AND event_time >= ? AND event_time <= ?)) as previous_product_views,
-			toInt64(countIf(event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as previous_purchases,
-			toFloat64(sumIf(revenue, event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as previous_total_revenue
+			toInt64(countIf(event_name = 'pageview' AND event_time >= ? AND event_time <= ?)) as prev_pageviews,
+			toInt64(uniqExactIf(session_id, event_time >= ? AND event_time <= ?)) as prev_sessions,
+			toInt64(countIf(event_name = 'product_view' AND event_time >= ? AND event_time <= ?)) as prev_product_views,
+			toInt64(countIf(event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as prev_purchases,
+			toFloat64(sumIf(revenue, event_name = 'purchase' AND event_time >= ? AND event_time <= ?)) as prev_revenue
 		FROM analytics_events
 		WHERE site_id = ? AND event_time >= ? AND event_time <= ? AND path != '' AND bot_score < 70
 		GROUP BY path ORDER BY pageviews DESC LIMIT ?
 	`
 
-	rows, err := s.ch.Query(ctx, query,
-		from, to,
-		from, to,
-		from, to,
-		from, to,
-		from, to,
-		previousFrom, previousTo,
-		previousFrom, previousTo,
-		previousFrom, previousTo,
-		previousFrom, previousTo,
-		previousFrom, previousTo,
+	rows, err := s.ch.Query(ctx, q,
+		from, to, from, to, from, to, from, to, from, to,
+		previousFrom, previousTo, previousFrom, previousTo, previousFrom, previousTo, previousFrom, previousTo, previousFrom, previousTo,
 		siteID, previousFrom, to, limit,
 	)
 	if err != nil {
@@ -303,16 +349,8 @@ func (s *Stats) GetPages(ctx context.Context, siteID, from, to, previousFrom, pr
 		var page PageStats
 		if err := rows.Scan(
 			&page.Path,
-			&page.Pageviews,
-			&page.Sessions,
-			&page.ProductViews,
-			&page.Purchases,
-			&page.Revenue,
-			&page.PreviousPageviews,
-			&page.PreviousSessions,
-			&page.PreviousProductViews,
-			&page.PreviousPurchases,
-			&page.PreviousRevenue,
+			&page.Pageviews, &page.Sessions, &page.ProductViews, &page.Purchases, &page.Revenue,
+			&page.PreviousPageviews, &page.PreviousSessions, &page.PreviousProductViews, &page.PreviousPurchases, &page.PreviousRevenue,
 		); err != nil {
 			return nil, err
 		}
@@ -322,6 +360,9 @@ func (s *Stats) GetPages(ctx context.Context, siteID, from, to, previousFrom, pr
 		pages = append(pages, page)
 	}
 
+	if pages != nil {
+		s.cache.set(ctx, key, pages, ttl)
+	}
 	return pages, nil
 }
 

@@ -1,4 +1,7 @@
+'use client'
+
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react'
+import { AreaChart, Area, ResponsiveContainer } from 'recharts'
 import type { ReactNode } from 'react'
 
 export function MetricCard({
@@ -11,6 +14,7 @@ export function MetricCard({
   delta,
   deltaLabel = 'vs previous period',
   valueClassName = '',
+  sparklineData,
 }: {
   icon: ReactNode
   label: string
@@ -21,21 +25,28 @@ export function MetricCard({
   delta?: number | null
   deltaLabel?: string
   valueClassName?: string
+  sparklineData?: number[]
 }) {
   const toneClass = {
-    neutral: 'bg-app-subtle text-app-strong',
-    good: 'bg-emerald-50 text-emerald-700',
-    warn: 'bg-amber-50 text-amber-700',
+    neutral: 'bg-gradient-to-br from-slate-50 to-slate-100 text-app-strong border border-slate-200/80',
+    good: 'bg-gradient-to-br from-emerald-50 to-green-100 text-emerald-700 border border-emerald-200/80',
+    warn: 'bg-gradient-to-br from-amber-50 to-orange-100 text-amber-700 border border-amber-200/80',
+  }[tone]
+
+  const sparklineColor = {
+    neutral: '#6366f1',
+    good: '#10b981',
+    warn: '#f59e0b',
   }[tone]
 
   const isDeltaPositive = delta !== null && delta !== undefined && delta >= 0
   const DeltaIcon = delta === null || delta === undefined ? null : delta === 0 ? Minus : isDeltaPositive ? ArrowUpRight : ArrowDownRight
 
   return (
-    <div className="card px-5 py-4.5">
+    <div className="card px-5 py-4">
       <div className="flex items-center justify-between">
         <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-app-soft">{label}</div>
-        <div className={`flex h-8 w-8 items-center justify-center rounded-md ${toneClass}`}>{icon}</div>
+        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${toneClass}`}>{icon}</div>
       </div>
       <div className="mt-3 flex items-center gap-2">
         <div className={`text-[1.85rem] font-semibold leading-none text-app-strong ${valueClassName}`.trim()}>{value}</div>
@@ -64,6 +75,29 @@ export function MetricCard({
       {delta !== null && delta !== undefined && deltaLabel ? (
         <div className="mt-1 text-[11px] text-app-soft">{deltaLabel}</div>
       ) : null}
+      {sparklineData && sparklineData.length > 2 && (
+        <div className="-mx-1 mt-3">
+          <ResponsiveContainer width="100%" height={36}>
+            <AreaChart data={sparklineData.map((v, i) => ({ v, i }))}>
+              <defs>
+                <linearGradient id={`sg-${label}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={sparklineColor} stopOpacity={0.25} />
+                  <stop offset="95%" stopColor={sparklineColor} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <Area
+                dataKey="v"
+                type="monotone"
+                stroke={sparklineColor}
+                strokeWidth={1.5}
+                fill={`url(#sg-${label})`}
+                dot={false}
+                isAnimationActive={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   )
 }

@@ -5,8 +5,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -17,6 +20,23 @@ import (
 	"github.com/woosaas/api/internal/observability"
 	"github.com/woosaas/api/pkg/models"
 )
+
+// ipHashSalt is loaded once from env to avoid hardcoded secrets.
+var (
+	_ipSalt     string
+	_ipSaltOnce sync.Once
+)
+
+func ipSalt() string {
+	_ipSaltOnce.Do(func() {
+		if s := os.Getenv("IP_HASH_SALT"); s != "" {
+			_ipSalt = s
+		} else {
+			_ipSalt = "woosaas-salt-default"
+		}
+	})
+	return _ipSalt
+}
 
 type Collector struct {
 	redis     *redis.Client
@@ -216,22 +236,46 @@ func (c *Collector) scoreBot(ctx context.Context, event *models.Event) {
 	observability.RecordBotScore(float64(event.BotScore))
 }
 
-// Deduplicate checks if an event has already been processed
+// Deduplicate checks if a single event has already been processed.
 func (c *Collector) Deduplicate(ctx context.Context, siteID, eventID string) (bool, error) {
+	if eventID == "" {
+		return false, nil
+	}
 	key := fmt.Sprintf("dedupe:%s:%s", siteID, eventID)
-
-	// Try to set the key with NX (only if not exists)
 	set, err := c.redis.SetNX(ctx, key, "1", 24*time.Hour).Result()
 	if err != nil {
 		return false, err
 	}
-
-	return !set, nil // true if duplicate (key already existed)
+	return !set, nil // true = duplicate
 }
 
-// HashIP creates a hash of the client IP for privacy
+// DeduplicateBatch checks multiple event IDs in a single Redis pipeline round-trip.
+// Returns a slice of booleans — true means the event is a duplicate.
+func (c *Collector) DeduplicateBatch(ctx context.Context, siteID string, eventIDs []string) ([]bool, error) {
+	if len(eventIDs) == 0 {
+		return nil, nil
+	}
+	pipe := c.redis.Pipeline()
+	cmds := make([]*redis.BoolCmd, len(eventIDs))
+	for i, id := range eventIDs {
+		key := fmt.Sprintf("dedupe:%s:%s", siteID, id)
+		cmds[i] = pipe.SetNX(ctx, key, "1", 24*time.Hour)
+	}
+	if _, err := pipe.Exec(ctx); err != nil && !errors.Is(err, redis.Nil) {
+		return nil, err
+	}
+	results := make([]bool, len(eventIDs))
+	for i, cmd := range cmds {
+		isNew, _ := cmd.Result()
+		results[i] = !isNew // true = duplicate
+	}
+	return results, nil
+}
+
+// HashIP creates a privacy-safe hash of the client IP.
+// The salt is read once from the IP_HASH_SALT environment variable.
 func HashIP(ip string) string {
-	hash := sha256.Sum256([]byte(ip + "woosaas-salt"))
+	hash := sha256.Sum256([]byte(ip + ipSalt()))
 	return hex.EncodeToString(hash[:16])
 }
 
