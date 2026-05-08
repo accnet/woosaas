@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ChevronRight, ChevronsUpDown, LogOut, Menu, ShieldCheck, Star, X } from 'lucide-react'
+import { ChevronRight, ChevronsUpDown, LogOut, Menu, Star, X } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { SearchInput } from '@/components/ui/search-input'
 import { TrackingStatusChip } from '@/components/ui/tracking-status-chip'
@@ -486,7 +486,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             currentSite={currentSite}
             onOpenMobileNav={() => setMobileNavOpen(true)}
           />
-          <main className="flex-1 px-5 py-6 md:px-8 md:py-8">{children}</main>
+          <main className="flex-1 px-5 py-4 md:px-6 md:py-5">{children}</main>
         </div>
       </div>
     </div>
@@ -917,7 +917,6 @@ function SiteSidebarContent({
   )
 
   if (site) {
-    const trackingState = getSiteTrackingState(site)
     const isAnalyticsApp = pathname.startsWith(`/dashboard/${siteId}/`)
 
     return (
@@ -965,58 +964,6 @@ function SiteSidebarContent({
           buildHref={(itemHref) => buildSetupHref(siteId as string, itemHref)}
           onNavigate={onNavigate}
         />
-
-        <div className="rounded-lg border border-app-line bg-slate-50 px-4 py-4">
-          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-app-strong">
-            <TrackingStatusChip site={site} />
-            Recommendations
-          </div>
-          <div className="space-y-2">
-            {trackingState.label !== 'Active' ? (
-              <>
-                <Link href={`/dashboard/sites/${siteId}/onboarding`} className="site-switcher-footer" onClick={onNavigate}>
-                  Finish onboarding
-                  <ChevronRight className="h-4 w-4" />
-                </Link>
-                <Link href={`/dashboard/sites/${siteId}`} className="site-switcher-footer" onClick={onNavigate}>
-                  Open website home
-                  <ChevronRight className="h-4 w-4" />
-                </Link>
-              </>
-            ) : (
-              <Link href={`/dashboard/sites/${siteId}`} className="site-switcher-footer" onClick={onNavigate}>
-                Open website workspace
-                <ChevronRight className="h-4 w-4" />
-              </Link>
-            )}
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-app-line bg-slate-50 px-4 py-4">
-          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-app-strong">
-            <ShieldCheck className="h-4 w-4 text-emerald-600" />
-            Quick Actions
-          </div>
-          <div className="space-y-2">
-            <Link href={`/dashboard/sites/${site?.id}`} className="site-switcher-footer" onClick={onNavigate}>
-              Website home
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-            <Link href={`/dashboard/${site?.id}/realtime`} className="site-switcher-footer" onClick={onNavigate}>
-              Watch realtime
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-            <Link href={`/dashboard/${site?.id}/health`} className="site-switcher-footer" onClick={onNavigate}>
-              Pipeline health
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-            <Link href={`/dashboard/${site?.id}/funnel`} className="site-switcher-footer" onClick={onNavigate}>
-              Conversion funnel
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-
       </div>
     )
   }
@@ -1150,7 +1097,7 @@ function TopNav({
 
   return (
     <header className="sticky top-0 z-20 border-b border-app-line bg-app/95 backdrop-blur">
-      <div className="flex min-h-20 items-center justify-between gap-4 px-5 py-4 md:px-8">
+      <div className="flex min-h-14 items-center justify-between gap-4 px-5 py-3 md:px-8">
         <div className="flex min-w-0 items-center gap-4">
           <button type="button" onClick={onOpenMobileNav} className="icon-button xl:hidden">
             <Menu className="h-4 w-4" />

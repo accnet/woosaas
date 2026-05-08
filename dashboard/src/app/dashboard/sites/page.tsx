@@ -175,11 +175,11 @@ export default function SitesPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-            <MetricCard icon={<Globe className="h-4 w-4" />} label="Websites" value={sites.length.toString()} helper="Configured website workspaces" />
-            <MetricCard icon={<Activity className="h-4 w-4" />} label="Analytics Live" value={activeSites.toString()} tone={activeSites > 0 ? 'good' : 'warn'} helper="Streaming production events" />
-            <MetricCard icon={<Users className="h-4 w-4" />} label="Apps Ready" value={connectedSites.toString()} tone={connectedSites > 0 ? 'good' : 'neutral'} helper="Websites connected to the first app" />
-            <MetricCard icon={<Mail className="h-4 w-4" />} label="Future Apps" value={(sites.length * 2).toString()} helper="Reserved slots for Support and Email" />
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <MetricCard label="Websites" value={sites.length.toString()} />
+            <MetricCard label="Analytics Live" value={activeSites.toString()} tone={activeSites > 0 ? 'good' : 'warn'} />
+            <MetricCard label="Apps Ready" value={connectedSites.toString()} tone={connectedSites > 0 ? 'good' : 'neutral'} />
+            <MetricCard label="Future Apps" value={(sites.length * 2).toString()} />
           </div>
         </div>
 
@@ -275,7 +275,6 @@ export default function SitesPage() {
           {pinnedSites.length > 0 && (
             <SiteSection
               title="Pinned Websites"
-              description="Priority website workspaces you revisit often."
               sites={pinnedSites}
               pinnedSiteIds={pinnedSiteIds}
               onTogglePinned={togglePinnedSite}
@@ -285,7 +284,6 @@ export default function SitesPage() {
           {recentSites.length > 0 && (
             <SiteSection
               title="Recent Websites"
-              description="Recently opened website workspaces from your day-to-day flow."
               sites={recentSites}
               pinnedSiteIds={pinnedSiteIds}
               onTogglePinned={togglePinnedSite}
@@ -295,7 +293,6 @@ export default function SitesPage() {
           {allSites.length > 0 && (
             <SiteSection
               title="All Websites"
-              description="Full registry ordered by readiness and most recent activity."
               sites={allSites}
               pinnedSiteIds={pinnedSiteIds}
               onTogglePinned={togglePinnedSite}
@@ -309,25 +306,21 @@ export default function SitesPage() {
 
 function SiteSection({
   title,
-  description,
   sites,
   pinnedSiteIds,
   onTogglePinned,
 }: {
   title: string
-  description: string
+  description?: string
   sites: Site[]
   pinnedSiteIds: string[]
   onTogglePinned: (siteId: string) => void
 }) {
   return (
     <section className="space-y-3">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h3 className="text-base font-semibold text-app-strong">{title}</h3>
-          <p className="mt-1 text-sm text-app-muted">{description}</p>
-        </div>
-        <div className="text-xs font-medium text-app-soft">{sites.length} websites</div>
+      <div className="flex items-center justify-between gap-4">
+        <h3 className="text-sm font-semibold text-app-strong">{title}</h3>
+        <div className="text-xs text-app-soft">{sites.length} sites</div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">

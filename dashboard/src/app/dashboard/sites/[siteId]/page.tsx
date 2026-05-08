@@ -132,7 +132,6 @@ export default function WebsiteHomePage() {
 
         <SectionCard
           title="Next Actions"
-          description="The quickest routes to keep this website healthy and ready for more apps."
           icon={<ArrowRight className="h-4 w-4" />}
         >
           <div className="space-y-2">
@@ -158,7 +157,6 @@ export default function WebsiteHomePage() {
 
       <SectionCard
         title="Apps"
-        description="Each website can grow into a multi-app workspace without changing the underlying analytics model."
         icon={<Store className="h-4 w-4" />}
       >
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
@@ -195,7 +193,6 @@ export default function WebsiteHomePage() {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <SectionCard
           title="Analytics Foundation"
-          description="The current analytics feature set stays intact and remains the first production app in the website workspace."
           icon={<Activity className="h-4 w-4" />}
         >
           <div className="space-y-2 text-sm text-app-muted">
@@ -206,7 +203,6 @@ export default function WebsiteHomePage() {
 
         <SectionCard
           title="Expansion Path"
-          description="The shell is now prepared for more app surfaces without turning the product into a maze."
           icon={<Mail className="h-4 w-4" />}
         >
           <div className="space-y-2 text-sm text-app-muted">

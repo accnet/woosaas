@@ -2,9 +2,10 @@ import type { ReactNode } from 'react'
 
 export function EmptyState({
   icon,
-  title,
   body,
   className = '',
+  // legacy — not rendered
+  title: _title,
 }: {
   icon?: ReactNode
   title?: string
@@ -12,10 +13,9 @@ export function EmptyState({
   className?: string
 }) {
   return (
-    <div className={`mx-auto max-w-xl px-6 py-12 text-center text-app-muted ${className}`.trim()}>
-      {icon ? <div className="mx-auto mb-3 flex justify-center text-slate-300">{icon}</div> : null}
-      {title ? <div className="text-[15px] font-semibold text-app-strong">{title}</div> : null}
-      <p className={`${title ? 'mt-2' : ''} text-sm leading-6`.trim()}>{body}</p>
+    <div className={`flex flex-col items-center py-10 text-app-soft ${className}`.trim()}>
+      {icon ? <div className="mb-3 opacity-30">{icon}</div> : null}
+      <span className="text-sm">{body}</span>
     </div>
   )
 }

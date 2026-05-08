@@ -105,7 +105,6 @@ export default function ApiKeysPage({ params }: { params: Promise<{ siteId: stri
     <div className="space-y-8">
       <AnalyticsPageHeader
         title="API Keys"
-        description="Issue credentials for plugins and integrations, while keeping the one-time secret visibility rule explicit."
         controls={
           <>
             {refreshing ? <StatusChip label="Refreshing" tone="info" /> : null}
@@ -153,7 +152,6 @@ export default function ApiKeysPage({ params }: { params: Promise<{ siteId: stri
         <>
           <TableSection
             title="Active Keys"
-            description="Current key inventory with usage state and one-time secret preview handling."
             action={<StatusChip label={`${keys.length} active`} tone="neutral" />}
           >
             <table className="min-w-full">
@@ -235,7 +233,6 @@ export default function ApiKeysPage({ params }: { params: Promise<{ siteId: stri
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_0.9fr]">
             <SectionCard
               title="Recently Created"
-              description="Keys whose full secret is still available in this browser session."
               action={<StatusChip label={`${recentCreatedKeys.length} visible`} tone="good" />}
             >
               {recentCreatedKeys.length > 0 ? (

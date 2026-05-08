@@ -381,7 +381,7 @@
   }
 
   .nav-item {
-    @apply flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition;
+    @apply flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm font-medium transition;
     position: relative;
   }
 
@@ -429,11 +429,11 @@
   }
 
   .app-rail-item {
-    @apply inline-flex h-11 w-11 items-center justify-center rounded-lg transition;
+    @apply inline-flex h-10 w-10 items-center justify-center rounded-lg transition;
   }
 
   .app-rail-link {
-    @apply flex h-11 w-full items-center gap-3 rounded-lg px-3 text-left transition;
+    @apply flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left transition;
   }
 
   .app-rail-item-idle {
@@ -541,8 +541,7 @@
   }
 
   .panel-header {
-    @apply mb-5 flex flex-wrap items-start justify-between gap-3;
-
+    @apply mb-4 flex flex-wrap items-center justify-between gap-3;
   }
 
   .metric-grid {

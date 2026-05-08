@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { BarChart3, DollarSign, Gauge, MousePointerClick, ShoppingCart, Users, PanelLeft } from 'lucide-react'
+import { BarChart3 } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
 import { AnalyticsPageSkeleton } from '@/components/ui/analytics-page-skeleton'
 import { LineChart, MultiLineChart } from '@/components/ui/charts'
@@ -106,11 +106,10 @@ export default function OverviewPage() {
   ]
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
 
       <AnalyticsPageHeader
-        title="Analytics Overview"
-        description="Snapshot of the analytics app for this website, covering traffic, conversion, and revenue signals."
+        title="Overview"
         controls={
           <DateRangeSelect
             value={dateRange}
@@ -125,92 +124,87 @@ export default function OverviewPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-        <MetricCard
-          icon={<MousePointerClick className="h-4 w-4" />}
-          label="Pageviews"
-          value={overview?.pageviews?.toLocaleString() || '0'}
-          delta={calcDelta(overview?.pageviews, prevOverview?.pageviews)}
-          helper="Total tracked page loads"
-          sparklineData={trend.map((t) => t.pageviews ?? 0)}
-        />
-        <MetricCard
-          icon={<Users className="h-4 w-4" />}
-          label="Sessions"
-          value={overview?.sessions?.toLocaleString() || '0'}
-          delta={calcDelta(overview?.sessions, prevOverview?.sessions)}
-          helper="Unique browsing sessions"
-          tone="neutral"
-          sparklineData={trend.map((t) => t.sessions ?? 0)}
-        />
-        <MetricCard
-          icon={<DollarSign className="h-4 w-4" />}
-          label="Revenue"
-          value={`$${(overview?.revenue || 0).toFixed(2)}`}
-          delta={calcDelta(overview?.revenue, prevOverview?.revenue)}
-          helper="Attributed order revenue"
-          tone={overview?.revenue ? 'good' : 'neutral'}
-          sparklineData={trend.map((t) => t.revenue ?? 0)}
-        />
-        <MetricCard
-          icon={<Gauge className="h-4 w-4" />}
-          label="Conversion"
-          value={`${(overview?.conversion_rate || 0).toFixed(2)}%`}
-          delta={calcDelta(overview?.conversion_rate, prevOverview?.conversion_rate)}
-          helper="Purchase rate per session"
-          tone={overview?.conversion_rate ? 'good' : 'neutral'}
-        />
-        <MetricCard
-          icon={<BarChart3 className="h-4 w-4" />}
-          label="Freshness"
-          value={freshness.label}
-          helper={freshness.detail}
-          tone={freshness.changeType === 'negative' ? 'warn' : freshness.changeType === 'positive' ? 'good' : 'neutral'}
-        />
-      </div>
-
-      <SectionCard title="Traffic Trend" description="Multi-metric trajectory inside the analytics app for the active date range.">
-        {trend.length > 0 ? (
-          <MultiLineChart
-            data={trend}
-            lines={[
-              { dataKey: 'pageviews', color: '#6366f1', name: 'Pageviews' },
-              { dataKey: 'sessions', color: '#22c55e', name: 'Sessions' },
-              { dataKey: 'purchases', color: '#f59e0b', name: 'Purchases' },
-            ]}
+      <div className="px-5 md:px-6">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
+          <MetricCard
+            label="Pageviews"
+            value={overview?.pageviews?.toLocaleString() || '0'}
+            delta={calcDelta(overview?.pageviews, prevOverview?.pageviews)}
+            sparklineData={trend.map((t) => t.pageviews ?? 0)}
           />
-        ) : (
-          <EmptyState icon={<BarChart3 className="h-12 w-12" />} body="No trend data available" className="flex h-64 items-center justify-center" />
-        )}
-      </SectionCard>
+          <MetricCard
+            label="Sessions"
+            value={overview?.sessions?.toLocaleString() || '0'}
+            delta={calcDelta(overview?.sessions, prevOverview?.sessions)}
+            sparklineData={trend.map((t) => t.sessions ?? 0)}
+          />
+          <MetricCard
+            label="Revenue"
+            value={`$${(overview?.revenue || 0).toFixed(2)}`}
+            delta={calcDelta(overview?.revenue, prevOverview?.revenue)}
+            tone={overview?.revenue ? 'good' : 'neutral'}
+            sparklineData={trend.map((t) => t.revenue ?? 0)}
+          />
+          <MetricCard
+            label="Conversion"
+            value={`${(overview?.conversion_rate || 0).toFixed(2)}%`}
+            delta={calcDelta(overview?.conversion_rate, prevOverview?.conversion_rate)}
+            tone={overview?.conversion_rate ? 'good' : 'neutral'}
+          />
+          <MetricCard
+            label="Freshness"
+            value={freshness.label}
+            tone={freshness.changeType === 'negative' ? 'warn' : freshness.changeType === 'positive' ? 'good' : 'neutral'}
+          />
+        </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <SectionCard title="Commerce Funnel" description="Step counts across the website purchase journey." icon={<ShoppingCart className="h-4 w-4" />}>
-          <div className="space-y-4">
-            <DetailRow label="Product Views" value={overview?.product_views?.toLocaleString() || '0'} />
-            <DetailRow label="Add to Cart" value={overview?.add_to_carts?.toLocaleString() || '0'} />
-            <DetailRow label="Checkouts" value={overview?.checkouts?.toLocaleString() || '0'} />
-            <DetailRow label="Purchases" value={overview?.purchases?.toLocaleString() || '0'} />
-            <DetailRow label="Average Order Value" value={`$${(overview?.aov || 0).toFixed(2)}`} />
-          </div>
-        </SectionCard>
+        <div className="mt-4">
+          <SectionCard title="Traffic Trend">
+            {trend.length > 0 ? (
+              <MultiLineChart
+                data={trend}
+                lines={[
+                  { dataKey: 'pageviews', color: '#6366f1', name: 'Pageviews' },
+                  { dataKey: 'sessions', color: '#22c55e', name: 'Sessions' },
+                  { dataKey: 'purchases', color: '#f59e0b', name: 'Purchases' },
+                ]}
+              />
+            ) : (
+              <EmptyState icon={<BarChart3 className="h-8 w-8" />} body="No trend data available" className="h-48" />
+            )}
+          </SectionCard>
+        </div>
 
-        <SectionCard title="Audience Quality" description="User volume and browsing depth within this website workspace." icon={<Users className="h-4 w-4" />}>
-          <div className="space-y-4">
-            <DetailRow label="Unique Users" value={overview?.users?.toLocaleString() || '0'} />
-            <DetailRow label="Sessions" value={overview?.sessions?.toLocaleString() || '0'} />
-            <DetailRow label="Pages / Session" value={pagesPerSession} />
-          </div>
-        </SectionCard>
+        <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <SectionCard title="Commerce Funnel">
+            <div className="space-y-3">
+              <DetailRow label="Product Views" value={overview?.product_views?.toLocaleString() || '0'} />
+              <DetailRow label="Add to Cart" value={overview?.add_to_carts?.toLocaleString() || '0'} />
+              <DetailRow label="Checkouts" value={overview?.checkouts?.toLocaleString() || '0'} />
+              <DetailRow label="Purchases" value={overview?.purchases?.toLocaleString() || '0'} />
+              <DetailRow label="Avg Order Value" value={`$${(overview?.aov || 0).toFixed(2)}`} />
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Audience">
+            <div className="space-y-3">
+              <DetailRow label="Unique Users" value={overview?.users?.toLocaleString() || '0'} />
+              <DetailRow label="Sessions" value={overview?.sessions?.toLocaleString() || '0'} />
+              <DetailRow label="Pages / Session" value={pagesPerSession} />
+            </div>
+          </SectionCard>
+        </div>
+
+        <div className="mt-4">
+          <SectionCard title="Top Pages" className="overflow-hidden px-0 py-0">
+            {pages.length > 0 ? (
+              <DataTable columns={pageColumns} data={pages} keyExtractor={(p) => p.path} />
+            ) : (
+              <EmptyState body="No page data available yet." />
+            )}
+          </SectionCard>
+        </div>
       </div>
-
-      <SectionCard title="Top Pages" description="Highest-traffic pages for this website in the selected period." icon={<PanelLeft className="h-4 w-4" />} className="overflow-hidden px-0 py-0">
-        {pages.length > 0 ? (
-          <DataTable columns={pageColumns} data={pages} keyExtractor={(p) => p.path} />
-        ) : (
-          <EmptyState body="No page data available yet." />
-        )}
-      </SectionCard>
     </div>
   )
 }

@@ -86,7 +86,6 @@ export default function BotsPage() {
     <div className="space-y-8">
       <AnalyticsPageHeader
         title="Bot Traffic"
-        description="Scored traffic, suspicious reasons, and rule coverage for this website compared against trusted human activity."
         controls={
           <>
             {refreshing ? <StatusChip label="Refreshing" tone="info" /> : null}
@@ -130,9 +129,8 @@ export default function BotsPage() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_0.95fr]">
         <SectionCard
           title="Traffic Split"
-          description="Visual distinction between suspicious bot traffic and likely human traffic."
         >
-          <div className="space-y-5">
+          <div className="space-y-4">
             <div className="overflow-hidden rounded-full bg-slate-100">
               <div className="flex h-4 w-full">
                 <div className="bg-amber-400" style={{ width: `${summary.botShare}%` }} />
@@ -158,7 +156,6 @@ export default function BotsPage() {
 
         <SectionCard
           title="Suspicious Reasons"
-          description="The highest-volume reasons show which bot rules are firing most often."
           action={<StatusChip label={`${bots?.top_bot_reasons.length ?? 0} reasons`} tone="warn" />}
         >
           {bots?.top_bot_reasons && bots.top_bot_reasons.length > 0 ? (
@@ -191,7 +188,6 @@ export default function BotsPage() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <SectionCard
           title="Source Coverage"
-          description="Suspicious traffic grouped by inbound source."
           action={<StatusChip label={`${bots?.top_bot_sources.length ?? 0} sources`} tone="neutral" />}
         >
           {bots?.top_bot_sources && bots.top_bot_sources.length > 0 ? (
@@ -210,7 +206,6 @@ export default function BotsPage() {
 
         <SectionCard
           title="Scored Sessions"
-          description="Highest-scoring suspicious sessions with rule coverage and event volume."
           action={<StatusChip label={`${bots?.top_bot_sessions.length ?? 0} sessions`} tone="warn" />}
           className="overflow-hidden px-0 py-0"
         >

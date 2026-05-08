@@ -52,70 +52,75 @@ export function DataTable<T>({
       setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
     } else {
       setSortKey(key)
-      setSortDirection('asc')
+      setSortDirection('desc') // default DESC for numeric tables (highest first)
     }
   }
 
   return (
     <div className={framed ? 'table-container' : ''}>
       <div className="overflow-x-auto">
-      <table className="min-w-full">
-        <thead className="table-header">
-          <tr>
-            {columns.map((col) => {
-              const isActive = sortKey === col.key
-              const SortIcon = !col.sortable ? null : !isActive ? ArrowUpDown : sortDirection === 'asc' ? ArrowUp : ArrowDown
-
-              return (
-                <th
-                  key={col.key}
-                  className={`px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-app-soft ${
-                    col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
-                  } ${col.sortable ? 'cursor-pointer select-none hover:text-app-strong' : ''}`}
-                  onClick={() => col.sortable && handleSort(col.key)}
-                  aria-sort={
-                    isActive
-                      ? sortDirection === 'asc'
-                        ? 'ascending'
-                        : 'descending'
-                      : undefined
-                  }
-                >
-                  <span className="inline-flex items-center gap-1">
-                    {col.label}
-                    {SortIcon ? <SortIcon className="h-3.5 w-3.5" /> : null}
-                  </span>
-                </th>
-              )
-            })}
-          </tr>
-        </thead>
-        <tbody className="table-body">
-          {sorted.length > 0 ? (
-            sorted.map((item) => (
-              <tr key={keyExtractor(item)} className="table-row">
-                {columns.map((col) => (
-                  <td
-                    key={col.key}
-                    className={`table-cell ${
-                      col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : ''
-                    }`}
-                  >
-                    {col.render(item)}
-                  </td>
-                ))}
-              </tr>
-            ))
-          ) : (
+        <table className="min-w-full">
+          {/* Sticky header */}
+          <thead className="table-header sticky top-0">
             <tr>
-              <td colSpan={columns.length} className="px-6 py-16 text-center">
-                <div className="text-[15px] font-semibold text-app-strong">{emptyTitle}</div>
-                <div className="mt-2 text-sm text-app-soft">{emptyBody}</div>
-              </td>
+              {columns.map((col) => {
+                const isActive = sortKey === col.key
+                const SortIcon = !col.sortable
+                  ? null
+                  : !isActive
+                    ? ArrowUpDown
+                    : sortDirection === 'asc'
+                      ? ArrowUp
+                      : ArrowDown
+
+                return (
+                  <th
+                    key={col.key}
+                    className={`px-4 py-2 text-[11px] font-medium text-app-soft ${
+                      col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
+                    } ${col.sortable ? 'cursor-pointer select-none hover:text-app-strong' : ''} ${
+                      isActive ? 'text-app-strong' : ''
+                    }`}
+                    onClick={() => col.sortable && handleSort(col.key)}
+                    aria-sort={
+                      isActive ? (sortDirection === 'asc' ? 'ascending' : 'descending') : undefined
+                    }
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      {col.label}
+                      {SortIcon ? <SortIcon className={`h-3 w-3 ${isActive ? 'opacity-100' : 'opacity-40'}`} /> : null}
+                    </span>
+                  </th>
+                )
+              })}
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="table-body">
+            {sorted.length > 0 ? (
+              sorted.map((item) => (
+                <tr key={keyExtractor(item)} className="table-row">
+                  {columns.map((col) => (
+                    <td
+                      key={col.key}
+                      className={`px-4 py-2 text-sm tabular-nums ${
+                        col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : ''
+                      }`}
+                    >
+                      {col.render(item)}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={columns.length} className="px-6 py-10 text-center">
+                  <div className="text-sm font-medium text-app-strong">{emptyTitle}</div>
+                  <div className="mt-1 text-xs text-app-soft">{emptyBody}</div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   )

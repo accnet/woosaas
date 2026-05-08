@@ -1,14 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import {
-  BadgeDollarSign,
-  Megaphone,
-  MousePointerClick,
-  RefreshCw,
-  Target,
-  Tags,
-} from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
 import { InlineErrorState } from '@/components/ui/inline-error-state'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
@@ -128,7 +121,6 @@ export default function CampaignsPage() {
 
       <AnalyticsPageHeader
         title="Campaigns"
-        description="Campaign performance for this website across source, medium, and attributed revenue."
         controls={
           <>
             {refreshing ? <StatusChip label="Refreshing" tone="info" /> : null}
@@ -149,58 +141,48 @@ export default function CampaignsPage() {
         />
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-        <MetricCard
-          icon={<Megaphone className="h-4 w-4" />}
-          label="Tracked Campaigns"
-          value={campaigns.length.toString()}
-          helper="Rows with campaign attribution"
-        />
-        <MetricCard
-          icon={<MousePointerClick className="h-4 w-4" />}
-          label="Sessions"
-          value={totals.totalSessions.toLocaleString()}
-          helper="Attributed campaign sessions"
-        />
-        <MetricCard
-          icon={<Target className="h-4 w-4" />}
-          label="Conversions"
-          value={totals.totalConversions.toLocaleString()}
-          helper="Total converted sessions"
-        />
-        <MetricCard
-          icon={<BadgeDollarSign className="h-4 w-4" />}
-          label="Revenue"
-          value={`$${totals.totalRevenue.toFixed(2)}`}
-          helper={
-            totals.topCampaign
-              ? `Leader: ${totals.topCampaign.campaign || '(none)'}`
-              : 'No attributed revenue in this range'
-          }
-        />
-      </div>
+      <div className="px-5 md:px-6">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <MetricCard
+            label="Campaigns"
+            value={campaigns.length.toString()}
+          />
+          <MetricCard
+            label="Sessions"
+            value={totals.totalSessions.toLocaleString()}
+          />
+          <MetricCard
+            label="Conversions"
+            value={totals.totalConversions.toLocaleString()}
+          />
+          <MetricCard
+            label="Revenue"
+            value={`$${totals.totalRevenue.toFixed(2)}`}
+          />
+        </div>
 
-      <SectionCard
-        title="Campaign Breakdown"
-        description="Compare campaign traffic quality, conversion efficiency, and monetization for this website."
-        icon={<Tags className="h-4 w-4" />}
-        className="overflow-hidden px-0 py-0"
-        action={
-          <div className="flex items-center gap-2">
-            <StatusChip label={`${campaigns.length} campaigns`} tone="neutral" />
-            <button
-              type="button"
-              className="btn-secondary gap-2"
-              onClick={() => setReloadKey((value) => value + 1)}
-            >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`.trim()} />
-              Refresh
-            </button>
-          </div>
-        }
-      >
-        <DataTable columns={columns} data={campaigns} keyExtractor={(c) => `${c.campaign}-${c.source}-${c.medium}`} />
-      </SectionCard>
+        <div className="mt-4">
+          <SectionCard
+            title="Campaign Breakdown"
+            className="overflow-hidden px-0 py-0"
+            action={
+              <div className="flex items-center gap-2">
+                <StatusChip label={`${campaigns.length} campaigns`} tone="neutral" />
+                <button
+                  type="button"
+                  className="btn-secondary gap-2"
+                  onClick={() => setReloadKey((value) => value + 1)}
+                >
+                  <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`.trim()} />
+                  Refresh
+                </button>
+              </div>
+            }
+          >
+            <DataTable columns={columns} data={campaigns} keyExtractor={(c) => `${c.campaign}-${c.source}-${c.medium}`} />
+          </SectionCard>
+        </div>
+      </div>
     </div>
   )
 }

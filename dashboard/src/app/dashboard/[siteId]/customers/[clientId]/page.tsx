@@ -126,7 +126,6 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ clien
 
       <AnalyticsPageHeader
         title="Customer Detail"
-        description="Identity, order value, timeline, and acquisition context for this website customer profile."
       />
 
       {error ? (
@@ -147,7 +146,6 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ clien
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <SectionCard
           title="Summary"
-          description="Top-level profile, value, and acquisition context."
           action={<StatusChip label={`${events.length} timeline events`} tone="neutral" />}
         >
           <div className="space-y-4">
@@ -159,7 +157,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ clien
           </div>
         </SectionCard>
 
-        <SectionCard title="Identity" description="Persistent identifiers and lifecycle timestamps.">
+        <SectionCard title="Identity">
           <div className="space-y-4">
             <DetailRow label="Client ID" value={customer.client_id} />
             <DetailRow label="Email" value={customer.email || '-'} />
@@ -173,7 +171,6 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ clien
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <SectionCard
           title="Orders"
-          description="Purchase events tied to this customer profile."
           action={<StatusChip label={`${purchaseEvents.length} order events`} tone="good" />}
         >
           {purchaseEvents.length > 0 ? (
@@ -211,7 +208,6 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ clien
 
         <SectionCard
           title="Timeline"
-          description="Most recent events across browsing, product, and purchase behavior."
           action={<StatusChip label={`${events.length} events`} tone="neutral" />}
         >
           {events.length > 0 ? (

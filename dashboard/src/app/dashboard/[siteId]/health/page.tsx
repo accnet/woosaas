@@ -245,7 +245,6 @@ export default function HealthPage() {
     <div className="space-y-8">
       <AnalyticsPageHeader
         title="Pipeline Health"
-        description="Queue, consumer, delivery, and verification signals for this website organized into one operational view."
         controls={
           <div className="flex items-center gap-2">
             <StatusChip label={health.status} tone={overallTone} />
@@ -313,7 +312,6 @@ export default function HealthPage() {
       {needsAttention ? (
         <SectionCard
           title="Needs Attention"
-          description="Quick actions are surfaced here when the pipeline is not fully healthy."
           icon={<AlertTriangle className="h-4 w-4" />}
         >
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">

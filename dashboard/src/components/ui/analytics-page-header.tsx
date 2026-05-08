@@ -2,20 +2,16 @@ import type { ReactNode } from 'react'
 
 export function AnalyticsPageHeader({
   title,
-  description,
   controls,
 }: {
   title: string
-  description: string
+  description?: string // kept for backward-compat, intentionally unused
   controls?: ReactNode
 }) {
   return (
-    <div className="panel-header">
-      <div className="min-w-0">
-        <h2 className="text-2xl font-semibold text-app-strong">{title}</h2>
-        <p className="mt-2 max-w-2xl text-sm text-app-muted">{description}</p>
-      </div>
-      {controls ? <div className="flex flex-wrap items-center gap-3">{controls}</div> : null}
+    <div className="flex items-center justify-between border-b border-app-line px-6 py-3 md:px-8">
+      <h1 className="text-base font-semibold text-app-strong">{title}</h1>
+      {controls ? <div className="flex flex-wrap items-center gap-2">{controls}</div> : null}
     </div>
   )
 }
@@ -30,7 +26,7 @@ export function DateRangeSelect({
   options: Array<{ value: string; label: string }>
 }) {
   return (
-    <select value={value} onChange={(event) => onChange(event.target.value)} className="select min-w-[150px]">
+    <select value={value} onChange={(event) => onChange(event.target.value)} className="select min-w-[140px]">
       {options.map((option) => (
         <option key={option.value} value={option.value}>
           {option.label}

@@ -85,7 +85,6 @@ export default function ExportsPage() {
     <div className="space-y-8">
       <AnalyticsPageHeader
         title="Exports"
-        description="Create CSV extracts from the analytics app and keep a lightweight record of recently prepared exports."
         controls={
           <StatusChip
             label={`${recentExports.filter((item) => item.status === 'ready').length} ready`}
@@ -97,7 +96,6 @@ export default function ExportsPage() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_0.95fr]">
         <SectionCard
           title="Create Export"
-          description="Choose export type and date range, then prepare a direct CSV download."
           action={
             <button type="button" className="btn-secondary gap-2" onClick={() => setRecentExports([...recentExports])}>
               <RefreshCw className="h-4 w-4" />
@@ -154,7 +152,6 @@ export default function ExportsPage() {
 
         <SectionCard
           title="Recent Exports"
-          description="Recently prepared exports for this site and their current readiness state."
           action={<StatusChip label={`${recentExports.length} recent`} tone="neutral" />}
         >
           {recentExports.length > 0 ? (

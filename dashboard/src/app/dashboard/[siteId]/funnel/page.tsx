@@ -201,11 +201,10 @@ export default function FunnelPage() {
   const isEmpty = steps.every((step) => step.count === 0)
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
 
       <AnalyticsPageHeader
         title="Conversion Funnel"
-        description="Step-by-step movement from traffic to purchase for this website across the active date range."
         controls={
           <>
             {refreshing ? <StatusChip label="Refreshing" tone="info" /> : null}
@@ -261,7 +260,6 @@ export default function FunnelPage() {
       {isEmpty ? (
         <SectionCard
           title="Stage Performance"
-          description="Absolute counts and step retention will appear once funnel events are available."
         >
           <EmptyState
             icon={<ShoppingCart className="h-12 w-12" />}
@@ -273,7 +271,6 @@ export default function FunnelPage() {
         <>
           <SectionCard
             title="Stage Performance"
-            description="Each step shows its absolute count first, then retention versus the previous step and original entry volume."
             action={
               <button
                 type="button"
@@ -302,7 +299,6 @@ export default function FunnelPage() {
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
             <SectionCard
               title="Step Totals"
-              description="Absolute step counts stay visually separate from rate interpretation."
             >
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {steps.map((step) => (
@@ -322,7 +318,6 @@ export default function FunnelPage() {
 
             <SectionCard
               title="Bottleneck Analysis"
-              description="The largest drop-off is translated into the next area to inspect inside this website workspace."
             >
               <div className="space-y-4">
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">

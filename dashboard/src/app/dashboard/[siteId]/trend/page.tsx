@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { BarChart3, CalendarRange, LineChart as LineChartIcon, Users } from 'lucide-react'
+import { BarChart3, LineChart as LineChartIcon } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
 import { MultiLineChart } from '@/components/ui/charts'
 import { AnalyticsPageSkeleton } from '@/components/ui/analytics-page-skeleton'
@@ -70,11 +70,10 @@ export default function TrendPage() {
   }))
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
 
       <AnalyticsPageHeader
-        title="Trend Analysis"
-        description="Historical movement across the core analytics app metrics for this website."
+        title="Trend"
         controls={
           <DateRangeSelect
             value={dateRange}
@@ -88,71 +87,67 @@ export default function TrendPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-        <MetricCard
-          icon={<LineChartIcon className="h-4 w-4" />}
-          label="Pageviews"
-          value={totals.pageviews.toLocaleString()}
-          sparklineData={trend.map((t) => t.pageviews ?? 0)}
-        />
-        <MetricCard
-          icon={<Users className="h-4 w-4" />}
-          label="Sessions"
-          value={totals.sessions.toLocaleString()}
-          sparklineData={trend.map((t) => t.sessions ?? 0)}
-        />
-        <MetricCard
-          icon={<BarChart3 className="h-4 w-4" />}
-          label="Users"
-          value={totals.users.toLocaleString()}
-          sparklineData={trend.map((t) => t.users ?? 0)}
-        />
-        <MetricCard
-          icon={<CalendarRange className="h-4 w-4" />}
-          label="Revenue"
-          value={`$${totals.revenue.toFixed(2)}`}
-          tone={totals.revenue > 0 ? 'good' : 'neutral'}
-          sparklineData={trend.map((t) => t.revenue ?? 0)}
-        />
-      </div>
-
-      <SectionCard
-        title="Metric Timeline"
-        description="Daily movement for the website metrics tracked inside the analytics app."
-        icon={<LineChartIcon className="h-4 w-4" />}
-      >
-        {/* Metric Toggle Pills */}
-        <div className="mb-5 flex flex-wrap gap-2">
-          {ALL_METRICS.map((m) => {
-            const isActive = activeMetrics.includes(m.key)
-            return (
-              <button
-                key={m.key}
-                type="button"
-                onClick={() => toggleMetric(m.key)}
-                className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all duration-150"
-                style={
-                  isActive
-                    ? { background: m.color, borderColor: m.color, color: '#fff' }
-                    : { background: '#fff', borderColor: '#dbe3ee', color: '#5e6b84' }
-                }
-              >
-                <span
-                  className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ background: isActive ? 'rgba(255,255,255,0.7)' : m.color }}
-                />
-                {m.label}
-              </button>
-            )
-          })}
+      <div className="px-5 md:px-6">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <MetricCard
+            label="Pageviews"
+            value={totals.pageviews.toLocaleString()}
+            sparklineData={trend.map((t) => t.pageviews ?? 0)}
+          />
+          <MetricCard
+            label="Sessions"
+            value={totals.sessions.toLocaleString()}
+            sparklineData={trend.map((t) => t.sessions ?? 0)}
+          />
+          <MetricCard
+            label="Users"
+            value={totals.users.toLocaleString()}
+            sparklineData={trend.map((t) => t.users ?? 0)}
+          />
+          <MetricCard
+            label="Revenue"
+            value={`$${totals.revenue.toFixed(2)}`}
+            tone={totals.revenue > 0 ? 'good' : 'neutral'}
+            sparklineData={trend.map((t) => t.revenue ?? 0)}
+          />
         </div>
 
-        {trend.length > 0 ? (
-          <MultiLineChart data={trend} lines={visibleLines} />
-        ) : (
-          <EmptyState icon={<LineChartIcon className="h-12 w-12" />} body="No trend data available" className="flex h-64 items-center justify-center" />
-        )}
-      </SectionCard>
+        <div className="mt-4">
+          <SectionCard title="Metric Timeline">
+            {/* Metric Toggle Pills */}
+            <div className="mb-4 flex flex-wrap gap-2">
+              {ALL_METRICS.map((m) => {
+                const isActive = activeMetrics.includes(m.key)
+                return (
+                  <button
+                    key={m.key}
+                    type="button"
+                    onClick={() => toggleMetric(m.key)}
+                    className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all duration-150"
+                    style={
+                      isActive
+                        ? { background: m.color, borderColor: m.color, color: '#fff' }
+                        : { background: '#fff', borderColor: '#dbe3ee', color: '#5e6b84' }
+                    }
+                  >
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: isActive ? 'rgba(255,255,255,0.7)' : m.color }}
+                    />
+                    {m.label}
+                  </button>
+                )
+              })}
+            </div>
+
+            {trend.length > 0 ? (
+              <MultiLineChart data={trend} lines={visibleLines} />
+            ) : (
+              <EmptyState icon={<LineChartIcon className="h-8 w-8" />} body="No trend data available" className="h-48" />
+            )}
+          </SectionCard>
+        </div>
+      </div>
     </div>
   )
 }

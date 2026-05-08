@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { DollarSign, Globe, RadioTower, Users } from 'lucide-react'
+import { Globe } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
 import { AnalyticsPageSkeleton } from '@/components/ui/analytics-page-skeleton'
 import { MetricCard } from '@/components/ui/metric-card'
@@ -113,11 +113,9 @@ export default function SourcesPage() {
   ]
 
   return (
-    <div className="space-y-5">
-
+    <div className="space-y-4">
       <AnalyticsPageHeader
-        title="Traffic Sources"
-        description="Which channels and mediums are driving visits, users, and revenue for this website."
+        title="Sources"
         controls={
           <DateRangeSelect
             value={dateRange}
@@ -131,21 +129,20 @@ export default function SourcesPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-        <MetricCard icon={<RadioTower className="h-4 w-4" />} label="Sources" value={sources.length.toString()} />
-        <MetricCard icon={<Globe className="h-4 w-4" />} label="Sessions" value={totalSessions.toLocaleString()} />
-        <MetricCard icon={<Users className="h-4 w-4" />} label="Users" value={totalUsers.toLocaleString()} />
-        <MetricCard icon={<DollarSign className="h-4 w-4" />} label="Revenue" value={`$${totalRevenue.toFixed(2)}`} tone={totalRevenue > 0 ? 'good' : 'neutral'} />
-      </div>
+      <div className="px-5 md:px-6">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <MetricCard label="Sources" value={sources.length.toString()} />
+          <MetricCard label="Sessions" value={totalSessions.toLocaleString()} />
+          <MetricCard label="Users" value={totalUsers.toLocaleString()} />
+          <MetricCard label="Revenue" value={`$${totalRevenue.toFixed(2)}`} tone={totalRevenue > 0 ? 'good' : 'neutral'} />
+        </div>
 
-      <SectionCard
-        title="Source Breakdown"
-        description="Acquisition performance by source and medium inside the analytics app."
-        icon={<RadioTower className="h-4 w-4" />}
-        className="overflow-hidden px-0 py-0"
-      >
-        <DataTable columns={columns} data={sources} keyExtractor={(_s) => `${_s.source}-${_s.medium}`} />
-      </SectionCard>
+        <div className="mt-4">
+          <SectionCard title="Source Breakdown" className="overflow-hidden px-0 py-0">
+            <DataTable columns={columns} data={sources} keyExtractor={(_s) => `${_s.source}-${_s.medium}`} />
+          </SectionCard>
+        </div>
+      </div>
     </div>
   )
 }

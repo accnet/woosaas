@@ -125,7 +125,6 @@ export default function DashboardPage() {
 
         <SectionCard
           title="Rollout Focus"
-          description="What to do next as the product expands from analytics into a multi-app website workspace."
           icon={<Store className="h-4 w-4" />}
         >
           <div className="space-y-2">
@@ -150,7 +149,6 @@ export default function DashboardPage() {
 
       <SectionCard
         title="App Portfolio"
-        description="Workspace-level status for the apps that belong to each website."
         icon={<Layers3 className="h-4 w-4" />}
       >
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
@@ -172,7 +170,6 @@ export default function DashboardPage() {
       {needsAttentionSites.length > 0 ? (
         <SectionCard
           title="Needs Attention"
-          description="Websites that should be unblocked before you expand into more operational apps."
           icon={<AlertTriangle className="h-4 w-4" />}
         >
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -205,7 +202,6 @@ export default function DashboardPage() {
 
       <SectionCard
         title="Website Workspaces"
-        description="Every website is now the container for apps, setup, and future operational surfaces."
         icon={<Globe className="h-4 w-4" />}
         action={
           sites.length > 0 ? (

@@ -1,14 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import {
-  FileText,
-  MousePointerClick,
-  RefreshCw,
-  Search,
-  ShoppingBag,
-  TrendingUp,
-} from 'lucide-react'
+import { RefreshCw, Search } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
 import { InlineErrorState } from '@/components/ui/inline-error-state'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
@@ -174,11 +167,10 @@ export default function PagesPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
 
       <AnalyticsPageHeader
-        title="Top Pages"
-        description="Landing pages and content paths ranked by traffic, conversion signals, and revenue for this website."
+        title="Pages"
         controls={
           <>
             {refreshing ? <StatusChip label="Refreshing" tone="info" /> : null}
@@ -199,68 +191,49 @@ export default function PagesPage() {
         />
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-        <MetricCard
-          icon={<FileText className="h-4 w-4" />}
-          label="Pages"
-          value={pages.length.toString()}
-          helper={totals.topPage ? `Top path: ${totals.topPage.path}` : 'No page paths in this range'}
-          valueClassName="truncate text-2xl"
-        />
-        <MetricCard
-          icon={<MousePointerClick className="h-4 w-4" />}
-          label="Pageviews"
-          value={totals.totalViews.toLocaleString()}
-          helper="Tracked page loads"
-        />
-        <MetricCard
-          icon={<ShoppingBag className="h-4 w-4" />}
-          label="Purchases"
-          value={totals.totalPurchases.toLocaleString()}
-          helper="Orders credited to listed pages"
-        />
-        <MetricCard
-          icon={<TrendingUp className="h-4 w-4" />}
-          label="Revenue"
-          value={`$${totals.totalRevenue.toFixed(2)}`}
-          helper={`${totals.totalSessions.toLocaleString()} sessions across visible pages`}
-        />
-      </div>
+      <div className="px-5 md:px-6">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <MetricCard label="Pages" value={pages.length.toString()} valueClassName="truncate text-2xl" />
+          <MetricCard label="Pageviews" value={totals.totalViews.toLocaleString()} />
+          <MetricCard label="Purchases" value={totals.totalPurchases.toLocaleString()} />
+          <MetricCard label="Revenue" value={`$${totals.totalRevenue.toFixed(2)}`} />
+        </div>
 
-      <SectionCard
-        title="Page Performance"
-        description="Scan page-level traffic, value, and period-over-period momentum inside the analytics app."
-        icon={<FileText className="h-4 w-4" />}
-        className="overflow-hidden px-0 py-0"
-        action={
-          <div className="flex flex-col gap-2 sm:min-w-[320px] sm:max-w-[460px]">
-            <div className="flex items-center justify-end gap-2">
-              <StatusChip label={`${filteredPages.length} visible`} tone="neutral" />
-              <button
-                type="button"
-                className="btn-secondary gap-2"
-                onClick={() => setReloadKey((value) => value + 1)}
-              >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`.trim()} />
-                Refresh
-              </button>
-            </div>
-            <SearchInput value={query} onChange={setQuery} placeholder="Filter by page path" />
-          </div>
-        }
-      >
-        <DataTable
-          columns={columns}
-          data={filteredPages}
-          keyExtractor={(p) => p.path}
-          emptyTitle={pages.length === 0 ? 'No page data yet' : 'No matching page paths'}
-          emptyBody={
-            pages.length === 0
-              ? 'Top pages will appear here once traffic data has been collected for this site.'
-              : 'Try a shorter page path or clear the current filter to see the full list again.'
-          }
-        />
-      </SectionCard>
+        <div className="mt-4">
+          <SectionCard
+            title="Page Performance"
+            className="overflow-hidden px-0 py-0"
+            action={
+              <div className="flex flex-col gap-2 sm:min-w-[320px] sm:max-w-[460px]">
+                <div className="flex items-center justify-end gap-2">
+                  <StatusChip label={`${filteredPages.length} visible`} tone="neutral" />
+                  <button
+                    type="button"
+                    className="btn-secondary gap-2"
+                    onClick={() => setReloadKey((value) => value + 1)}
+                  >
+                    <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`.trim()} />
+                    Refresh
+                  </button>
+                </div>
+                <SearchInput value={query} onChange={setQuery} placeholder="Filter by path" />
+              </div>
+            }
+          >
+            <DataTable
+              columns={columns}
+              data={filteredPages}
+              keyExtractor={(p) => p.path}
+              emptyTitle={pages.length === 0 ? 'No page data yet' : 'No matching paths'}
+              emptyBody={
+                pages.length === 0
+                  ? 'Top pages will appear here once traffic is collected.'
+                  : 'Try a shorter filter or clear to see all pages.'
+              }
+            />
+          </SectionCard>
+        </div>
+      </div>
     </div>
   )
 }

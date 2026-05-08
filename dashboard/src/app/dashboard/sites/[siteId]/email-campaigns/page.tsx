@@ -13,7 +13,6 @@ export default function EmailCampaignsPage() {
     <div className="space-y-6">
       <SectionCard
         title="Email Campaigns"
-        description="This app slot is reserved for lifecycle messaging and campaign reporting for the selected website."
         icon={<Mail className="h-4 w-4" />}
         action={<StatusChip label="Coming soon" tone="neutral" />}
       >

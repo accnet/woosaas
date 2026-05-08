@@ -13,7 +13,6 @@ export default function SupportTicketsPage() {
     <div className="space-y-6">
       <SectionCard
         title="Support Tickets"
-        description="This app slot is reserved for the future support workspace of the selected website."
         icon={<LifeBuoy className="h-4 w-4" />}
         action={<StatusChip label="Coming soon" tone="neutral" />}
       >
@@ -47,7 +46,6 @@ export default function SupportTicketsPage() {
 
       <SectionCard
         title="Cross-app direction"
-        description="Support should eventually feel native to the same website context as analytics and campaigns."
         icon={<Mail className="h-4 w-4" />}
       >
         <p className="text-sm text-app-muted">

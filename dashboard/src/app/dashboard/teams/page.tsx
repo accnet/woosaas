@@ -261,7 +261,6 @@ export default function TeamsPage() {
     <div className="space-y-8">
       <AnalyticsPageHeader
         title="Teams"
-        description="Manage workspace members by the websites they can open and the role attached to each access grant."
         controls={
           <>
             {refreshing ? <StatusChip label="Refreshing" tone="info" /> : null}
@@ -290,7 +289,6 @@ export default function TeamsPage() {
 
       <SectionCard
         title="Grant Access"
-        description="Invite a teammate into one website at a time, then manage all of their website access from this roster."
         icon={<MailPlus className="h-4 w-4" />}
       >
         <form onSubmit={handleInvite} className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_240px_180px_auto]">
@@ -331,7 +329,6 @@ export default function TeamsPage() {
 
       <SectionCard
         title="Filters"
-        description="Search by person, email, website, or role and narrow the roster to a single website when needed."
         icon={<Users className="h-4 w-4" />}
       >
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_280px]">
@@ -347,7 +344,6 @@ export default function TeamsPage() {
 
       <TableSection
         title="Website Access"
-        description="Each row represents one person's access to one website."
         action={<StatusChip label={`${filteredRecords.length} grants`} tone="neutral" />}
         isEmpty={filteredRecords.length === 0}
         emptyTitle="No access grants found"
