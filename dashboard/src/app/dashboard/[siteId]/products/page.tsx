@@ -8,31 +8,36 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { MetricCard } from '@/components/ui/metric-card'
 import { SectionCard } from '@/components/ui/section-card'
 import { DataTable, type Column } from '@/components/ui/data-table'
+import axios from 'axios'
 import { statsApi } from '@/lib/api'
 import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import { useSiteId } from '@/hooks/use-site-id'
 import type { ProductStats } from '@/lib/types'
+import { useDateRange } from '@/hooks/use-date-range'
 
 export default function ProductsPage() {
   const siteId = useSiteId()
   const [products, setProducts] = useState<ProductStats[]>([])
   const [loading, setLoading] = useState(true)
-  const [dateRange, setDateRange] = useState<PresetDateRange>('30d')
+  const [dateRange, setDateRange] = useDateRange()
 
   useEffect(() => {
+    const controller = new AbortController()
     const loadData = async () => {
       setLoading(true)
       try {
         const { from, to } = getPresetDateRange(dateRange)
-        const res = await statsApi.products(siteId, from, to, 20)
+        const res = await statsApi.products(siteId, from, to, 20, { signal: controller.signal })
         setProducts(res.data)
       } catch (err) {
+        if (axios.isCancel(err)) return
         console.error('Failed to load product data', err)
       } finally {
         setLoading(false)
       }
     }
     void loadData()
+    return () => controller.abort()
   }, [dateRange, siteId])
 
   if (loading) return <LoadingSpinner className="py-16" />
@@ -91,21 +96,23 @@ export default function ProductsPage() {
           />
         }
       />
+      <div className="px-5 md:px-6">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <MetricCard label="Products" value={products.length.toString()} />
+          <MetricCard label="Views" value={totalViews.toLocaleString()} />
+          <MetricCard label="Purchases" value={totalPurchases.toLocaleString()} />
+          <MetricCard label="Revenue" value={`$${totalRevenue.toFixed(2)}`} />
+        </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-        <MetricCard icon={<Package className="h-4 w-4" />} label="Products" value={products.length.toString()} />
-        <MetricCard icon={<ShoppingCart className="h-4 w-4" />} label="Views" value={totalViews.toLocaleString()} />
-        <MetricCard icon={<Package className="h-4 w-4" />} label="Purchases" value={totalPurchases.toLocaleString()} />
-        <MetricCard icon={<DollarSign className="h-4 w-4" />} label="Revenue" value={`$${totalRevenue.toFixed(2)}`} />
+        <div className="mt-4">
+          <SectionCard
+            title="Product Conversion"
+            className="overflow-hidden px-0 py-0"
+          >
+            <DataTable columns={columns} data={products} keyExtractor={(p) => p.product_id} />
+          </SectionCard>
+        </div>
       </div>
-
-      <SectionCard
-        title="Product Conversion"
-        icon={<Package className="h-4 w-4" />}
-        className="overflow-hidden px-0 py-0"
-      >
-        <DataTable columns={columns} data={products} keyExtractor={(p) => p.product_id} />
-      </SectionCard>
     </div>
   )
 }

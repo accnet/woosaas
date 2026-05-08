@@ -12,6 +12,7 @@ export function MetricCard({
   delta,
   valueClassName = '',
   sparklineData,
+  comparisonLabel,
   // legacy props — kept for backward-compat but no longer rendered
   icon: _icon,
   helper: _helper,
@@ -25,6 +26,7 @@ export function MetricCard({
   live?: boolean
   delta?: number | null
   deltaLabel?: string
+  comparisonLabel?: string
   valueClassName?: string
   sparklineData?: number[]
 }) {
@@ -65,7 +67,7 @@ export function MetricCard({
                   ? 'bg-emerald-50 text-emerald-700'
                   : 'bg-red-50 text-red-700'
             }`}
-            title="vs previous period"
+            title={comparisonLabel || "vs previous period"}
           >
             <DeltaIcon className="h-3 w-3" />
             {delta > 0 ? '+' : ''}

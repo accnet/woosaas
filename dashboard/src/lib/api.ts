@@ -98,55 +98,69 @@ export const sitesApi = {
     }),
 }
 
+import type { AxiosRequestConfig } from 'axios'
+
 // Stats API
 export const statsApi = {
-  overview: (siteId: string, from: string, to: string, timezone = 'UTC') =>
+  overview: (siteId: string, from: string, to: string, timezone = 'UTC', config?: AxiosRequestConfig) =>
     api.get<OverviewStats>('/api/v1/stats/overview', {
       params: { site_id: siteId, from, to, timezone },
+      ...config,
     }),
-  trend: (siteId: string, from: string, to: string, granularity = 'day') =>
+  trend: (siteId: string, from: string, to: string, granularity = 'day', config?: AxiosRequestConfig) =>
     api.get<TrendPoint[]>('/api/v1/stats/trend', {
       params: { site_id: siteId, from, to, granularity },
+      ...config,
     }),
-  sources: (siteId: string, from: string, to: string) =>
+  sources: (siteId: string, from: string, to: string, config?: AxiosRequestConfig) =>
     api.get<SourceStats[]>('/api/v1/stats/sources', {
       params: { site_id: siteId, from, to },
+      ...config,
     }),
-  campaigns: (siteId: string, from: string, to: string) =>
+  campaigns: (siteId: string, from: string, to: string, config?: AxiosRequestConfig) =>
     api.get<CampaignStats[]>('/api/v1/stats/campaigns', {
       params: { site_id: siteId, from, to },
+      ...config,
     }),
-  pages: (siteId: string, from: string, to: string, limit = 20) =>
+  pages: (siteId: string, from: string, to: string, limit = 20, config?: AxiosRequestConfig) =>
     api.get<PageStats[]>('/api/v1/stats/pages', {
       params: { site_id: siteId, from, to, limit },
+      ...config,
     }),
-  products: (siteId: string, from: string, to: string, limit = 20) =>
+  products: (siteId: string, from: string, to: string, limit = 20, config?: AxiosRequestConfig) =>
     api.get<ProductStats[]>('/api/v1/stats/products', {
       params: { site_id: siteId, from, to, limit },
+      ...config,
     }),
-  funnel: (siteId: string, from: string, to: string) =>
+  funnel: (siteId: string, from: string, to: string, config?: AxiosRequestConfig) =>
     api.get<FunnelStats>('/api/v1/stats/funnel', {
       params: { site_id: siteId, from, to },
+      ...config,
     }),
-  realtime: (siteId: string, minutes = 5) =>
+  realtime: (siteId: string, minutes = 5, config?: AxiosRequestConfig) =>
     api.get<RealtimeStats>('/api/v1/stats/realtime', {
       params: { site_id: siteId, minutes },
+      ...config,
     }),
-  realtimeEvents: (siteId: string, minutes = 5, limit = 25) =>
+  realtimeEvents: (siteId: string, minutes = 5, limit = 25, config?: AxiosRequestConfig) =>
     api.get<RealtimeEvent[]>('/api/v1/stats/realtime/events', {
       params: { site_id: siteId, minutes, limit },
+      ...config,
     }),
-  bots: (siteId: string, from: string, to: string) =>
+  bots: (siteId: string, from: string, to: string, config?: AxiosRequestConfig) =>
     api.get<BotReportResponse>('/api/v1/stats/bots', {
       params: { site_id: siteId, from, to },
+      ...config,
     }),
-  health: (siteId: string) =>
+  health: (siteId: string, config?: AxiosRequestConfig) =>
     api.get<PipelineHealth>('/api/v1/stats/health', {
       params: { site_id: siteId },
+      ...config,
     }),
-  customers: (siteId: string, page = 1, pageSize = 25) =>
+  customers: (siteId: string, page = 1, pageSize = 25, config?: AxiosRequestConfig) =>
     api.get<CustomerListResponse>('/api/v1/stats/customers', {
       params: { site_id: siteId, page, page_size: pageSize },
+      ...config,
     }),
   customer: (siteId: string, clientId: string, limit = 50) =>
     api.get<CustomerDetailResponse>(`/api/v1/stats/customers/${encodeURIComponent(clientId)}`, {

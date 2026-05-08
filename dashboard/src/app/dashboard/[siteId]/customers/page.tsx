@@ -2,7 +2,9 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronRight, DollarSign, RefreshCw, ShoppingBag, UserRound, Users } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import axios from 'axios'
+import { ChevronRight, RefreshCw, Users } from 'lucide-react'
 import { AnalyticsPageHeader } from '@/components/ui/analytics-page-header'
 import { FilterPills } from '@/components/ui/filter-pills'
 import { InlineErrorState } from '@/components/ui/inline-error-state'
@@ -30,11 +32,30 @@ export default function CustomersPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
-  const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState<CustomerFilter>('all')
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  const [query, setQueryInternal] = useState(searchParams.get('q') ?? '')
+  const [filter, setFilterInternal] = useState<CustomerFilter>((searchParams.get('f') as CustomerFilter) || 'all')
+
+  const setQuery = (value: string) => {
+    setQueryInternal(value)
+    const params = new URLSearchParams(searchParams.toString())
+    if (value) params.set('q', value)
+    else params.delete('q')
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
+
+  const setFilter = (value: CustomerFilter) => {
+    setFilterInternal(value)
+    const params = new URLSearchParams(searchParams.toString())
+    if (value !== 'all') params.set('f', value)
+    else params.delete('f')
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
 
   useEffect(() => {
-    let cancelled = false
+    const controller = new AbortController()
 
     const loadData = async () => {
       if (customers.length === 0) {
@@ -46,29 +67,23 @@ export default function CustomersPage() {
       setError(null)
 
       try {
-        const res = await statsApi.customers(siteId, page, PAGE_SIZE)
+        const res = await statsApi.customers(siteId, page, PAGE_SIZE, { signal: controller.signal })
         const data = res.data as CustomerListResponse
-        if (!cancelled) {
-          setCustomers(data.customers)
-          setTotalCount(data.total_count)
-        }
+        setCustomers(data.customers)
+        setTotalCount(data.total_count)
       } catch (err) {
-        if (!cancelled) {
+        if (!axios.isCancel(err)) {
           setError(getApiErrorMessage(err, 'Customer records could not be loaded right now.'))
         }
       } finally {
-        if (!cancelled) {
-          setLoading(false)
-          setRefreshing(false)
-        }
+        setLoading(false)
+        setRefreshing(false)
       }
     }
 
     void loadData()
 
-    return () => {
-      cancelled = true
-    }
+    return () => controller.abort()
   }, [page, reloadKey, siteId])
 
   const filteredCustomers = useMemo(() => {
@@ -132,31 +147,26 @@ export default function CustomersPage() {
         />
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-        <MetricCard
-          icon={<Users className="h-4 w-4" />}
-          label="Customers"
-          value={totalCount.toLocaleString()}
-          helper={`${filteredCustomers.length.toLocaleString()} visible on current page`}
-        />
-        <MetricCard
-          icon={<ShoppingBag className="h-4 w-4" />}
-          label="Orders"
-          value={totals.visibleOrders.toLocaleString()}
-          helper="Visible rows in this filtered view"
-        />
-        <MetricCard
-          icon={<DollarSign className="h-4 w-4" />}
-          label="Revenue"
-          value={`$${totals.visibleRevenue.toFixed(2)}`}
-          helper="Revenue across visible customer rows"
-        />
-        <MetricCard
-          icon={<UserRound className="h-4 w-4" />}
-          label="Identified"
-          value={totals.identifiedCustomers.toLocaleString()}
-          helper={`${totals.visibleSessions.toLocaleString()} sessions in the current page slice`}
-        />
+      <div className="px-5 md:px-6">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <MetricCard
+            label="Customers"
+            value={totalCount.toLocaleString()}
+          />
+          <MetricCard
+            label="Orders"
+            value={totals.visibleOrders.toLocaleString()}
+          />
+          <MetricCard
+            label="Revenue"
+            value={`$${totals.visibleRevenue.toFixed(2)}`}
+            tone="good"
+          />
+          <MetricCard
+            label="Identified"
+            value={totals.identifiedCustomers.toLocaleString()}
+          />
+        </div>
       </div>
 
       <TableSection

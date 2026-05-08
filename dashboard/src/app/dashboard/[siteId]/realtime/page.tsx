@@ -150,11 +150,40 @@ export default function RealtimePage() {
       <AnalyticsPageHeader
         title="Realtime Activity"
         controls={
-          <StatusChip
-            label={liveStatus === 'refreshing' ? 'Refreshing' : liveStatus === 'live' ? 'Live' : 'Paused'}
-            tone={liveStatus === 'live' ? 'good' : liveStatus === 'refreshing' ? 'info' : 'warn'}
-            icon={liveStatus === 'paused' ? <PauseCircle className="h-3.5 w-3.5" /> : <Radio className="h-3.5 w-3.5" />}
-          />
+          <div className="flex items-center gap-2">
+            <StatusChip
+              label={liveStatus === 'refreshing' ? 'Refreshing' : liveStatus === 'live' ? 'Live' : 'Paused'}
+              tone={liveStatus === 'live' ? 'good' : liveStatus === 'refreshing' ? 'info' : 'warn'}
+              icon={liveStatus === 'paused' ? <PauseCircle className="h-3.5 w-3.5" /> : <Radio className="h-3.5 w-3.5" />}
+            />
+            <select
+              className="select min-w-[140px]"
+              value={minutes}
+              onChange={(event) => setMinutes(Number(event.target.value))}
+            >
+              {WINDOW_OPTIONS.map((value) => (
+                <option key={value} value={value}>
+                  Last {value} minutes
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn-secondary gap-2"
+              onClick={() => setAutoRefresh((value) => !value)}
+            >
+              {autoRefresh ? <PauseCircle className="h-4 w-4" /> : <Radio className="h-4 w-4" />}
+              {autoRefresh ? 'Pause' : 'Resume'}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary gap-2"
+              onClick={() => setRefreshKey((value) => value + 1)}
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`.trim()} />
+              Refresh
+            </button>
+          </div>
         }
       />
 
@@ -194,49 +223,7 @@ export default function RealtimePage() {
         />
       </div>
 
-      <div className="sticky top-4 z-10 rounded-lg border border-app-line bg-white px-4 py-4 shadow-card">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusChip
-              label={liveStatus === 'refreshing' ? 'Refreshing now' : liveStatus === 'live' ? 'Auto refresh every 15s' : 'Auto refresh paused'}
-              tone={liveStatus === 'live' ? 'good' : liveStatus === 'refreshing' ? 'info' : 'warn'}
-            />
-            <span className="text-sm text-app-muted">
-              Keep the feed live while adjusting window length and event filters.
-            </span>
-          </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <select
-              className="select min-w-[150px]"
-              value={minutes}
-              onChange={(event) => setMinutes(Number(event.target.value))}
-            >
-              {WINDOW_OPTIONS.map((value) => (
-                <option key={value} value={value}>
-                  Last {value} minutes
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="btn-secondary gap-2"
-              onClick={() => setAutoRefresh((value) => !value)}
-            >
-              {autoRefresh ? <PauseCircle className="h-4 w-4" /> : <Radio className="h-4 w-4" />}
-              {autoRefresh ? 'Pause' : 'Resume'}
-            </button>
-            <button
-              type="button"
-              className="btn-secondary gap-2"
-              onClick={() => setRefreshKey((value) => value + 1)}
-            >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`.trim()} />
-              Refresh
-            </button>
-          </div>
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_0.85fr]">
         <SectionCard
@@ -247,26 +234,16 @@ export default function RealtimePage() {
           {filteredEvents.length > 0 ? (
             <div className="max-h-[560px] divide-y divide-slate-100 overflow-y-auto">
               {filteredEvents.map((event, index) => (
-                <div key={`${event.session_id}-${event.event_time}-${index}`} className="px-6 py-4">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <StatusChip label={event.event_name} tone="info" />
-                        <span className="text-xs text-app-muted">{formatTimestamp(event.event_time)}</span>
-                        {event.revenue > 0 ? (
-                          <StatusChip label={`$${event.revenue.toFixed(2)}`} tone="good" />
-                        ) : null}
-                      </div>
-                      <div className="mt-2 truncate text-sm font-medium text-app-strong">
-                        {event.path || '-'}
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-app-muted">
-                        <span>Source: {event.source || '(direct)'}</span>
-                        <span>Medium: {event.medium || '(none)'}</span>
-                        <span>Session: {event.session_id || '-'}</span>
-                      </div>
-                    </div>
-                  </div>
+                <div key={`${event.session_id}-${event.event_time}-${index}`} className="flex items-center gap-3 border-b border-slate-50 px-4 py-2 hover:bg-slate-50/50">
+                  <span className="w-16 shrink-0 text-xs tabular-nums text-app-soft">{formatTimestamp(event.event_time)}</span>
+                  <StatusChip label={event.event_name} tone="info" />
+                  <span className="flex-1 truncate text-sm font-medium text-app-strong">{event.path || '-'}</span>
+                  <span className="hidden w-24 shrink-0 truncate text-xs text-app-soft sm:block">{event.source || '(direct)'}</span>
+                  {event.revenue > 0 ? (
+                    <span className="w-16 shrink-0 text-right text-xs font-semibold text-emerald-600">${event.revenue.toFixed(2)}</span>
+                  ) : (
+                    <span className="w-16 shrink-0 text-right text-xs text-app-soft">-</span>
+                  )}
                 </div>
               ))}
             </div>

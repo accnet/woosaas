@@ -17,9 +17,11 @@ import { MetricCard } from '@/components/ui/metric-card'
 import { SectionCard } from '@/components/ui/section-card'
 import { StatusChip } from '@/components/ui/status-chip'
 import { useSiteId } from '@/hooks/use-site-id'
+import axios from 'axios'
 import { getApiErrorMessage, statsApi } from '@/lib/api'
 import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import type { FunnelStats } from '@/lib/types'
+import { useDateRange } from '@/hooks/use-date-range'
 
 const DATE_RANGE_OPTIONS = [
   { value: '7d', label: 'Last 7 days' },
@@ -41,27 +43,20 @@ function FunnelBar({
   maxCount: number
 }) {
   const barWidth = maxCount > 0 ? (count / maxCount) * 100 : 0
+  const dropOff = 100 - retainedFromPrevious
 
   return (
-    <div className="rounded-lg border border-app-line bg-white p-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <div className="text-sm font-semibold text-app-strong">{label}</div>
-          <div className="mt-1 text-xs text-app-muted">
-            {retainedFromPrevious.toFixed(1)}% of previous step and {retainedFromEntry.toFixed(1)}%
-            of total entry volume
-          </div>
-        </div>
-        <div className="text-right">
-          <div className="text-lg font-semibold text-app-strong">{count.toLocaleString()}</div>
-          <div className="mt-1 text-xs text-app-muted">Events in this step</div>
-        </div>
-      </div>
-      <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
+    <div className="flex items-center gap-3 border-b border-slate-50 px-4 py-3 hover:bg-slate-50/50 last:border-0">
+      <div className="w-28 shrink-0 text-xs font-medium text-app-muted sm:w-32">{label}</div>
+      <div className="h-5 flex-1 overflow-hidden rounded-sm bg-app-subtle">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-primary-400 to-primary-600 transition-all duration-500"
+          className="h-full rounded-sm bg-indigo-500/70 transition-all duration-500"
           style={{ width: `${barWidth}%` }}
         />
+      </div>
+      <div className="w-20 shrink-0 text-right text-sm font-semibold tabular-nums text-app-strong">{count.toLocaleString()}</div>
+      <div className={`w-16 shrink-0 text-right text-xs tabular-nums ${dropOff > 40 && label !== 'Pageviews' ? 'font-medium text-red-600' : 'text-app-muted'}`}>
+        {retainedFromPrevious.toFixed(0)}%
       </div>
     </div>
   )
@@ -89,43 +84,32 @@ export default function FunnelPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
-  const [dateRange, setDateRange] = useState<PresetDateRange>('30d')
+  const [dateRange, setDateRange] = useDateRange()
 
   useEffect(() => {
-    let cancelled = false
+    const controller = new AbortController()
 
     const loadData = async () => {
-      if (!funnel) {
-        setLoading(true)
-      } else {
-        setRefreshing(true)
-      }
+      if (!funnel) setLoading(true)
+      else setRefreshing(true)
 
       setError(null)
 
       try {
         const { from, to } = getPresetDateRange(dateRange)
-        const res = await statsApi.funnel(siteId, from, to)
-        if (!cancelled) {
-          setFunnel(res.data)
-        }
+        const res = await statsApi.funnel(siteId, from, to, { signal: controller.signal })
+        setFunnel(res.data)
       } catch (err) {
-        if (!cancelled) {
-          setError(getApiErrorMessage(err, 'Funnel analytics could not be loaded right now.'))
-        }
+        if (axios.isCancel(err)) return
+        setError(getApiErrorMessage(err, 'Funnel analytics could not be loaded right now.'))
       } finally {
-        if (!cancelled) {
-          setLoading(false)
-          setRefreshing(false)
-        }
+        setLoading(false)
+        setRefreshing(false)
       }
     }
 
     void loadData()
-
-    return () => {
-      cancelled = true
-    }
+    return () => controller.abort()
   }, [dateRange, reloadKey, siteId])
 
   const steps = useMemo(() => {
@@ -271,6 +255,7 @@ export default function FunnelPage() {
         <>
           <SectionCard
             title="Stage Performance"
+            className="px-0 py-0 overflow-hidden"
             action={
               <button
                 type="button"
@@ -282,7 +267,13 @@ export default function FunnelPage() {
               </button>
             }
           >
-            <div className="space-y-4">
+            <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-2 text-[11px] font-medium uppercase tracking-wider text-app-soft">
+              <div className="w-28 sm:w-32">Stage</div>
+              <div className="flex-1">Progress</div>
+              <div className="w-20 text-right">Count</div>
+              <div className="w-16 text-right">Rate</div>
+            </div>
+            <div className="divide-y divide-slate-50">
               {steps.map((step) => (
                 <FunnelBar
                   key={step.label}

@@ -10,9 +10,11 @@ import { SectionCard } from '@/components/ui/section-card'
 import { StatusChip } from '@/components/ui/status-chip'
 import { DataTable, type Column } from '@/components/ui/data-table'
 import { useSiteId } from '@/hooks/use-site-id'
+import axios from 'axios'
 import { getApiErrorMessage, statsApi } from '@/lib/api'
 import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import type { CampaignStats } from '@/lib/types'
+import { useDateRange } from '@/hooks/use-date-range'
 
 const DATE_RANGE_OPTIONS = [
   { value: '7d', label: 'Last 7 days' },
@@ -27,43 +29,32 @@ export default function CampaignsPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
-  const [dateRange, setDateRange] = useState<PresetDateRange>('30d')
+  const [dateRange, setDateRange] = useDateRange()
 
   useEffect(() => {
-    let cancelled = false
+    const controller = new AbortController()
 
     const loadData = async () => {
-      if (loading || campaigns.length === 0) {
-        setLoading(true)
-      } else {
-        setRefreshing(true)
-      }
+      if (!campaigns.length) setLoading(true)
+      else setRefreshing(true)
 
       setError(null)
 
       try {
         const { from, to } = getPresetDateRange(dateRange)
-        const res = await statsApi.campaigns(siteId, from, to)
-        if (!cancelled) {
-          setCampaigns(res.data)
-        }
+        const res = await statsApi.campaigns(siteId, from, to, { signal: controller.signal })
+        setCampaigns(res.data)
       } catch (err) {
-        if (!cancelled) {
-          setError(getApiErrorMessage(err, 'Campaign analytics could not be loaded right now.'))
-        }
+        if (axios.isCancel(err)) return
+        setError(getApiErrorMessage(err, 'Campaign analytics could not be loaded right now.'))
       } finally {
-        if (!cancelled) {
-          setLoading(false)
-          setRefreshing(false)
-        }
+        setLoading(false)
+        setRefreshing(false)
       }
     }
 
     void loadData()
-
-    return () => {
-      cancelled = true
-    }
+    return () => controller.abort()
   }, [dateRange, reloadKey, siteId])
 
   const totals = useMemo(() => {

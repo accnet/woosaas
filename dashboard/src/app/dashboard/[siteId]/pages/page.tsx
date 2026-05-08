@@ -10,10 +10,12 @@ import { SectionCard } from '@/components/ui/section-card'
 import { SearchInput } from '@/components/ui/search-input'
 import { StatusChip } from '@/components/ui/status-chip'
 import { DataTable, type Column } from '@/components/ui/data-table'
-import { statsApi, getApiErrorMessage } from '@/lib/api'
+import { getApiErrorMessage, statsApi } from '@/lib/api'
 import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import { useSiteId } from '@/hooks/use-site-id'
 import type { PageStats } from '@/lib/types'
+import { useDateRange } from '@/hooks/use-date-range'
+import axios from 'axios'
 
 const DATE_RANGE_OPTIONS = [
   { value: '7d', label: 'Last 7 days' },
@@ -28,44 +30,33 @@ export default function PagesPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
-  const [dateRange, setDateRange] = useState<PresetDateRange>('30d')
+  const [dateRange, setDateRange] = useDateRange()
   const [query, setQuery] = useState('')
 
   useEffect(() => {
-    let cancelled = false
+    const controller = new AbortController()
 
     const loadData = async () => {
-      if (pages.length === 0) {
-        setLoading(true)
-      } else {
-        setRefreshing(true)
-      }
+      if (pages.length === 0) setLoading(true)
+      else setRefreshing(true)
 
       setError(null)
 
       try {
         const { from, to } = getPresetDateRange(dateRange)
-        const res = await statsApi.pages(siteId, from, to, 100)
-        if (!cancelled) {
-          setPages(res.data)
-        }
+        const res = await statsApi.pages(siteId, from, to, 100, { signal: controller.signal })
+        setPages(res.data)
       } catch (err) {
-        if (!cancelled) {
-          setError(getApiErrorMessage(err, 'Page analytics could not be loaded right now.'))
-        }
+        if (axios.isCancel(err)) return
+        setError(getApiErrorMessage(err, 'Page analytics could not be loaded right now.'))
       } finally {
-        if (!cancelled) {
-          setLoading(false)
-          setRefreshing(false)
-        }
+        setLoading(false)
+        setRefreshing(false)
       }
     }
 
     void loadData()
-
-    return () => {
-      cancelled = true
-    }
+    return () => controller.abort()
   }, [dateRange, reloadKey, siteId])
 
   const filteredPages = useMemo(() => {

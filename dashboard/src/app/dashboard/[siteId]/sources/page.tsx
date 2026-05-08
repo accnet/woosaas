@@ -7,32 +7,37 @@ import { AnalyticsPageSkeleton } from '@/components/ui/analytics-page-skeleton'
 import { MetricCard } from '@/components/ui/metric-card'
 import { SectionCard } from '@/components/ui/section-card'
 import { DataTable, type Column } from '@/components/ui/data-table'
+import axios from 'axios'
 import { statsApi } from '@/lib/api'
 import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import { useSiteId } from '@/hooks/use-site-id'
 import type { SourceStats } from '@/lib/types'
+import { useDateRange } from '@/hooks/use-date-range'
 
 export default function SourcesPage() {
   const siteId = useSiteId()
   const [sources, setSources] = useState<SourceStats[]>([])
   const [loading, setLoading] = useState(true)
-  const [dateRange, setDateRange] = useState<PresetDateRange>('30d')
+  const [dateRange, setDateRange] = useDateRange()
 
   useEffect(() => {
+    const controller = new AbortController()
     const loadData = async () => {
       setLoading(true)
       try {
         const { from, to } = getPresetDateRange(dateRange)
-        const res = await statsApi.sources(siteId, from, to)
+        const res = await statsApi.sources(siteId, from, to, { signal: controller.signal })
         setSources(res.data)
       } catch (err) {
-        console.error('Failed to load source data', err)
+        if (axios.isCancel(err)) return
+        console.error('Failed to load sources', err)
       } finally {
         setLoading(false)
       }
     }
 
     void loadData()
+    return () => controller.abort()
   }, [dateRange, siteId])
 
   if (loading) return <AnalyticsPageSkeleton cols={4} />

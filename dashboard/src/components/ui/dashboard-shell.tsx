@@ -12,6 +12,7 @@ import { appNav, buildAnalyticsHref, buildSetupHref, getAppHref, getCurrentSiteI
 import { getSiteTrackingState } from '@/lib/tracking-status'
 import type { Site } from '@/lib/types'
 import { useAuthStore } from '@/store/auth'
+import { useKeyboardNav } from '@/hooks/use-keyboard-nav'
 
 const RECENT_SITES_KEY = 'woosaas-recent-sites'
 const PINNED_SITES_KEY = 'woosaas-pinned-sites'
@@ -395,6 +396,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     () => sites.find((site) => site.id === currentSiteId) || null,
     [sites, currentSiteId]
   )
+
+  useKeyboardNav(currentSiteId)
 
   useEffect(() => {
     const loadSites = async () => {
@@ -1092,8 +1095,29 @@ function TopNav({
   currentSite: Site | null
   onOpenMobileNav: () => void
 }) {
+  const pathname = usePathname()
   const trackingState = currentSite ? getSiteTrackingState(currentSite) : null
   const lastSignal = currentSite?.tracking_last_event_at || currentSite?.tracking_last_checked_at || currentSite?.created_at
+
+  const SECTION_LABELS: Record<string, string> = {
+    overview: 'Overview',
+    trend: 'Trend',
+    sources: 'Sources',
+    campaigns: 'Campaigns',
+    pages: 'Pages',
+    products: 'Products',
+    funnel: 'Funnel',
+    realtime: 'Realtime',
+    bots: 'Bots',
+    customers: 'Customers',
+    health: 'Health',
+    exports: 'Exports',
+  }
+
+  const activeSection = useMemo(() => {
+    const match = pathname.match(/\/dashboard\/[^/]+\/([^/]+)/)
+    return match ? (SECTION_LABELS[match[1]] ?? '') : ''
+  }, [pathname])
 
   return (
     <header className="sticky top-0 z-20 border-b border-app-line bg-app/95 backdrop-blur">
@@ -1102,6 +1126,17 @@ function TopNav({
           <button type="button" onClick={onOpenMobileNav} className="icon-button xl:hidden">
             <Menu className="h-4 w-4" />
           </button>
+          {currentSite && (
+            <div className="hidden items-center gap-2 xl:flex">
+              <span className="font-semibold text-app-strong">{currentSite.domain}</span>
+              {activeSection && (
+                <div className="flex items-center gap-2 text-sm text-app-muted">
+                  <span className="text-app-line">/</span>
+                  <span className="font-medium text-app-strong">{activeSection}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex min-w-0 items-center gap-4">

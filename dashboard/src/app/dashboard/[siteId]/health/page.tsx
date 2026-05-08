@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import axios from 'axios'
 import {
   AlertTriangle,
   ArrowRight,
@@ -77,7 +78,7 @@ export default function HealthPage() {
   const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
-    let cancelled = false
+    const controller = new AbortController()
 
     const loadData = async () => {
       if (!health) {
@@ -89,27 +90,21 @@ export default function HealthPage() {
       setError(null)
 
       try {
-        const res = await statsApi.health(siteId)
-        if (!cancelled) {
-          setHealth(res.data)
-        }
+        const res = await statsApi.health(siteId, { signal: controller.signal })
+        setHealth(res.data)
       } catch (err) {
-        if (!cancelled) {
+        if (!axios.isCancel(err)) {
           setError(getApiErrorMessage(err, 'Pipeline health could not be loaded right now.'))
         }
       } finally {
-        if (!cancelled) {
-          setLoading(false)
-          setRefreshing(false)
-        }
+        setLoading(false)
+        setRefreshing(false)
       }
     }
 
     void loadData()
 
-    return () => {
-      cancelled = true
-    }
+    return () => controller.abort()
   }, [reloadKey, siteId])
 
   const groups = useMemo(() => {
@@ -270,42 +265,23 @@ export default function HealthPage() {
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
         {groups.map((group) => (
-          <div key={group.title} className="card px-5 py-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-app-subtle text-app-strong">
-                {group.icon}
+          <div key={group.title} className="card px-5 py-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-app-subtle text-app-strong">
+                  {group.icon}
+                </div>
+                <div className="text-sm font-semibold text-app-strong">{group.title}</div>
               </div>
               <StatusChip label={group.tone} tone={group.tone} />
             </div>
-            <div className="mt-4 text-base font-semibold text-app-strong">{group.title}</div>
-            <p className="mt-1 text-sm text-app-muted">{group.description}</p>
-            <p className="mt-4 text-sm text-app-strong">{group.summary}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        {groups.map((group) => (
-          <SectionCard
-            key={group.title}
-            title={group.title}
-            description={group.description}
-            action={<StatusChip label={group.tone} tone={group.tone} />}
-          >
-            <div className="space-y-4">
-              <p className="text-sm text-app-muted">{group.summary}</p>
-              <div className="space-y-2">
-                {group.checks.map((check) => (
-                  <DetailRow
-                    key={check.label}
-                    label={check.label}
-                    value={check.value}
-                    tone={check.tone}
-                  />
-                ))}
-              </div>
+            <p className="text-xs text-app-muted mb-4">{group.summary}</p>
+            <div className="space-y-2">
+              {group.checks.map((check) => (
+                <DetailRow key={check.label} label={check.label} value={check.value} tone={check.tone} />
+              ))}
             </div>
-          </SectionCard>
+          </div>
         ))}
       </div>
 

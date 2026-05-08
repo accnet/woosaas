@@ -12,8 +12,13 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts'
-import ReactECharts from 'echarts-for-react'
+import dynamic from 'next/dynamic'
 import type { TrendPoint } from '@/lib/types'
+
+const ReactECharts = dynamic(() => import('echarts-for-react'), {
+  ssr: false,
+  loading: () => <div className="h-full w-full animate-pulse rounded-lg bg-slate-50" />,
+})
 
 interface BaseChartProps {
   data: TrendPoint[]
@@ -52,6 +57,14 @@ const defaultTooltipStyle = {
 }
 
 export function LineChart({ data, dataKey, height = 300 }: LineChartProps) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex items-center justify-center text-app-soft" style={{ height }}>
+        <span className="text-sm">No data for this period</span>
+      </div>
+    )
+  }
+
   return (
     <ResponsiveContainer width="100%" height={height}>
       <RechartsLineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
@@ -82,7 +95,17 @@ export function LineChart({ data, dataKey, height = 300 }: LineChartProps) {
   )
 }
 
-export function MultiLineChart({ data, lines, height = 320 }: MultiLineChartProps) {
+export function MultiLineChart({ data, lines, height }: MultiLineChartProps) {
+  const chartHeight = height ?? (typeof window !== 'undefined' && window.innerWidth < 768 ? 240 : 320)
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex items-center justify-center text-app-soft" style={{ height: chartHeight }}>
+        <span className="text-sm">No data for this period</span>
+      </div>
+    )
+  }
+
   const option = {
     grid: { left: 0, right: 16, top: 12, bottom: 32, containLabel: true },
     xAxis: {
@@ -140,6 +163,14 @@ export function MultiLineChart({ data, lines, height = 320 }: MultiLineChartProp
 }
 
 export function BarChart({ data, bars, dataKey = 'name', height = 300 }: BarChartProps) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex items-center justify-center text-app-soft" style={{ height }}>
+        <span className="text-sm">No data for this period</span>
+      </div>
+    )
+  }
+
   return (
     <ResponsiveContainer width="100%" height={height}>
       <RechartsBarChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
@@ -172,7 +203,17 @@ export function BarChart({ data, bars, dataKey = 'name', height = 300 }: BarChar
   )
 }
 
-export function AreaChart({ data, areas, height = 320 }: AreaChartProps) {
+export function AreaChart({ data, areas, height }: AreaChartProps) {
+  const chartHeight = height ?? (typeof window !== 'undefined' && window.innerWidth < 768 ? 240 : 320)
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex items-center justify-center text-app-soft" style={{ height: chartHeight }}>
+        <span className="text-sm">No data for this period</span>
+      </div>
+    )
+  }
+
   const option = {
     grid: { left: 0, right: 16, top: 12, bottom: 32, containLabel: true },
     xAxis: {
@@ -227,5 +268,5 @@ export function AreaChart({ data, areas, height = 320 }: AreaChartProps) {
     })),
   }
 
-  return <ReactECharts option={option} style={{ height }} notMerge />
+  return <ReactECharts option={option} style={{ height: chartHeight, width: '100%' }} notMerge opts={{ renderer: 'svg' }} />
 }

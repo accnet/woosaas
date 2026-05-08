@@ -8,10 +8,12 @@ import { AnalyticsPageSkeleton } from '@/components/ui/analytics-page-skeleton'
 import { MetricCard } from '@/components/ui/metric-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SectionCard } from '@/components/ui/section-card'
+import axios from 'axios'
 import { statsApi } from '@/lib/api'
 import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import { useSiteId } from '@/hooks/use-site-id'
 import type { TrendPoint } from '@/lib/types'
+import { useDateRange } from '@/hooks/use-date-range'
 
 const ALL_METRICS = [
   { key: 'pageviews', color: '#6366f1', label: 'Pageviews' },
@@ -24,17 +26,19 @@ export default function TrendPage() {
   const siteId = useSiteId()
   const [trend, setTrend] = useState<TrendPoint[]>([])
   const [loading, setLoading] = useState(true)
-  const [dateRange, setDateRange] = useState<PresetDateRange>('30d')
+  const [dateRange, setDateRange] = useDateRange()
   const [activeMetrics, setActiveMetrics] = useState<string[]>(['pageviews', 'sessions'])
 
   useEffect(() => {
+    const controller = new AbortController()
     const loadData = async () => {
       setLoading(true)
       try {
         const { from, to } = getPresetDateRange(dateRange)
-        const res = await statsApi.trend(siteId, from, to, 'day')
+        const res = await statsApi.trend(siteId, from, to, 'day', { signal: controller.signal })
         setTrend(res.data)
       } catch (err) {
+        if (axios.isCancel(err)) return
         console.error('Failed to load trend data', err)
       } finally {
         setLoading(false)
@@ -42,6 +46,7 @@ export default function TrendPage() {
     }
 
     void loadData()
+    return () => controller.abort()
   }, [dateRange, siteId])
 
   if (loading) {

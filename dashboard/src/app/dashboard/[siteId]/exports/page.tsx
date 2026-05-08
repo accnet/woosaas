@@ -10,6 +10,7 @@ import { StatusChip } from '@/components/ui/status-chip'
 import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import { statsApi } from '@/lib/api'
 import { useSiteId } from '@/hooks/use-site-id'
+import { useDateRange } from '@/hooks/use-date-range'
 
 type ExportType = 'events' | 'orders' | 'customers'
 type ExportHistoryItem = {
@@ -32,7 +33,7 @@ export default function ExportsPage() {
   const siteId = useSiteId()
   const [loading, setLoading] = useState(false)
   const [exportType, setExportType] = useState<ExportType>('events')
-  const [dateRange, setDateRange] = useState<PresetDateRange>('30d')
+  const [dateRange, setDateRange] = useDateRange()
   const [recentExports, setRecentExports] = useState<ExportHistoryItem[]>([])
 
   useEffect(() => {
