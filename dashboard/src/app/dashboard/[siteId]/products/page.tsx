@@ -4,13 +4,14 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { DollarSign, ExternalLink, Package, ShoppingCart } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
+import { AnalyticsPage, AnalyticsPageContent, MetricGrid } from '@/components/ui/analytics-page-layout'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { MetricCard } from '@/components/ui/metric-card'
 import { SectionCard } from '@/components/ui/section-card'
 import { DataTable, type Column } from '@/components/ui/data-table'
 import axios from 'axios'
 import { statsApi } from '@/lib/api'
-import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
+import { DATE_RANGE_OPTIONS, getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import { useSiteId } from '@/hooks/use-site-id'
 import type { ProductStats } from '@/lib/types'
 import { useDateRange } from '@/hooks/use-date-range'
@@ -80,7 +81,7 @@ export default function ProductsPage() {
   ]
 
   return (
-    <div className="space-y-4">
+    <AnalyticsPage>
 
       <AnalyticsPageHeader
         title="Top Products"
@@ -88,23 +89,19 @@ export default function ProductsPage() {
           <DateRangeSelect
             value={dateRange}
             onChange={(value) => setDateRange(value as PresetDateRange)}
-            options={[
-              { value: '7d', label: 'Last 7 days' },
-              { value: '30d', label: 'Last 30 days' },
-              { value: '90d', label: 'Last 90 days' },
-            ]}
+            options={DATE_RANGE_OPTIONS}
           />
         }
       />
-      <div className="px-5 md:px-6">
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <AnalyticsPageContent>
+        <MetricGrid>
           <MetricCard label="Products" value={products.length.toString()} />
           <MetricCard label="Views" value={totalViews.toLocaleString()} />
           <MetricCard label="Purchases" value={totalPurchases.toLocaleString()} />
           <MetricCard label="Revenue" value={`$${totalRevenue.toFixed(2)}`} />
-        </div>
+        </MetricGrid>
 
-        <div className="mt-4">
+        <div>
           <SectionCard
             title="Product Conversion"
             className="overflow-hidden px-0 py-0"
@@ -112,7 +109,7 @@ export default function ProductsPage() {
             <DataTable columns={columns} data={products} keyExtractor={(p) => p.product_id} />
           </SectionCard>
         </div>
-      </div>
-    </div>
+      </AnalyticsPageContent>
+    </AnalyticsPage>
   )
 }

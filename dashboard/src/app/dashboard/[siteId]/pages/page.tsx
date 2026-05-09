@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { RefreshCw, Search } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
+import { AnalyticsPage, AnalyticsPageContent, MetricGrid } from '@/components/ui/analytics-page-layout'
 import { InlineErrorState } from '@/components/ui/inline-error-state'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { MetricCard } from '@/components/ui/metric-card'
@@ -11,17 +12,11 @@ import { SearchInput } from '@/components/ui/search-input'
 import { StatusChip } from '@/components/ui/status-chip'
 import { DataTable, type Column } from '@/components/ui/data-table'
 import { getApiErrorMessage, statsApi } from '@/lib/api'
-import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
+import { DATE_RANGE_OPTIONS, getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import { useSiteId } from '@/hooks/use-site-id'
 import type { PageStats } from '@/lib/types'
 import { useDateRange } from '@/hooks/use-date-range'
 import axios from 'axios'
-
-const DATE_RANGE_OPTIONS = [
-  { value: '7d', label: 'Last 7 days' },
-  { value: '30d', label: 'Last 30 days' },
-  { value: '90d', label: 'Last 90 days' },
-]
 
 export default function PagesPage() {
   const siteId = useSiteId()
@@ -158,7 +153,7 @@ export default function PagesPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <AnalyticsPage>
 
       <AnalyticsPageHeader
         title="Pages"
@@ -182,15 +177,15 @@ export default function PagesPage() {
         />
       ) : null}
 
-      <div className="px-5 md:px-6">
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <AnalyticsPageContent>
+        <MetricGrid>
           <MetricCard label="Pages" value={pages.length.toString()} valueClassName="truncate text-2xl" />
           <MetricCard label="Pageviews" value={totals.totalViews.toLocaleString()} />
           <MetricCard label="Purchases" value={totals.totalPurchases.toLocaleString()} />
           <MetricCard label="Revenue" value={`$${totals.totalRevenue.toFixed(2)}`} />
-        </div>
+        </MetricGrid>
 
-        <div className="mt-4">
+        <div>
           <SectionCard
             title="Page Performance"
             className="overflow-hidden px-0 py-0"
@@ -224,8 +219,8 @@ export default function PagesPage() {
             />
           </SectionCard>
         </div>
-      </div>
-    </div>
+      </AnalyticsPageContent>
+    </AnalyticsPage>
   )
 }
 

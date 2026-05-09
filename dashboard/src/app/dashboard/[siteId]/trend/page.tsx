@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { BarChart3, LineChart as LineChartIcon } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
+import { AnalyticsPage, AnalyticsPageContent, MetricGrid } from '@/components/ui/analytics-page-layout'
 import { MultiLineChart } from '@/components/ui/charts'
 import { AnalyticsPageSkeleton } from '@/components/ui/analytics-page-skeleton'
 import { MetricCard } from '@/components/ui/metric-card'
@@ -10,7 +11,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { SectionCard } from '@/components/ui/section-card'
 import axios from 'axios'
 import { statsApi } from '@/lib/api'
-import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
+import { DATE_RANGE_OPTIONS, getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import { useSiteId } from '@/hooks/use-site-id'
 import type { TrendPoint } from '@/lib/types'
 import { useDateRange } from '@/hooks/use-date-range'
@@ -35,7 +36,7 @@ export default function TrendPage() {
       setLoading(true)
       try {
         const { from, to } = getPresetDateRange(dateRange)
-        const res = await statsApi.trend(siteId, from, to, 'day', { signal: controller.signal })
+        const res = await statsApi.trend(siteId, from, to, dateRange === '24h' ? 'hour' : 'day', { signal: controller.signal })
         setTrend(res.data)
       } catch (err) {
         if (axios.isCancel(err)) return
@@ -75,7 +76,7 @@ export default function TrendPage() {
   }))
 
   return (
-    <div className="space-y-4">
+    <AnalyticsPage>
 
       <AnalyticsPageHeader
         title="Trend"
@@ -83,17 +84,13 @@ export default function TrendPage() {
           <DateRangeSelect
             value={dateRange}
             onChange={(value) => setDateRange(value as PresetDateRange)}
-            options={[
-              { value: '7d', label: 'Last 7 days' },
-              { value: '30d', label: 'Last 30 days' },
-              { value: '90d', label: 'Last 90 days' },
-            ]}
+            options={DATE_RANGE_OPTIONS}
           />
         }
       />
 
-      <div className="px-5 md:px-6">
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <AnalyticsPageContent>
+        <MetricGrid>
           <MetricCard
             label="Pageviews"
             value={totals.pageviews.toLocaleString()}
@@ -115,9 +112,9 @@ export default function TrendPage() {
             tone={totals.revenue > 0 ? 'good' : 'neutral'}
             sparklineData={trend.map((t) => t.revenue ?? 0)}
           />
-        </div>
+        </MetricGrid>
 
-        <div className="mt-4">
+        <div>
           <SectionCard title="Metric Timeline">
             {/* Metric Toggle Pills */}
             <div className="mb-4 flex flex-wrap gap-2">
@@ -152,7 +149,7 @@ export default function TrendPage() {
             )}
           </SectionCard>
         </div>
-      </div>
-    </div>
+      </AnalyticsPageContent>
+    </AnalyticsPage>
   )
 }

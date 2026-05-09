@@ -54,6 +54,7 @@ services:
       context: ./api
       dockerfile: Dockerfile
       target: api
+      network: host
     environment:
       PORT: ${PORT:-8080}
       HOST: ${HOST:-0.0.0.0}
@@ -93,6 +94,7 @@ services:
       context: ./api
       dockerfile: Dockerfile
       target: worker
+      network: host
     environment:
       POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
       POSTGRES_PORT: "5432"
@@ -124,6 +126,7 @@ services:
       context: ./api
       dockerfile: Dockerfile
       target: migrate
+      network: host
     profiles: ["tools"]
     environment:
       POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
@@ -148,6 +151,7 @@ services:
     build:
       context: ./dashboard
       dockerfile: Dockerfile
+      network: host
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
     ports:

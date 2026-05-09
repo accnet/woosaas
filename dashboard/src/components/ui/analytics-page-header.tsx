@@ -12,7 +12,7 @@ export function AnalyticsPageHeader({
 }) {
   return (
     <div className="flex items-center justify-between px-5 py-3 md:px-6">
-      <h1 className="text-base font-semibold text-app-strong">{title}</h1>
+      <h1 className="text-xl font-semibold text-app-strong">{title}</h1>
       {controls ? <div className="flex flex-wrap items-center gap-2">{controls}</div> : null}
     </div>
   )

@@ -10,6 +10,7 @@ import {
   TrendingDown,
 } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
+import { AnalyticsPage, AnalyticsPageContent, MetricGrid } from '@/components/ui/analytics-page-layout'
 import { EmptyState } from '@/components/ui/empty-state'
 import { InlineErrorState } from '@/components/ui/inline-error-state'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
@@ -19,15 +20,9 @@ import { StatusChip } from '@/components/ui/status-chip'
 import { useSiteId } from '@/hooks/use-site-id'
 import axios from 'axios'
 import { getApiErrorMessage, statsApi } from '@/lib/api'
-import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
+import { DATE_RANGE_OPTIONS, getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import type { FunnelStats } from '@/lib/types'
 import { useDateRange } from '@/hooks/use-date-range'
-
-const DATE_RANGE_OPTIONS = [
-  { value: '7d', label: 'Last 7 days' },
-  { value: '30d', label: 'Last 30 days' },
-  { value: '90d', label: 'Last 90 days' },
-]
 
 function FunnelBar({
   label,
@@ -185,7 +180,7 @@ export default function FunnelPage() {
   const isEmpty = steps.every((step) => step.count === 0)
 
   return (
-    <div className="space-y-4">
+    <AnalyticsPage>
 
       <AnalyticsPageHeader
         title="Conversion Funnel"
@@ -201,7 +196,7 @@ export default function FunnelPage() {
         }
       />
 
-      <div className="space-y-6 px-5 md:px-6">
+      <AnalyticsPageContent>
         {error ? (
           <InlineErrorState
             body={error}
@@ -210,7 +205,7 @@ export default function FunnelPage() {
           />
         ) : null}
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+        <MetricGrid mobileCols={1}>
         <MetricCard
           icon={<Activity className="h-4 w-4" />}
           label="Entry Volume"
@@ -240,7 +235,7 @@ export default function FunnelPage() {
           }
           valueClassName="truncate text-2xl"
         />
-        </div>
+        </MetricGrid>
 
         {isEmpty ? (
           <SectionCard
@@ -288,7 +283,7 @@ export default function FunnelPage() {
               </div>
             </SectionCard>
 
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
               <SectionCard
                 title="Step Totals"
               >
@@ -343,7 +338,7 @@ export default function FunnelPage() {
             </div>
           </>
         )}
-      </div>
-    </div>
+      </AnalyticsPageContent>
+    </AnalyticsPage>
   )
 }

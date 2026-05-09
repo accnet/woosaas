@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BarChart3 } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
+import { AnalyticsPage, AnalyticsPageContent, MetricGrid } from '@/components/ui/analytics-page-layout'
 import { AnalyticsPageSkeleton } from '@/components/ui/analytics-page-skeleton'
 import { LineChart, MultiLineChart } from '@/components/ui/charts'
 import { MetricCard } from '@/components/ui/metric-card'
@@ -14,7 +15,7 @@ import { format } from 'date-fns'
 import axios from 'axios'
 import { sitesApi, statsApi } from '@/lib/api'
 import { getDataFreshnessState } from '@/lib/data-freshness'
-import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
+import { DATE_RANGE_OPTIONS, getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import { useSiteId } from '@/hooks/use-site-id'
 import type { OverviewStats, PageStats, Site, TrendPoint } from '@/lib/types'
 import { useDateRange } from '@/hooks/use-date-range'
@@ -160,7 +161,7 @@ export default function OverviewPage() {
   ]
 
   return (
-    <div className="space-y-4">
+    <AnalyticsPage>
 
       <AnalyticsPageHeader
         title="Overview"
@@ -168,19 +169,14 @@ export default function OverviewPage() {
           <DateRangeSelect
             value={dateRange}
             onChange={(value) => setDateRange(value as PresetDateRange)}
-            options={[
-              { value: '24h', label: 'Last 24 hours' },
-              { value: '7d', label: 'Last 7 days' },
-              { value: '30d', label: 'Last 30 days' },
-              { value: '90d', label: 'Last 90 days' },
-            ]}
+            options={DATE_RANGE_OPTIONS}
           />
         }
       />
 
       <div className={refreshing ? 'opacity-60 transition-opacity duration-200' : 'transition-opacity duration-200'}>
-        <div className="px-5 md:px-6">
-          <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
+        <AnalyticsPageContent>
+          <MetricGrid cols={5}>
             <MetricCard
               label="Pageviews"
               value={overview?.pageviews?.toLocaleString() || '0'}
@@ -215,10 +211,8 @@ export default function OverviewPage() {
               value={freshness.label}
               tone={freshness.changeType === 'negative' ? 'warn' : freshness.changeType === 'positive' ? 'good' : 'neutral'}
             />
-          </div>
-        </div>
+          </MetricGrid>
 
-        <div className="mt-4 px-5 md:px-6">
           <SectionCard title="Traffic Trend">
             {trend.length > 0 ? (
               <MultiLineChart
@@ -233,9 +227,8 @@ export default function OverviewPage() {
               <EmptyState icon={<BarChart3 className="h-8 w-8" />} body="No trend data available" className="h-48" />
             )}
           </SectionCard>
-        </div>
 
-        <div className="mt-4 px-5 md:px-6 grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           <SectionCard title="Commerce Funnel">
             <div className="space-y-1">
               <MiniFlowBar 
@@ -281,7 +274,6 @@ export default function OverviewPage() {
           </SectionCard>
         </div>
 
-        <div className="mt-4 px-5 md:px-6">
           <SectionCard title="Top Pages" className="overflow-hidden px-0 py-0">
             {pages.length > 0 ? (
               <DataTable columns={pageColumns} data={pages} keyExtractor={(p) => p.path} />
@@ -289,8 +281,8 @@ export default function OverviewPage() {
               <EmptyState body="No page data available yet." />
             )}
           </SectionCard>
-        </div>
+        </AnalyticsPageContent>
       </div>
-    </div>
+    </AnalyticsPage>
   )
 }

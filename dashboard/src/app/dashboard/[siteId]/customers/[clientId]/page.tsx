@@ -11,6 +11,7 @@ import {
   UserRound,
 } from 'lucide-react'
 import { AnalyticsPageHeader } from '@/components/ui/analytics-page-header'
+import { AnalyticsPage, AnalyticsPageContent, MetricGrid } from '@/components/ui/analytics-page-layout'
 import { DetailRow } from '@/components/ui/detail-row'
 import { EmptyState } from '@/components/ui/empty-state'
 import { InlineErrorState } from '@/components/ui/inline-error-state'
@@ -89,7 +90,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ clien
   }
 
   return (
-    <div className="space-y-8">
+    <AnalyticsPage>
       <div className="sticky top-20 z-10 rounded-lg border border-app-line bg-white px-5 py-4 shadow-card">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
@@ -128,7 +129,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ clien
         title="Customer Detail"
       />
 
-      <div className="space-y-6 px-5 md:px-6">
+      <AnalyticsPageContent>
         {error ? (
           <InlineErrorState
             body={error}
@@ -137,14 +138,14 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ clien
           />
         ) : null}
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+        <MetricGrid mobileCols={1}>
         <MetricCard icon={<ShoppingBag className="h-4 w-4" />} label="Sessions" value={customer.total_sessions.toLocaleString()} />
         <MetricCard icon={<ShoppingCart className="h-4 w-4" />} label="Orders" value={customer.total_orders.toLocaleString()} />
         <MetricCard icon={<BadgeDollarSign className="h-4 w-4" />} label="Revenue" value={`$${customer.total_revenue.toFixed(2)}`} />
         <MetricCard icon={<UserRound className="h-4 w-4" />} label="LTV" value={`$${customer.ltv.toFixed(2)}`} helper={`AOV $${customer.avg_order_value.toFixed(2)}`} />
-        </div>
+        </MetricGrid>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <SectionCard
           title="Summary"
           action={<StatusChip label={`${events.length} timeline events`} tone="neutral" />}
@@ -169,7 +170,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ clien
         </SectionCard>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <SectionCard
           title="Orders"
           action={<StatusChip label={`${purchaseEvents.length} order events`} tone="good" />}
@@ -247,7 +248,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ clien
           )}
         </SectionCard>
         </div>
-      </div>
-    </div>
+      </AnalyticsPageContent>
+    </AnalyticsPage>
   )
 }

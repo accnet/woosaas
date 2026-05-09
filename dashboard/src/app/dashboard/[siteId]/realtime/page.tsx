@@ -11,6 +11,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { AnalyticsPageHeader } from '@/components/ui/analytics-page-header'
+import { AnalyticsPage, AnalyticsPageContent, MetricGrid } from '@/components/ui/analytics-page-layout'
 import { EmptyState } from '@/components/ui/empty-state'
 import { InlineErrorState } from '@/components/ui/inline-error-state'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
@@ -145,7 +146,7 @@ export default function RealtimePage() {
   }
 
   return (
-    <div className="space-y-4">
+    <AnalyticsPage>
 
       <AnalyticsPageHeader
         title="Realtime Activity"
@@ -187,7 +188,7 @@ export default function RealtimePage() {
         }
       />
 
-      <div className="space-y-6 px-5 md:px-6">
+      <AnalyticsPageContent>
         {error ? (
           <InlineErrorState
             body={error}
@@ -196,7 +197,7 @@ export default function RealtimePage() {
           />
         ) : null}
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+        <MetricGrid mobileCols={1} className="sm:grid-cols-2">
           <MetricCard
             icon={<Radio className="h-4 w-4" />}
             label="Online Users"
@@ -222,9 +223,9 @@ export default function RealtimePage() {
             value={stats.purchaseEvents.toString()}
             helper={lastUpdatedAt ? `Last updated at ${formatTimestamp(lastUpdatedAt)}` : 'Awaiting first refresh'}
           />
-        </div>
+        </MetricGrid>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_0.85fr]">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_0.85fr]">
           <SectionCard
           title="Live Feed"
           action={<StatusChip label={`${filteredEvents.length} rows`} tone="neutral" />}
@@ -305,7 +306,7 @@ export default function RealtimePage() {
             </div>
           </SectionCard>
         </div>
-      </div>
-    </div>
+      </AnalyticsPageContent>
+    </AnalyticsPage>
   )
 }

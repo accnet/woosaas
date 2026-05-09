@@ -14,6 +14,7 @@ import {
   Users,
 } from 'lucide-react'
 import { AnalyticsPageHeader } from '@/components/ui/analytics-page-header'
+import { AnalyticsPage, AnalyticsPageContent } from '@/components/ui/analytics-page-layout'
 import { DetailRow } from '@/components/ui/detail-row'
 import { InlineErrorState } from '@/components/ui/inline-error-state'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
@@ -237,7 +238,7 @@ export default function HealthPage() {
   const needsAttention = health.status !== 'healthy'
 
   return (
-    <div className="space-y-8">
+    <AnalyticsPage>
       <AnalyticsPageHeader
         title="Pipeline Health"
         controls={
@@ -255,7 +256,7 @@ export default function HealthPage() {
         }
       />
 
-      <div className="space-y-6 px-5 md:px-6">
+      <AnalyticsPageContent>
         {error ? (
           <InlineErrorState
             body={error}
@@ -264,7 +265,7 @@ export default function HealthPage() {
           />
         ) : null}
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {groups.map((group) => (
             <div key={group.title} className="card px-5 py-4">
               <div className="flex items-center justify-between mb-3">
@@ -328,7 +329,7 @@ export default function HealthPage() {
             </div>
           </SectionCard>
         ) : null}
-      </div>
-    </div>
+      </AnalyticsPageContent>
+    </AnalyticsPage>
   )
 }

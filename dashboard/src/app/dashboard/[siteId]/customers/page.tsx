@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import axios from 'axios'
 import { ChevronRight, RefreshCw, Users } from 'lucide-react'
 import { AnalyticsPageHeader } from '@/components/ui/analytics-page-header'
+import { AnalyticsPage, AnalyticsPageContent, MetricGrid } from '@/components/ui/analytics-page-layout'
 import { FilterPills } from '@/components/ui/filter-pills'
 import { InlineErrorState } from '@/components/ui/inline-error-state'
 import { MetricCard } from '@/components/ui/metric-card'
@@ -121,7 +122,7 @@ export default function CustomersPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <AnalyticsPage>
       <AnalyticsPageHeader
         title="Customer 360"
         controls={
@@ -139,7 +140,7 @@ export default function CustomersPage() {
         }
       />
 
-      <div className="space-y-6 px-5 md:px-6">
+      <AnalyticsPageContent>
         {error ? (
           <InlineErrorState
             body={error}
@@ -148,7 +149,7 @@ export default function CustomersPage() {
           />
         ) : null}
 
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <MetricGrid>
           <MetricCard
             label="Customers"
             value={totalCount.toLocaleString()}
@@ -166,7 +167,7 @@ export default function CustomersPage() {
             label="Identified"
             value={totals.identifiedCustomers.toLocaleString()}
           />
-        </div>
+        </MetricGrid>
 
         <TableSection
           title="Customer Directory"
@@ -283,7 +284,7 @@ export default function CustomersPage() {
           onPrevious={() => setPage((value) => Math.max(1, value - 1))}
           onNext={() => setPage((value) => Math.min(totalPages, value + 1))}
         />
-      </div>
-    </div>
+      </AnalyticsPageContent>
+    </AnalyticsPage>
   )
 }

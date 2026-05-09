@@ -6,7 +6,6 @@ WORKDIR /app
 RUN apk add --no-cache go git make
 
 ENV GOTOOLCHAIN=local
-
 COPY go.mod go.sum ./
 RUN go mod download
 
@@ -17,11 +16,11 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /worker ./cmd/worker
 RUN CGO_ENABLED=0 GOOS=linux go build -o /migrate ./cmd/migrate
 
 # API image
-FROM alpine:3.21 AS api
-
-RUN apk add --no-cache ca-certificates tzdata
+FROM golang:1.21-alpine AS api
 
 WORKDIR /app
+
+ENV ZONEINFO=/usr/local/go/lib/time/zoneinfo.zip
 
 COPY --from=builder /api .
 COPY --from=builder /app/migrations ./migrations
@@ -34,11 +33,11 @@ ENV GIN_MODE=release
 CMD ["./api"]
 
 # Worker image
-FROM alpine:3.21 AS worker
-
-RUN apk add --no-cache ca-certificates tzdata
+FROM golang:1.21-alpine AS worker
 
 WORKDIR /app
+
+ENV ZONEINFO=/usr/local/go/lib/time/zoneinfo.zip
 
 COPY --from=builder /worker .
 COPY --from=builder /app/migrations ./migrations

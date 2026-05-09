@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Bot, RefreshCw, ShieldCheck, UserRound, Workflow } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
+import { AnalyticsPage, AnalyticsPageContent, MetricGrid } from '@/components/ui/analytics-page-layout'
 import { EmptyState } from '@/components/ui/empty-state'
 import { InlineErrorState } from '@/components/ui/inline-error-state'
 import { MetricCard } from '@/components/ui/metric-card'
@@ -13,15 +14,9 @@ import { TableHeaderCell } from '@/components/ui/table-primitives'
 import { useSiteId } from '@/hooks/use-site-id'
 import axios from 'axios'
 import { getApiErrorMessage, statsApi } from '@/lib/api'
-import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
+import { DATE_RANGE_OPTIONS, getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import type { BotReportResponse } from '@/lib/types'
 import { useDateRange } from '@/hooks/use-date-range'
-
-const DATE_RANGE_OPTIONS = [
-  { value: '7d', label: 'Last 7 days' },
-  { value: '30d', label: 'Last 30 days' },
-  { value: '90d', label: 'Last 90 days' },
-]
 
 export default function BotsPage() {
   const siteId = useSiteId()
@@ -74,7 +69,7 @@ export default function BotsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <AnalyticsPage>
       <AnalyticsPageHeader
         title="Bot Traffic"
         controls={
@@ -97,7 +92,7 @@ export default function BotsPage() {
         }
       />
 
-      <div className="space-y-6 px-5 md:px-6">
+      <AnalyticsPageContent>
         {error ? (
           <InlineErrorState
             body={error}
@@ -106,7 +101,7 @@ export default function BotsPage() {
           />
         ) : null}
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+        <MetricGrid mobileCols={1}>
         <MetricCard icon={<Workflow className="h-4 w-4" />} label="Total Events" value={summary.totalEvents.toLocaleString()} />
         <MetricCard icon={<Bot className="h-4 w-4" />} label="Bot Events" value={summary.botEvents.toLocaleString()} helper="Flagged by scoring rules" tone="warn" />
         <MetricCard icon={<UserRound className="h-4 w-4" />} label="Human Events" value={summary.humanEvents.toLocaleString()} helper="Treated as likely genuine traffic" tone="good" />
@@ -116,9 +111,9 @@ export default function BotsPage() {
           value={summary.coverage.toString()}
           helper={summary.topReason ? `Lead reason: ${summary.topReason.reason}` : 'No suspicious reasons yet'}
         />
-        </div>
+        </MetricGrid>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.05fr_0.95fr]">
         <SectionCard
           title="Traffic Split"
         >
@@ -177,7 +172,7 @@ export default function BotsPage() {
         </SectionCard>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[0.9fr_1.1fr]">
         <SectionCard
           title="Source Coverage"
           action={<StatusChip label={`${bots?.top_bot_sources.length ?? 0} sources`} tone="neutral" />}
@@ -236,7 +231,7 @@ export default function BotsPage() {
           )}
         </SectionCard>
         </div>
-      </div>
-    </div>
+      </AnalyticsPageContent>
+    </AnalyticsPage>
   )
 }

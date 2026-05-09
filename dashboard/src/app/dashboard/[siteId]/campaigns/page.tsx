@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
+import { AnalyticsPage, AnalyticsPageContent, MetricGrid } from '@/components/ui/analytics-page-layout'
 import { InlineErrorState } from '@/components/ui/inline-error-state'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { MetricCard } from '@/components/ui/metric-card'
@@ -12,15 +13,9 @@ import { DataTable, type Column } from '@/components/ui/data-table'
 import { useSiteId } from '@/hooks/use-site-id'
 import axios from 'axios'
 import { getApiErrorMessage, statsApi } from '@/lib/api'
-import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
+import { DATE_RANGE_OPTIONS, getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import type { CampaignStats } from '@/lib/types'
 import { useDateRange } from '@/hooks/use-date-range'
-
-const DATE_RANGE_OPTIONS = [
-  { value: '7d', label: 'Last 7 days' },
-  { value: '30d', label: 'Last 30 days' },
-  { value: '90d', label: 'Last 90 days' },
-]
 
 export default function CampaignsPage() {
   const siteId = useSiteId()
@@ -108,7 +103,7 @@ export default function CampaignsPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <AnalyticsPage>
 
       <AnalyticsPageHeader
         title="Campaigns"
@@ -132,8 +127,8 @@ export default function CampaignsPage() {
         />
       ) : null}
 
-      <div className="px-5 md:px-6">
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <AnalyticsPageContent>
+        <MetricGrid>
           <MetricCard
             label="Campaigns"
             value={campaigns.length.toString()}
@@ -150,9 +145,9 @@ export default function CampaignsPage() {
             label="Revenue"
             value={`$${totals.totalRevenue.toFixed(2)}`}
           />
-        </div>
+        </MetricGrid>
 
-        <div className="mt-4">
+        <div>
           <SectionCard
             title="Campaign Breakdown"
             className="overflow-hidden px-0 py-0"
@@ -173,7 +168,7 @@ export default function CampaignsPage() {
             <DataTable columns={columns} data={campaigns} keyExtractor={(c) => `${c.campaign}-${c.source}-${c.medium}`} />
           </SectionCard>
         </div>
-      </div>
-    </div>
+      </AnalyticsPageContent>
+    </AnalyticsPage>
   )
 }

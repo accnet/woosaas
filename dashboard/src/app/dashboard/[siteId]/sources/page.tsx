@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react'
 import { Globe } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
+import { AnalyticsPage, AnalyticsPageContent, MetricGrid } from '@/components/ui/analytics-page-layout'
 import { AnalyticsPageSkeleton } from '@/components/ui/analytics-page-skeleton'
 import { MetricCard } from '@/components/ui/metric-card'
 import { SectionCard } from '@/components/ui/section-card'
 import { DataTable, type Column } from '@/components/ui/data-table'
 import axios from 'axios'
 import { statsApi } from '@/lib/api'
-import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
+import { DATE_RANGE_OPTIONS, getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import { useSiteId } from '@/hooks/use-site-id'
 import type { SourceStats } from '@/lib/types'
 import { useDateRange } from '@/hooks/use-date-range'
@@ -118,36 +119,32 @@ export default function SourcesPage() {
   ]
 
   return (
-    <div className="space-y-4">
+    <AnalyticsPage>
       <AnalyticsPageHeader
         title="Sources"
         controls={
           <DateRangeSelect
             value={dateRange}
             onChange={(value) => setDateRange(value as PresetDateRange)}
-            options={[
-              { value: '7d', label: 'Last 7 days' },
-              { value: '30d', label: 'Last 30 days' },
-              { value: '90d', label: 'Last 90 days' },
-            ]}
+            options={DATE_RANGE_OPTIONS}
           />
         }
       />
 
-      <div className="px-5 md:px-6">
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <AnalyticsPageContent>
+        <MetricGrid>
           <MetricCard label="Sources" value={sources.length.toString()} />
           <MetricCard label="Sessions" value={totalSessions.toLocaleString()} />
           <MetricCard label="Users" value={totalUsers.toLocaleString()} />
           <MetricCard label="Revenue" value={`$${totalRevenue.toFixed(2)}`} tone={totalRevenue > 0 ? 'good' : 'neutral'} />
-        </div>
+        </MetricGrid>
 
-        <div className="mt-4">
+        <div>
           <SectionCard title="Source Breakdown" className="overflow-hidden px-0 py-0">
             <DataTable columns={columns} data={sources} keyExtractor={(_s) => `${_s.source}-${_s.medium}`} />
           </SectionCard>
         </div>
-      </div>
-    </div>
+      </AnalyticsPageContent>
+    </AnalyticsPage>
   )
 }

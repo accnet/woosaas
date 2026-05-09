@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react'
 import { Download, FileSpreadsheet, RefreshCw, Users } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
+import { AnalyticsPage, AnalyticsPageContent } from '@/components/ui/analytics-page-layout'
 import { DetailNote } from '@/components/ui/detail-note'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SectionCard } from '@/components/ui/section-card'
 import { StatusChip } from '@/components/ui/status-chip'
-import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
+import { DATE_RANGE_OPTIONS, getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import { statsApi } from '@/lib/api'
 import { useSiteId } from '@/hooks/use-site-id'
 import { useDateRange } from '@/hooks/use-date-range'
@@ -23,12 +24,6 @@ type ExportHistoryItem = {
 }
 
 const STORAGE_KEY = 'woosaas-recent-exports'
-const DATE_RANGE_OPTIONS = [
-  { value: '7d', label: 'Last 7 days' },
-  { value: '30d', label: 'Last 30 days' },
-  { value: '90d', label: 'Last 90 days' },
-]
-
 export default function ExportsPage() {
   const siteId = useSiteId()
   const [loading, setLoading] = useState(false)
@@ -83,7 +78,7 @@ export default function ExportsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <AnalyticsPage>
       <AnalyticsPageHeader
         title="Exports"
         controls={
@@ -94,8 +89,8 @@ export default function ExportsPage() {
         }
       />
 
-      <div className="space-y-6 px-5 md:px-6">
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+      <AnalyticsPageContent>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.05fr_0.95fr]">
         <SectionCard
           title="Create Export"
           action={
@@ -207,7 +202,7 @@ export default function ExportsPage() {
           body="Prepared exports are marked ready immediately, then switch to downloaded after the first click for quick operator context."
         />
         </div>
-      </div>
-    </div>
+      </AnalyticsPageContent>
+    </AnalyticsPage>
   )
 }

@@ -1,5 +1,12 @@
 export type PresetDateRange = '24h' | '7d' | '30d' | '90d'
 
+export const DATE_RANGE_OPTIONS: Array<{ value: PresetDateRange; label: string }> = [
+  { value: '24h', label: 'Last 24 hours' },
+  { value: '7d', label: 'Last 7 days' },
+  { value: '30d', label: 'Last 30 days' },
+  { value: '90d', label: 'Last 90 days' },
+]
+
 export function getPresetDateRange(range: PresetDateRange) {
   const to = new Date()
   const from = new Date(to)
