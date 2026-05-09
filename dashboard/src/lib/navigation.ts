@@ -15,6 +15,7 @@ import {
   Package,
   PanelLeft,
   ShoppingCart,
+  Settings2,
   Target,
   Users,
 } from 'lucide-react'
@@ -29,6 +30,13 @@ export type NavItem = {
 export const appNav: NavItem[] = [
   { href: '/dashboard', label: 'Workspace', icon: LayoutDashboard },
   { href: '/dashboard/sites', label: 'Websites', icon: Globe },
+]
+
+export const settingsRootNav: NavItem[] = [
+  { href: '/dashboard/teams', label: 'Setting', icon: Settings2 },
+]
+
+export const settingsNav: NavItem[] = [
   { href: '/dashboard/teams', label: 'Teams', icon: Users },
 ]
 
@@ -108,9 +116,13 @@ export function isAnalyticsRoute(pathname: string) {
   return /^\/dashboard\/(?!sites\/)[^/]+\//.test(pathname)
 }
 
+export function isSettingsRoute(pathname: string) {
+  return pathname === '/dashboard/teams'
+}
+
 export function getCurrentSiteApp(pathname: string) {
-  if (pathname === '/dashboard/teams') {
-    return 'Teams'
+  if (isSettingsRoute(pathname)) {
+    return 'Setting'
   }
 
   if (/^\/dashboard\/sites\/[^/]+\/support-tickets(?:\/|$)/.test(pathname)) {

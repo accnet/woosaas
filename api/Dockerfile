@@ -1,9 +1,11 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM alpine:3.21 AS builder
 
 WORKDIR /app
 
-RUN apk add --no-cache git make
+RUN apk add --no-cache go git make
+
+ENV GOTOOLCHAIN=local
 
 COPY go.mod go.sum ./
 RUN go mod download
@@ -15,7 +17,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /worker ./cmd/worker
 RUN CGO_ENABLED=0 GOOS=linux go build -o /migrate ./cmd/migrate
 
 # API image
-FROM alpine:3.19 AS api
+FROM alpine:3.21 AS api
 
 RUN apk add --no-cache ca-certificates tzdata
 
@@ -32,7 +34,7 @@ ENV GIN_MODE=release
 CMD ["./api"]
 
 # Worker image
-FROM alpine:3.19 AS worker
+FROM alpine:3.21 AS worker
 
 RUN apk add --no-cache ca-certificates tzdata
 
@@ -45,7 +47,7 @@ COPY --from=builder /app/migrations_postgres ./migrations_postgres
 CMD ["./worker"]
 
 # Migrate image
-FROM alpine:3.19 AS migrate
+FROM alpine:3.21 AS migrate
 
 RUN apk add --no-cache ca-certificates postgresql-client
 
