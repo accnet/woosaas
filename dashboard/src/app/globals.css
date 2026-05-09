@@ -381,7 +381,7 @@
   }
 
   .nav-item {
-    @apply flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm font-medium transition;
+    @apply flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm font-semibold transition;
     position: relative;
   }
 
@@ -433,7 +433,7 @@
   }
 
   .app-rail-link {
-    @apply flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left transition;
+    @apply flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left font-semibold transition;
   }
 
   .app-rail-item-idle {
@@ -483,7 +483,8 @@
   }
 
   .site-switcher-panel {
-    @apply absolute left-0 top-[calc(100%+0.5rem)] z-30 w-full overflow-hidden rounded-xl border bg-white shadow-card;
+    @apply absolute left-0 top-[calc(100%+0.5rem)] z-30 overflow-hidden rounded-xl border bg-white shadow-card;
+    width: 300px;
     border-color: #dbe3ee;
     box-shadow: 0 18px 40px rgba(17, 24, 39, 0.08);
   }

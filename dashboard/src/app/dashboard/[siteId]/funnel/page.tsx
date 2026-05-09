@@ -201,15 +201,16 @@ export default function FunnelPage() {
         }
       />
 
-      {error ? (
-        <InlineErrorState
-          body={error}
-          compact
-          onRetry={() => setReloadKey((value) => value + 1)}
-        />
-      ) : null}
+      <div className="space-y-6 px-5 md:px-6">
+        {error ? (
+          <InlineErrorState
+            body={error}
+            compact
+            onRetry={() => setReloadKey((value) => value + 1)}
+          />
+        ) : null}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
         <MetricCard
           icon={<Activity className="h-4 w-4" />}
           label="Entry Volume"
@@ -239,109 +240,110 @@ export default function FunnelPage() {
           }
           valueClassName="truncate text-2xl"
         />
-      </div>
+        </div>
 
-      {isEmpty ? (
-        <SectionCard
-          title="Stage Performance"
-        >
-          <EmptyState
-            icon={<ShoppingCart className="h-12 w-12" />}
-            title="No funnel data yet"
-            body="Collect product, cart, checkout, and purchase events to unlock funnel analysis for this site."
-          />
-        </SectionCard>
-      ) : (
-        <>
+        {isEmpty ? (
           <SectionCard
             title="Stage Performance"
-            className="px-0 py-0 overflow-hidden"
-            action={
-              <button
-                type="button"
-                className="btn-secondary gap-2"
-                onClick={() => setReloadKey((value) => value + 1)}
-              >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`.trim()} />
-                Refresh
-              </button>
-            }
           >
-            <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-2 text-[11px] font-medium uppercase tracking-wider text-app-soft">
-              <div className="w-28 sm:w-32">Stage</div>
-              <div className="flex-1">Progress</div>
-              <div className="w-20 text-right">Count</div>
-              <div className="w-16 text-right">Rate</div>
-            </div>
-            <div className="divide-y divide-slate-50">
-              {steps.map((step) => (
-                <FunnelBar
-                  key={step.label}
-                  label={step.label}
-                  count={step.count}
-                  retainedFromPrevious={step.retainedFromPrevious}
-                  retainedFromEntry={step.retainedFromEntry}
-                  maxCount={funnelSummary.maxCount}
-                />
-              ))}
-            </div>
+            <EmptyState
+              icon={<ShoppingCart className="h-12 w-12" />}
+              title="No funnel data yet"
+              body="Collect product, cart, checkout, and purchase events to unlock funnel analysis for this site."
+            />
           </SectionCard>
-
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        ) : (
+          <>
             <SectionCard
-              title="Step Totals"
+              title="Stage Performance"
+              className="px-0 py-0 overflow-hidden"
+              action={
+                <button
+                  type="button"
+                  className="btn-secondary gap-2"
+                  onClick={() => setReloadKey((value) => value + 1)}
+                >
+                  <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`.trim()} />
+                  Refresh
+                </button>
+              }
             >
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-2 text-[11px] font-medium uppercase tracking-wider text-app-soft">
+                <div className="w-28 sm:w-32">Stage</div>
+                <div className="flex-1">Progress</div>
+                <div className="w-20 text-right">Count</div>
+                <div className="w-16 text-right">Rate</div>
+              </div>
+              <div className="divide-y divide-slate-50">
                 {steps.map((step) => (
-                  <div key={step.label} className="rounded-lg border border-app-line bg-white p-4">
-                    <div className="text-sm font-medium text-app-muted">{step.label}</div>
-                    <div className="mt-2 text-2xl font-semibold text-app-strong">
-                      {step.count.toLocaleString()}
-                    </div>
-                    <div className="mt-3 flex items-center gap-2 text-xs text-app-muted">
-                      <ArrowDown className="h-3.5 w-3.5" />
-                      {step.retainedFromPrevious.toFixed(1)}% from previous step
-                    </div>
-                  </div>
+                  <FunnelBar
+                    key={step.label}
+                    label={step.label}
+                    count={step.count}
+                    retainedFromPrevious={step.retainedFromPrevious}
+                    retainedFromEntry={step.retainedFromEntry}
+                    maxCount={funnelSummary.maxCount}
+                  />
                 ))}
               </div>
             </SectionCard>
 
-            <SectionCard
-              title="Bottleneck Analysis"
-            >
-              <div className="space-y-4">
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm font-semibold text-amber-800">Primary bottleneck</div>
-                    <StatusChip
-                      label={funnelSummary.weakestStep?.label || 'None'}
-                      tone={funnelSummary.weakestStep ? 'warn' : 'good'}
-                    />
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+              <SectionCard
+                title="Step Totals"
+              >
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {steps.map((step) => (
+                    <div key={step.label} className="rounded-lg border border-app-line bg-white p-4">
+                      <div className="text-sm font-medium text-app-muted">{step.label}</div>
+                      <div className="mt-2 text-2xl font-semibold text-app-strong">
+                        {step.count.toLocaleString()}
+                      </div>
+                      <div className="mt-3 flex items-center gap-2 text-xs text-app-muted">
+                        <ArrowDown className="h-3.5 w-3.5" />
+                        {step.retainedFromPrevious.toFixed(1)}% from previous step
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+
+              <SectionCard
+                title="Bottleneck Analysis"
+              >
+                <div className="space-y-4">
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-sm font-semibold text-amber-800">Primary bottleneck</div>
+                      <StatusChip
+                        label={funnelSummary.weakestStep?.label || 'None'}
+                        tone={funnelSummary.weakestStep ? 'warn' : 'good'}
+                      />
+                    </div>
+                    <p className="mt-2 text-sm text-amber-700">
+                      {getBottleneckNarrative(funnelSummary.weakestStep?.label || '')}
+                    </p>
                   </div>
-                  <p className="mt-2 text-sm text-amber-700">
-                    {getBottleneckNarrative(funnelSummary.weakestStep?.label || '')}
-                  </p>
+                  <div className="rounded-lg border border-app-line bg-app-panel p-4">
+                    <div className="text-sm font-semibold text-app-strong">Purchase completion</div>
+                    <p className="mt-2 text-sm text-app-muted">
+                      {funnel.purchase_rate.toFixed(1)}% of checkout starts become purchases in the selected
+                      period.
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-app-line bg-app-panel p-4">
+                    <div className="text-sm font-semibold text-app-strong">Overall throughput</div>
+                    <p className="mt-2 text-sm text-app-muted">
+                      {funnelSummary.purchaseRetention.toFixed(1)}% of entry pageviews make it all the way to
+                      purchase.
+                    </p>
+                  </div>
                 </div>
-                <div className="rounded-lg border border-app-line bg-app-panel p-4">
-                  <div className="text-sm font-semibold text-app-strong">Purchase completion</div>
-                  <p className="mt-2 text-sm text-app-muted">
-                    {funnel.purchase_rate.toFixed(1)}% of checkout starts become purchases in the selected
-                    period.
-                  </p>
-                </div>
-                <div className="rounded-lg border border-app-line bg-app-panel p-4">
-                  <div className="text-sm font-semibold text-app-strong">Overall throughput</div>
-                  <p className="mt-2 text-sm text-app-muted">
-                    {funnelSummary.purchaseRetention.toFixed(1)}% of entry pageviews make it all the way to
-                    purchase.
-                  </p>
-                </div>
-              </div>
-            </SectionCard>
-          </div>
-        </>
-      )}
+              </SectionCard>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }

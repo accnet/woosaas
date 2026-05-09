@@ -255,78 +255,80 @@ export default function HealthPage() {
         }
       />
 
-      {error ? (
-        <InlineErrorState
-          body={error}
-          compact
-          onRetry={() => setReloadKey((value) => value + 1)}
-        />
-      ) : null}
+      <div className="space-y-6 px-5 md:px-6">
+        {error ? (
+          <InlineErrorState
+            body={error}
+            compact
+            onRetry={() => setReloadKey((value) => value + 1)}
+          />
+        ) : null}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-        {groups.map((group) => (
-          <div key={group.title} className="card px-5 py-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-app-subtle text-app-strong">
-                  {group.icon}
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+          {groups.map((group) => (
+            <div key={group.title} className="card px-5 py-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-app-subtle text-app-strong">
+                    {group.icon}
+                  </div>
+                  <div className="text-sm font-semibold text-app-strong">{group.title}</div>
                 </div>
-                <div className="text-sm font-semibold text-app-strong">{group.title}</div>
+                <StatusChip label={group.tone} tone={group.tone} />
               </div>
-              <StatusChip label={group.tone} tone={group.tone} />
+              <p className="text-xs text-app-muted mb-4">{group.summary}</p>
+              <div className="space-y-2">
+                {group.checks.map((check) => (
+                  <DetailRow key={check.label} label={check.label} value={check.value} tone={check.tone} />
+                ))}
+              </div>
             </div>
-            <p className="text-xs text-app-muted mb-4">{group.summary}</p>
-            <div className="space-y-2">
-              {group.checks.map((check) => (
-                <DetailRow key={check.label} label={check.label} value={check.value} tone={check.tone} />
-              ))}
+          ))}
+        </div>
+
+        {needsAttention ? (
+          <SectionCard
+            title="Needs Attention"
+            icon={<AlertTriangle className="h-4 w-4" />}
+          >
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
+                  <HeartPulse className="h-4 w-4" />
+                  Current state
+                </div>
+                <p className="mt-2 text-sm text-amber-700">{health.message}</p>
+              </div>
+
+              <Link
+                href={`/dashboard/${siteId}/realtime`}
+                className="rounded-lg border border-app-line bg-white p-4 transition hover:border-slate-300"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-semibold text-app-strong">Inspect live traffic</div>
+                  <ArrowRight className="h-4 w-4 text-app-muted" />
+                </div>
+                <p className="mt-2 text-sm text-app-muted">
+                  Check whether new human events are still arriving in realtime.
+                </p>
+              </Link>
+
+              <Link
+                href={`/dashboard/sites/${siteId}/onboarding`}
+                className="rounded-lg border border-app-line bg-white p-4 transition hover:border-slate-300"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-semibold text-app-strong">Review setup</div>
+                  <ArrowRight className="h-4 w-4 text-app-muted" />
+                </div>
+                <p className="mt-2 text-sm text-app-muted">
+                  Re-check tracking prerequisites, plugin setup, and site-level collection steps.
+                </p>
+              </Link>
             </div>
-          </div>
-        ))}
+          </SectionCard>
+        ) : null}
       </div>
-
-      {needsAttention ? (
-        <SectionCard
-          title="Needs Attention"
-          icon={<AlertTriangle className="h-4 w-4" />}
-        >
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
-                <HeartPulse className="h-4 w-4" />
-                Current state
-              </div>
-              <p className="mt-2 text-sm text-amber-700">{health.message}</p>
-            </div>
-
-            <Link
-              href={`/dashboard/${siteId}/realtime`}
-              className="rounded-lg border border-app-line bg-white p-4 transition hover:border-slate-300"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-app-strong">Inspect live traffic</div>
-                <ArrowRight className="h-4 w-4 text-app-muted" />
-              </div>
-              <p className="mt-2 text-sm text-app-muted">
-                Check whether new human events are still arriving in realtime.
-              </p>
-            </Link>
-
-            <Link
-              href={`/dashboard/sites/${siteId}/onboarding`}
-              className="rounded-lg border border-app-line bg-white p-4 transition hover:border-slate-300"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-app-strong">Review setup</div>
-                <ArrowRight className="h-4 w-4 text-app-muted" />
-              </div>
-              <p className="mt-2 text-sm text-app-muted">
-                Re-check tracking prerequisites, plugin setup, and site-level collection steps.
-              </p>
-            </Link>
-          </div>
-        </SectionCard>
-      ) : null}
     </div>
   )
 }

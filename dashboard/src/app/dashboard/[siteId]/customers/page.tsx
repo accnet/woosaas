@@ -139,15 +139,15 @@ export default function CustomersPage() {
         }
       />
 
-      {error ? (
-        <InlineErrorState
-          body={error}
-          compact={customers.length > 0}
-          onRetry={() => setReloadKey((value) => value + 1)}
-        />
-      ) : null}
+      <div className="space-y-6 px-5 md:px-6">
+        {error ? (
+          <InlineErrorState
+            body={error}
+            compact={customers.length > 0}
+            onRetry={() => setReloadKey((value) => value + 1)}
+          />
+        ) : null}
 
-      <div className="px-5 md:px-6">
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           <MetricCard
             label="Customers"
@@ -167,123 +167,123 @@ export default function CustomersPage() {
             value={totals.identifiedCustomers.toLocaleString()}
           />
         </div>
-      </div>
 
-      <TableSection
-        title="Customer Directory"
-        action={
-          <div className="flex flex-col gap-3 sm:min-w-[340px]">
-            <div className="flex items-center justify-end gap-2">
-              <StatusChip label={`${filteredCustomers.length} visible`} tone="neutral" />
+        <TableSection
+          title="Customer Directory"
+          action={
+            <div className="flex flex-col gap-3 sm:min-w-[340px]">
+              <div className="flex items-center justify-end gap-2">
+                <StatusChip label={`${filteredCustomers.length} visible`} tone="neutral" />
+              </div>
+              <SearchInput value={query} onChange={setQuery} placeholder="Search email or client id" />
             </div>
-            <SearchInput value={query} onChange={setQuery} placeholder="Search email or client id" />
+          }
+          isEmpty={filteredCustomers.length === 0}
+          emptyTitle={customers.length === 0 ? 'No customer data yet' : 'No matching customers'}
+          emptyBody={
+            customers.length === 0
+              ? 'Customer records will appear here after identified sessions and orders are collected.'
+              : 'Try a different email fragment, client id, or customer filter.'
+          }
+          emptyIcon={<Users className="h-12 w-12" />}
+        >
+          <div className="border-b border-app-line px-6 py-4">
+            <FilterPills
+              value={filter}
+              onChange={setFilter}
+              options={[
+                { value: 'all', label: 'All', count: customers.length },
+                {
+                  value: 'identified',
+                  label: 'Identified',
+                  count: customers.filter((customer) => customer.email).length,
+                },
+                {
+                  value: 'anonymous',
+                  label: 'Anonymous',
+                  count: customers.filter((customer) => !customer.email).length,
+                },
+                {
+                  value: 'repeat',
+                  label: 'Repeat buyers',
+                  count: customers.filter((customer) => customer.total_orders > 1).length,
+                },
+              ]}
+            />
           </div>
-        }
-        isEmpty={filteredCustomers.length === 0}
-        emptyTitle={customers.length === 0 ? 'No customer data yet' : 'No matching customers'}
-        emptyBody={
-          customers.length === 0
-            ? 'Customer records will appear here after identified sessions and orders are collected.'
-            : 'Try a different email fragment, client id, or customer filter.'
-        }
-        emptyIcon={<Users className="h-12 w-12" />}
-      >
-        <div className="border-b border-app-line px-6 py-4">
-          <FilterPills
-            value={filter}
-            onChange={setFilter}
-            options={[
-              { value: 'all', label: 'All', count: customers.length },
-              {
-                value: 'identified',
-                label: 'Identified',
-                count: customers.filter((customer) => customer.email).length,
-              },
-              {
-                value: 'anonymous',
-                label: 'Anonymous',
-                count: customers.filter((customer) => !customer.email).length,
-              },
-              {
-                value: 'repeat',
-                label: 'Repeat buyers',
-                count: customers.filter((customer) => customer.total_orders > 1).length,
-              },
-            ]}
-          />
-        </div>
-        <table className="min-w-full">
-          <thead className="table-header">
-            <tr>
-              <TableHeaderCell>Customer</TableHeaderCell>
-              <TableHeaderCell align="right">Sessions</TableHeaderCell>
-              <TableHeaderCell align="right">Orders</TableHeaderCell>
-              <TableHeaderCell align="right">Revenue</TableHeaderCell>
-              <TableHeaderCell align="right">Avg Order</TableHeaderCell>
-              <TableHeaderCell>Identity</TableHeaderCell>
-              <TableHeaderCell>Last Seen</TableHeaderCell>
-              <TableHeaderCell align="right">Actions</TableHeaderCell>
-            </tr>
-          </thead>
-          <tbody className="table-body">
-            {filteredCustomers.map((customer) => (
-              <tr key={customer.client_id} className="table-row">
-                <td className="table-cell">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-app-subtle text-sm font-medium text-app-strong">
-                      {(customer.email || '?').charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium text-app-strong">
-                        {customer.email || 'Anonymous'}
-                      </div>
-                      <div className="mt-1 text-xs text-app-soft">
-                        Client ID {customer.client_id.slice(0, 12)}...
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="table-cell text-right">{customer.total_sessions.toLocaleString()}</td>
-                <td className="table-cell text-right">{customer.total_orders.toLocaleString()}</td>
-                <td className="table-cell text-right font-medium">${customer.total_revenue.toFixed(2)}</td>
-                <td className="table-cell text-right">${customer.avg_order_value.toFixed(2)}</td>
-                <td className="table-cell">
-                  <div className="flex flex-wrap gap-2">
-                    <StatusChip label={customer.email ? 'Known' : 'Anonymous'} tone={customer.email ? 'info' : 'neutral'} />
-                    {customer.total_orders > 1 ? <StatusChip label="Repeat" tone="good" /> : null}
-                  </div>
-                </td>
-                <td className="table-cell">
-                  <div className="text-sm text-app-strong">
-                    {customer.last_seen ? new Date(customer.last_seen).toLocaleDateString() : '-'}
-                  </div>
-                  <div className="mt-1 text-xs text-app-muted">
-                    First seen {customer.first_seen ? new Date(customer.first_seen).toLocaleDateString() : '-'}
-                  </div>
-                </td>
-                <td className="table-cell">
-                  <TableRowActionZone>
-                    <Link
-                      href={`/dashboard/${siteId}/customers/${customer.client_id}`}
-                      className="btn-ghost px-2.5 py-1 text-xs"
-                    >
-                      View
-                      <ChevronRight className="ml-1 h-3.5 w-3.5" />
-                    </Link>
-                  </TableRowActionZone>
-                </td>
+          <table className="min-w-full">
+            <thead className="table-header">
+              <tr>
+                <TableHeaderCell>Customer</TableHeaderCell>
+                <TableHeaderCell align="right">Sessions</TableHeaderCell>
+                <TableHeaderCell align="right">Orders</TableHeaderCell>
+                <TableHeaderCell align="right">Revenue</TableHeaderCell>
+                <TableHeaderCell align="right">Avg Order</TableHeaderCell>
+                <TableHeaderCell>Identity</TableHeaderCell>
+                <TableHeaderCell>Last Seen</TableHeaderCell>
+                <TableHeaderCell align="right">Actions</TableHeaderCell>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </TableSection>
+            </thead>
+            <tbody className="table-body">
+              {filteredCustomers.map((customer) => (
+                <tr key={customer.client_id} className="table-row">
+                  <td className="table-cell">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-app-subtle text-sm font-medium text-app-strong">
+                        {(customer.email || '?').charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-app-strong">
+                          {customer.email || 'Anonymous'}
+                        </div>
+                        <div className="mt-1 text-xs text-app-soft">
+                          Client ID {customer.client_id.slice(0, 12)}...
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="table-cell text-right">{customer.total_sessions.toLocaleString()}</td>
+                  <td className="table-cell text-right">{customer.total_orders.toLocaleString()}</td>
+                  <td className="table-cell text-right font-medium">${customer.total_revenue.toFixed(2)}</td>
+                  <td className="table-cell text-right">${customer.avg_order_value.toFixed(2)}</td>
+                  <td className="table-cell">
+                    <div className="flex flex-wrap gap-2">
+                      <StatusChip label={customer.email ? 'Known' : 'Anonymous'} tone={customer.email ? 'info' : 'neutral'} />
+                      {customer.total_orders > 1 ? <StatusChip label="Repeat" tone="good" /> : null}
+                    </div>
+                  </td>
+                  <td className="table-cell">
+                    <div className="text-sm text-app-strong">
+                      {customer.last_seen ? new Date(customer.last_seen).toLocaleDateString() : '-'}
+                    </div>
+                    <div className="mt-1 text-xs text-app-muted">
+                      First seen {customer.first_seen ? new Date(customer.first_seen).toLocaleDateString() : '-'}
+                    </div>
+                  </td>
+                  <td className="table-cell">
+                    <TableRowActionZone>
+                      <Link
+                        href={`/dashboard/${siteId}/customers/${customer.client_id}`}
+                        className="btn-ghost px-2.5 py-1 text-xs"
+                      >
+                        View
+                        <ChevronRight className="ml-1 h-3.5 w-3.5" />
+                      </Link>
+                    </TableRowActionZone>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableSection>
 
-      <PaginationControls
-        page={page}
-        totalPages={totalPages}
-        onPrevious={() => setPage((value) => Math.max(1, value - 1))}
-        onNext={() => setPage((value) => Math.min(totalPages, value + 1))}
-      />
+        <PaginationControls
+          page={page}
+          totalPages={totalPages}
+          onPrevious={() => setPage((value) => Math.max(1, value - 1))}
+          onNext={() => setPage((value) => Math.min(totalPages, value + 1))}
+        />
+      </div>
     </div>
   )
 }

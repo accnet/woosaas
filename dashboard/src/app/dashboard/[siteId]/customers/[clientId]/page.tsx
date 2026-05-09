@@ -128,22 +128,23 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ clien
         title="Customer Detail"
       />
 
-      {error ? (
-        <InlineErrorState
-          body={error}
-          compact
-          onRetry={() => setReloadKey((value) => value + 1)}
-        />
-      ) : null}
+      <div className="space-y-6 px-5 md:px-6">
+        {error ? (
+          <InlineErrorState
+            body={error}
+            compact
+            onRetry={() => setReloadKey((value) => value + 1)}
+          />
+        ) : null}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
         <MetricCard icon={<ShoppingBag className="h-4 w-4" />} label="Sessions" value={customer.total_sessions.toLocaleString()} />
         <MetricCard icon={<ShoppingCart className="h-4 w-4" />} label="Orders" value={customer.total_orders.toLocaleString()} />
         <MetricCard icon={<BadgeDollarSign className="h-4 w-4" />} label="Revenue" value={`$${customer.total_revenue.toFixed(2)}`} />
         <MetricCard icon={<UserRound className="h-4 w-4" />} label="LTV" value={`$${customer.ltv.toFixed(2)}`} helper={`AOV $${customer.avg_order_value.toFixed(2)}`} />
-      </div>
+        </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <SectionCard
           title="Summary"
           action={<StatusChip label={`${events.length} timeline events`} tone="neutral" />}
@@ -166,9 +167,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ clien
             <DetailRow label="Last seen" value={customer.last_seen ? new Date(customer.last_seen).toLocaleString() : '-'} />
           </div>
         </SectionCard>
-      </div>
+        </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <SectionCard
           title="Orders"
           action={<StatusChip label={`${purchaseEvents.length} order events`} tone="good" />}
@@ -245,6 +246,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ clien
             />
           )}
         </SectionCard>
+        </div>
       </div>
     </div>
   )

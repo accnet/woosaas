@@ -187,46 +187,45 @@ export default function RealtimePage() {
         }
       />
 
-      {error ? (
-        <InlineErrorState
-          body={error}
-          compact={Boolean(realtime) || events.length > 0}
-          onRetry={() => setRefreshKey((value) => value + 1)}
-        />
-      ) : null}
+      <div className="space-y-6 px-5 md:px-6">
+        {error ? (
+          <InlineErrorState
+            body={error}
+            compact={Boolean(realtime) || events.length > 0}
+            onRetry={() => setRefreshKey((value) => value + 1)}
+          />
+        ) : null}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-        <MetricCard
-          icon={<Radio className="h-4 w-4" />}
-          label="Online Users"
-          value={(realtime?.online_users ?? 0).toString()}
-          helper="Unique users seen in the current window"
-          live={liveStatus === 'live'}
-        />
-        <MetricCard
-          icon={<Clock3 className="h-4 w-4" />}
-          label="Time Window"
-          value={`${realtime?.minutes ?? minutes} min`}
-          helper="Sliding period for the realtime summary"
-        />
-        <MetricCard
-          icon={<Activity className="h-4 w-4" />}
-          label="Visible Events"
-          value={filteredEvents.length.toString()}
-          helper={`${stats.uniqueSessions.toLocaleString()} active sessions in the filtered feed`}
-        />
-        <MetricCard
-          icon={<Zap className="h-4 w-4" />}
-          label="Purchase Events"
-          value={stats.purchaseEvents.toString()}
-          helper={lastUpdatedAt ? `Last updated at ${formatTimestamp(lastUpdatedAt)}` : 'Awaiting first refresh'}
-        />
-      </div>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+          <MetricCard
+            icon={<Radio className="h-4 w-4" />}
+            label="Online Users"
+            value={(realtime?.online_users ?? 0).toString()}
+            helper="Unique users seen in the current window"
+            live={liveStatus === 'live'}
+          />
+          <MetricCard
+            icon={<Clock3 className="h-4 w-4" />}
+            label="Time Window"
+            value={`${realtime?.minutes ?? minutes} min`}
+            helper="Sliding period for the realtime summary"
+          />
+          <MetricCard
+            icon={<Activity className="h-4 w-4" />}
+            label="Visible Events"
+            value={filteredEvents.length.toString()}
+            helper={`${stats.uniqueSessions.toLocaleString()} active sessions in the filtered feed`}
+          />
+          <MetricCard
+            icon={<Zap className="h-4 w-4" />}
+            label="Purchase Events"
+            value={stats.purchaseEvents.toString()}
+            helper={lastUpdatedAt ? `Last updated at ${formatTimestamp(lastUpdatedAt)}` : 'Awaiting first refresh'}
+          />
+        </div>
 
-
-
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_0.85fr]">
-        <SectionCard
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_0.85fr]">
+          <SectionCard
           title="Live Feed"
           action={<StatusChip label={`${filteredEvents.length} rows`} tone="neutral" />}
           className="overflow-hidden px-0 py-0"
@@ -258,53 +257,54 @@ export default function RealtimePage() {
               }
             />
           )}
-        </SectionCard>
+          </SectionCard>
 
-        <SectionCard title="Filters">
-          <div className="space-y-4">
-            <SearchInput value={query} onChange={setQuery} placeholder="Search path, source, or event" />
+          <SectionCard title="Filters">
+            <div className="space-y-4">
+              <SearchInput value={query} onChange={setQuery} placeholder="Search path, source, or event" />
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-app-strong">Event type</label>
-              <select
-                className="select w-full"
-                value={eventFilter}
-                onChange={(event) => setEventFilter(event.target.value)}
-              >
-                <option value="all">All events</option>
-                {eventOptions.map((eventName) => (
-                  <option key={eventName} value={eventName}>
-                    {eventName}
-                  </option>
-                ))}
-              </select>
-            </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-app-strong">Event type</label>
+                <select
+                  className="select w-full"
+                  value={eventFilter}
+                  onChange={(event) => setEventFilter(event.target.value)}
+                >
+                  <option value="all">All events</option>
+                  {eventOptions.map((eventName) => (
+                    <option key={eventName} value={eventName}>
+                      {eventName}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div>
-              <div className="text-sm font-medium text-app-strong">Active sources</div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {stats.sources.length > 0 ? (
-                  stats.sources.map(([source, count]) => (
-                    <StatusChip key={source} label={`${source} (${count})`} tone="neutral" />
-                  ))
-                ) : (
-                  <p className="text-sm text-app-muted">Source activity will appear once events are flowing.</p>
-                )}
+              <div>
+                <div className="text-sm font-medium text-app-strong">Active sources</div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {stats.sources.length > 0 ? (
+                    stats.sources.map(([source, count]) => (
+                      <StatusChip key={source} label={`${source} (${count})`} tone="neutral" />
+                    ))
+                  ) : (
+                    <p className="text-sm text-app-muted">Source activity will appear once events are flowing.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-app-line bg-app-panel p-4">
+                <div className="text-sm font-semibold text-app-strong">Current mode</div>
+                <p className="mt-2 text-sm text-app-muted">
+                  {liveStatus === 'live'
+                    ? 'The page is automatically polling every 15 seconds.'
+                    : liveStatus === 'refreshing'
+                      ? 'A refresh is currently in flight.'
+                      : 'Auto refresh is paused until you resume it or trigger a manual refresh.'}
+                </p>
               </div>
             </div>
-
-            <div className="rounded-lg border border-app-line bg-app-panel p-4">
-              <div className="text-sm font-semibold text-app-strong">Current mode</div>
-              <p className="mt-2 text-sm text-app-muted">
-                {liveStatus === 'live'
-                  ? 'The page is automatically polling every 15 seconds.'
-                  : liveStatus === 'refreshing'
-                    ? 'A refresh is currently in flight.'
-                    : 'Auto refresh is paused until you resume it or trigger a manual refresh.'}
-              </p>
-            </div>
-          </div>
-        </SectionCard>
+          </SectionCard>
+        </div>
       </div>
     </div>
   )

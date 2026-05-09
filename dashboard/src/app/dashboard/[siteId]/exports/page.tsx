@@ -94,7 +94,8 @@ export default function ExportsPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+      <div className="space-y-6 px-5 md:px-6">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_0.95fr]">
         <SectionCard
           title="Create Export"
           action={
@@ -192,9 +193,9 @@ export default function ExportsPage() {
             />
           )}
         </SectionCard>
-      </div>
+        </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <DetailNote
           icon={<FileSpreadsheet className="h-4 w-4" />}
           title="CSV export types"
@@ -205,6 +206,7 @@ export default function ExportsPage() {
           title="Readiness state"
           body="Prepared exports are marked ready immediately, then switch to downloaded after the first click for quick operator context."
         />
+        </div>
       </div>
     </div>
   )

@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ChevronRight, ChevronsUpDown, LogOut, Menu, Star, X } from 'lucide-react'
+import { ChevronRight, ChevronsUpDown, Globe, LogOut, Menu, Settings2, Star, X } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { SearchInput } from '@/components/ui/search-input'
 import { TrackingStatusChip } from '@/components/ui/tracking-status-chip'
 import { sitesApi } from '@/lib/api'
 import { formatRelativeTimeLabel } from '@/lib/dashboard-metadata'
-import { appNav, buildAnalyticsHref, buildSetupHref, getAppHref, getCurrentSiteId, resolveSiteRoute, siteAcquisitionNav, siteAnalyticsNav, siteAppsNav, siteCommerceNav, siteOperationsNav, siteSetupNav } from '@/lib/navigation'
+import { appNav, buildAnalyticsHref, getAppHref, getCurrentSiteId, isAnalyticsRoute, isSettingsRoute, resolveSiteRoute, settingsNav, settingsRootNav, siteAcquisitionNav, siteAnalyticsNav, siteAppsNav, siteCommerceNav, siteOperationsNav } from '@/lib/navigation'
 import { getSiteTrackingState } from '@/lib/tracking-status'
 import type { Site } from '@/lib/types'
 import { useAuthStore } from '@/store/auth'
@@ -110,12 +110,14 @@ function SiteSwitcherControl({
   currentSite,
   sites,
   loadingSites,
+  compact = false,
 }: {
   pathname: string
   siteId: string | null
   currentSite: Site | null
   sites: Site[]
   loadingSites: boolean
+  compact?: boolean
 }) {
   const router = useRouter()
   const searchRef = useRef<HTMLInputElement | null>(null)
@@ -126,6 +128,8 @@ function SiteSwitcherControl({
   const [recentSiteIds, setRecentSiteIds] = useState<string[]>([])
   const [pinnedSiteIds, setPinnedSiteIds] = useState<string[]>([])
   const [highlightedSiteId, setHighlightedSiteId] = useState<string | null>(null)
+  const selectedSite = currentSite || sites[0] || null
+  const selectedSiteId = currentSite?.id || sites[0]?.id || null
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -272,20 +276,38 @@ function SiteSwitcherControl({
 
   return (
     <div ref={switcherRef} className="relative w-full">
-      <button onClick={() => setOpen((value) => !value)} className="site-switcher-trigger">
-        <div className="min-w-0 text-left">
-          <div className="truncate text-lg font-semibold text-app-strong">
-            {currentSite ? currentSite.domain : loadingSites ? 'Loading websites...' : 'Select website'}
-          </div>
-          <div className="sr-only">
-            {currentSite ? currentSite.name : `${sites.length} connected website${sites.length === 1 ? '' : 's'}`}
-          </div>
-        </div>
-        <ChevronsUpDown className="h-4 w-4 shrink-0 text-app-soft" />
+      <button
+        onClick={() => setOpen((value) => !value)}
+        className={compact ? 'group mx-auto flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-app-subtle' : 'site-switcher-trigger'}
+        aria-label={selectedSite ? `Switch website from ${selectedSite.domain}` : 'Switch website'}
+        title={compact ? (selectedSite ? selectedSite.domain : 'Switch website') : undefined}
+      >
+        {compact ? (
+          <>
+            <div className="app-rail-user h-10 w-10">
+              {(selectedSite?.domain || selectedSite?.name || 'S').slice(0, 1).toUpperCase()}
+            </div>
+            <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-app-strong px-2.5 py-1.5 text-xs font-medium text-white shadow-card group-hover:block">
+              {selectedSite ? selectedSite.domain : loadingSites ? 'Loading websites...' : 'Select website'}
+            </span>
+          </>
+        ) : (
+          <>
+            <div className="min-w-0 text-left">
+              <div className="truncate text-lg font-semibold text-app-strong">
+                {selectedSite ? selectedSite.domain : loadingSites ? 'Loading websites...' : 'Select website'}
+              </div>
+              <div className="sr-only">
+                {selectedSite ? selectedSite.name : `${sites.length} connected website${sites.length === 1 ? '' : 's'}`}
+              </div>
+            </div>
+            <ChevronsUpDown className="h-4 w-4 shrink-0 text-app-soft" />
+          </>
+        )}
       </button>
 
       {open && (
-        <div className="site-switcher-panel">
+        <div className={`site-switcher-panel ${compact ? 'left-0' : ''}`}>
           <div className="border-b border-app-line p-3">
             <SearchInput
               inputRef={searchRef}
@@ -307,7 +329,7 @@ function SiteSwitcherControl({
                     <SiteSwitcherOption
                       key={`pinned-${site.id}`}
                       site={site}
-                      active={site.id === siteId}
+                      active={site.id === selectedSiteId}
                       pinned
                       highlighted={site.id === highlightedSiteId}
                       rowRef={(node) => {
@@ -332,7 +354,7 @@ function SiteSwitcherControl({
                     <SiteSwitcherOption
                       key={`recent-${site.id}`}
                       site={site}
-                      active={site.id === siteId}
+                      active={site.id === selectedSiteId}
                       pinned={pinnedSiteIds.includes(site.id)}
                       highlighted={site.id === highlightedSiteId}
                       rowRef={(node) => {
@@ -355,7 +377,7 @@ function SiteSwitcherControl({
                 <SiteSwitcherOption
                   key={site.id}
                   site={site}
-                  active={site.id === siteId}
+                  active={site.id === selectedSiteId}
                   pinned={pinnedSiteIds.includes(site.id)}
                   highlighted={site.id === highlightedSiteId}
                   rowRef={(node) => {
@@ -384,8 +406,96 @@ function SiteSwitcherControl({
   )
 }
 
+function UserMenu({
+  user,
+  logout,
+}: {
+  user: { name?: string | null; email?: string | null } | null
+  logout: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null
+      if (target && menuRef.current && !menuRef.current.contains(target)) {
+        setOpen(false)
+      }
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('touchstart', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('touchstart', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [open])
+
+  return (
+    <div ref={menuRef} className="relative hidden xl:block">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className={`flex h-11 w-11 items-center justify-center rounded-full border border-app-line bg-white transition hover:bg-slate-50 ${
+          open ? 'shadow-sm ring-2 ring-[#cfe0f7]' : ''
+        }`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={user?.name ? `Open account menu for ${user.name}` : 'Open account menu'}
+        title={user?.email || user?.name || 'Account'}
+      >
+        <div className="app-rail-user h-9 w-9 rounded-full text-sm shadow-none">
+          {(user?.name || 'U').slice(0, 1).toUpperCase()}
+        </div>
+        <span className="sr-only">{user?.email || user?.name || 'Account'}</span>
+      </button>
+
+      {open ? (
+        <div className="absolute right-0 top-[calc(100%+0.5rem)] z-30 w-[220px] overflow-hidden rounded-xl border border-app-line bg-white p-2 shadow-card">
+          <nav className="space-y-1">
+            <Link href="/dashboard/sites" className="nav-item nav-item-idle" onClick={() => setOpen(false)}>
+              <Globe className="h-4 w-4" />
+              <span>Websites</span>
+            </Link>
+            <Link href="/dashboard/teams" className="nav-item nav-item-idle" onClick={() => setOpen(false)}>
+              <Settings2 className="h-4 w-4" />
+              <span>Setting</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false)
+                logout()
+              }}
+              className="nav-item nav-item-idle w-full"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Sign out</span>
+            </button>
+          </nav>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const { user, logout } = useAuthStore()
   const [sites, setSites] = useState<Site[]>([])
   const [loadingSites, setLoadingSites] = useState(true)
@@ -396,6 +506,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     () => sites.find((site) => site.id === currentSiteId) || null,
     [sites, currentSiteId]
   )
+  const showSecondarySidebar = isAnalyticsRoute(pathname) || isSettingsRoute(pathname)
 
   useKeyboardNav(currentSiteId)
 
@@ -459,22 +570,30 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     window.localStorage.setItem(APP_RAIL_EXPANDED_KEY, String(appRailExpanded))
   }, [appRailExpanded])
 
+  useEffect(() => {
+    if (loadingSites || currentSiteId || pathname !== '/dashboard' || sites.length === 0) {
+      return
+    }
+
+    router.replace(`/dashboard/sites/${sites[0].id}`)
+  }, [currentSiteId, loadingSites, pathname, router, sites])
+
   return (
     <div className="min-h-screen bg-app">
-      <div className="mx-auto flex min-h-screen max-w-[1680px]">
-        <AppRail
-          pathname={pathname}
-          currentSiteId={currentSiteId}
-          user={user}
-          logout={logout}
-          expanded={appRailExpanded}
-          onToggleExpanded={() => setAppRailExpanded((value) => !value)}
-        />
-        <SiteSidebar pathname={pathname} siteId={currentSiteId} site={currentSite} sites={sites} loadingSites={loadingSites} />
+      <MobileNavDrawer
+        open={mobileNavOpen}
+        onClose={() => setMobileNavOpen(false)}
+        pathname={pathname}
+        currentSiteId={currentSiteId}
+        currentSite={currentSite}
+        sites={sites}
+        loadingSites={loadingSites}
+        user={user}
+        logout={logout}
+      />
 
-        <MobileNavDrawer
-          open={mobileNavOpen}
-          onClose={() => setMobileNavOpen(false)}
+      <div className="flex min-h-screen flex-col">
+        <TopNav
           pathname={pathname}
           currentSiteId={currentSiteId}
           currentSite={currentSite}
@@ -482,14 +601,19 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           loadingSites={loadingSites}
           user={user}
           logout={logout}
+          onOpenMobileNav={() => setMobileNavOpen(true)}
         />
-
-        <div className="flex min-w-0 flex-1 flex-col">
-          <TopNav
-            currentSite={currentSite}
-            onOpenMobileNav={() => setMobileNavOpen(true)}
+        <div className="flex min-h-0 flex-1">
+          <AppRail
+            pathname={pathname}
+            currentSiteId={currentSiteId}
+            expanded={appRailExpanded}
+            onToggleExpanded={() => setAppRailExpanded((value) => !value)}
           />
-          <main className="flex-1 px-5 py-4 md:px-6 md:py-5">{children}</main>
+          {showSecondarySidebar ? (
+            <SiteSidebar pathname={pathname} siteId={currentSiteId} site={currentSite} sites={sites} loadingSites={loadingSites} />
+          ) : null}
+          <main className="min-w-0 flex-1 px-5 py-4 md:px-6 md:py-5">{children}</main>
         </div>
       </div>
     </div>
@@ -499,15 +623,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 function AppRail({
   pathname,
   currentSiteId,
-  user,
-  logout,
   expanded,
   onToggleExpanded,
 }: {
   pathname: string
   currentSiteId: string | null
-  user: { name?: string | null; email?: string | null } | null
-  logout: () => void
   expanded: boolean
   onToggleExpanded: () => void
 }) {
@@ -533,49 +653,67 @@ function AppRail({
 
   return (
     <aside
-      className={`hidden shrink-0 border-r border-app-line bg-app-panel transition-[width] duration-200 xl:flex xl:flex-col ${
+      className={`relative hidden shrink-0 border-r border-app-line bg-app-panel transition-[width] duration-200 xl:flex xl:flex-col ${
         expanded ? 'w-[220px]' : 'w-[72px]'
       }`}
     >
-      <div className={`relative flex h-20 items-center border-b border-app-line px-3 ${expanded ? 'justify-between' : 'justify-center'}`}>
-        <Link href="/dashboard" className="app-rail-logo" title="Woosaas">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M22 7l-8 8-4-4-6 6" />
-            <path d="M16 7h6v6" />
-          </svg>
-        </Link>
-        {expanded ? (
-          <button type="button" onClick={onToggleExpanded} className="app-rail-expand-button" aria-label="Collapse app rail">
-            <ChevronRight className="h-4 w-4 rotate-180" />
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onToggleExpanded}
-            className="app-rail-expand-button"
-            aria-label="Expand app rail"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        )}
-      </div>
+      <button
+        type="button"
+        onClick={onToggleExpanded}
+        className={`app-rail-expand-button !bottom-auto top-4 ${expanded ? 'right-4' : 'right-3'}`}
+        aria-label={expanded ? 'Collapse app rail' : 'Expand app rail'}
+      >
+        <ChevronRight className={`h-4 w-4 ${expanded ? 'rotate-180' : ''}`} />
+      </button>
 
       <div className="flex-1 overflow-y-auto px-3 py-5">
+        {expanded ? (
+          <div className="pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-app-soft">Apps</div>
+        ) : null}
         <nav className="space-y-2">
-          {appNav.map((item) => {
+          {siteAppsNav.map((item) => {
             const Icon = item.icon
             const href = getAppHref(item.href, currentSiteId)
             const isActive = isRailItemActive(item.href, href)
+            const isComingSoon = item.status === 'comingSoon'
+            const className = `group relative ${expanded ? 'app-rail-link' : 'app-rail-item'} ${isComingSoon ? 'app-rail-item-disabled' : isActive ? 'app-rail-item-active' : 'app-rail-item-idle'}`
 
-            return (
+            const content = (
+              <>
+                <Icon className="h-5 w-5" />
+                {expanded ? (
+                  <>
+                    <span className="truncate text-sm font-semibold">{item.label}</span>
+                    <span className="ml-auto rounded-full bg-app-subtle px-1.5 py-0.5 text-[10px] font-semibold text-app-soft">
+                      Soon
+                    </span>
+                  </>
+                ) : (
+                  <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-app-strong px-2.5 py-1.5 text-xs font-medium text-white shadow-card group-hover:block">
+                    {item.label} - Coming soon
+                  </span>
+                )}
+              </>
+            )
+
+            return isComingSoon ? (
+              <span
+                key={`site-app-${item.label}-${href}`}
+                className={className}
+                aria-disabled="true"
+                title={`${item.label} - Coming soon`}
+              >
+                {content}
+              </span>
+            ) : (
               <Link
-                key={`${item.label}-${href}`}
+                key={`site-app-${item.label}-${href}`}
                 href={href}
-                className={`group relative ${expanded ? 'app-rail-link' : 'app-rail-item'} ${isActive ? 'app-rail-item-active' : 'app-rail-item-idle'}`}
+                className={className}
               >
                 <Icon className="h-5 w-5" />
                 {expanded ? (
-                  <span className="truncate text-sm font-medium">{item.label}</span>
+                  <span className="truncate text-sm font-semibold">{item.label}</span>
                 ) : (
                   <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-app-strong px-2.5 py-1.5 text-xs font-medium text-white shadow-card group-hover:block">
                     {item.label}
@@ -585,99 +723,8 @@ function AppRail({
             )
           })}
         </nav>
-
-        {currentSiteId ? (
-          <div className="mt-4 border-t border-app-line pt-4">
-            {expanded ? (
-              <div className="pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-app-soft">Apps</div>
-            ) : null}
-            <nav className="space-y-2">
-              {siteAppsNav.map((item) => {
-                const Icon = item.icon
-                const href = getAppHref(item.href, currentSiteId)
-                const isActive = isRailItemActive(item.href, href)
-                const isComingSoon = item.status === 'comingSoon'
-                const className = `group relative ${expanded ? 'app-rail-link' : 'app-rail-item'} ${isComingSoon ? 'app-rail-item-disabled' : isActive ? 'app-rail-item-active' : 'app-rail-item-idle'}`
-
-                const content = (
-                  <>
-                    <Icon className="h-5 w-5" />
-                    {expanded ? (
-                      <>
-                        <span className="truncate text-sm font-medium">{item.label}</span>
-                        <span className="ml-auto rounded-full bg-app-subtle px-1.5 py-0.5 text-[10px] font-semibold text-app-soft">
-                          Soon
-                        </span>
-                      </>
-                    ) : (
-                      <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-app-strong px-2.5 py-1.5 text-xs font-medium text-white shadow-card group-hover:block">
-                        {item.label} - Coming soon
-                      </span>
-                    )}
-                  </>
-                )
-
-                return isComingSoon ? (
-                  <span
-                    key={`site-app-${item.label}-${href}`}
-                    className={className}
-                    aria-disabled="true"
-                    title={`${item.label} - Coming soon`}
-                  >
-                    {content}
-                  </span>
-                ) : (
-                  <Link
-                    key={`site-app-${item.label}-${href}`}
-                    href={href}
-                    className={className}
-                  >
-                    <Icon className="h-5 w-5" />
-                    {expanded ? (
-                      <span className="truncate text-sm font-medium">{item.label}</span>
-                    ) : (
-                      <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-app-strong px-2.5 py-1.5 text-xs font-medium text-white shadow-card group-hover:block">
-                        {item.label}
-                      </span>
-                    )}
-                  </Link>
-                )
-              })}
-            </nav>
-          </div>
-        ) : null}
       </div>
 
-      <div className="border-t border-app-line px-3 py-4">
-        <div className="space-y-2">
-          {expanded ? (
-            <div className="flex items-center gap-3 rounded-lg border border-app-line bg-white px-3 py-3">
-              <div className="app-rail-user h-10 w-10 shrink-0">{(user?.name || 'U').slice(0, 1).toUpperCase()}</div>
-              <div className="min-w-0">
-                <div className="truncate text-sm font-medium text-app-strong">{user?.name || 'User'}</div>
-                <div className="truncate text-xs text-app-muted">{user?.email || 'Signed in'}</div>
-              </div>
-            </div>
-          ) : (
-            <div className="group relative app-rail-user">
-              {(user?.name || 'U').slice(0, 1).toUpperCase()}
-              <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-app-strong px-2.5 py-1.5 text-xs font-medium text-white shadow-card group-hover:block">
-                {user?.email || 'User'}
-              </span>
-            </div>
-          )}
-          <button onClick={logout} className={`${expanded ? 'app-rail-link justify-between' : 'group relative app-rail-item'} app-rail-item-idle w-full`}>
-            <LogOut className="h-5 w-5" />
-            {expanded ? (
-              <span className="text-sm font-medium">Sign out</span>
-            ) : (
-              <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-app-strong px-2.5 py-1.5 text-xs font-medium text-white shadow-card group-hover:block">
-                Sign out
-              </span>
-            )}
-          </button>
-        </div>
-      </div>
     </aside>
   )
 }
@@ -805,6 +852,28 @@ function MobileNavDrawer({
               </div>
             </>
           ) : null}
+
+          <div className="pb-2 pt-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-app-soft">
+            Setting
+          </div>
+          <div className="grid grid-cols-1 gap-2">
+            {settingsRootNav.map((item) => {
+              const Icon = item.icon
+              const isActive = pathname === item.href
+
+              return (
+                <Link
+                  key={`mobile-settings-${item.href}`}
+                  href={item.href}
+                  className={`mobile-app-link ${isActive ? 'mobile-app-link-active' : ''}`}
+                  onClick={onClose}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </Link>
+              )
+            })}
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4">
@@ -850,17 +919,16 @@ function SiteSidebar({
   sites: Site[]
   loadingSites: boolean
 }) {
+  const showSettingsSidebar = isSettingsRoute(pathname)
+
   return (
-    <aside className="hidden w-[280px] shrink-0 border-r border-app-line bg-white xl:flex xl:flex-col">
-      <div className="border-b border-app-line px-5 py-4">
-        <SiteSwitcherControl
-          pathname={pathname}
-          siteId={siteId}
-          currentSite={site}
-          sites={sites}
-          loadingSites={loadingSites}
-        />
-      </div>
+    <aside className="hidden min-h-0 w-[280px] shrink-0 border-r border-app-line bg-white xl:flex xl:flex-col">
+      {showSettingsSidebar ? (
+        <div className="border-b border-app-line px-5 py-4">
+          <div className="text-lg font-semibold text-app-strong">Setting</div>
+          <div className="mt-1 text-sm text-app-muted">Workspace management and access controls.</div>
+        </div>
+      ) : null}
 
       <div className="flex-1 overflow-y-auto px-4 py-5">
         <SiteSidebarContent pathname={pathname} siteId={siteId} site={site} sites={sites} loadingSites={loadingSites} />
@@ -897,6 +965,20 @@ function SiteSidebarContent({
     setPinnedSiteIds(JSON.parse(window.localStorage.getItem(PINNED_SITES_KEY) || '[]'))
     setRecentSiteIds(JSON.parse(window.localStorage.getItem(RECENT_SITES_KEY) || '[]'))
   }, [siteId, pathname])
+
+  if (isSettingsRoute(pathname)) {
+    return (
+      <div className={compact ? 'space-y-4' : 'space-y-5'}>
+        <SidebarGroup
+          title="Settings"
+          items={settingsNav}
+          pathname={pathname}
+          buildHref={(itemHref) => itemHref}
+          onNavigate={onNavigate}
+        />
+      </div>
+    )
+  }
 
   const matchesQuery = (entry: Site) => {
     if (!query.trim()) {
@@ -959,14 +1041,6 @@ function SiteSidebarContent({
             />
           </>
         ) : null}
-
-        <SidebarGroup
-          title="Setup"
-          items={siteSetupNav}
-          pathname={pathname}
-          buildHref={(itemHref) => buildSetupHref(siteId as string, itemHref)}
-          onNavigate={onNavigate}
-        />
       </div>
     )
   }
@@ -1088,14 +1162,37 @@ function SidebarGroup({
   )
 }
 
+function DemoLogo() {
+  return (
+    <Link href="/dashboard" className="flex shrink-0 items-center gap-3 rounded-xl transition hover:opacity-90">
+      <div className="app-rail-logo h-11 w-11 rounded-xl">W</div>
+      <div className="hidden min-w-0 sm:block">
+        <div className="text-sm font-semibold leading-none text-app-strong">Demo</div>
+        <div className="mt-1 text-xs leading-none text-app-muted">Woosaas</div>
+      </div>
+    </Link>
+  )
+}
+
 function TopNav({
+  pathname,
+  currentSiteId,
   currentSite,
+  sites,
+  loadingSites,
+  user,
+  logout,
   onOpenMobileNav,
 }: {
+  pathname: string
+  currentSiteId: string | null
   currentSite: Site | null
+  sites: Site[]
+  loadingSites: boolean
+  user: { name?: string | null; email?: string | null } | null
+  logout: () => void
   onOpenMobileNav: () => void
 }) {
-  const pathname = usePathname()
   const trackingState = currentSite ? getSiteTrackingState(currentSite) : null
   const lastSignal = currentSite?.tracking_last_event_at || currentSite?.tracking_last_checked_at || currentSite?.created_at
 
@@ -1123,18 +1220,28 @@ function TopNav({
     <header className="sticky top-0 z-20 border-b border-app-line bg-app/95 backdrop-blur">
       <div className="flex min-h-14 items-center justify-between gap-4 px-5 py-3 md:px-8">
         <div className="flex min-w-0 items-center gap-4">
+          <DemoLogo />
           <button type="button" onClick={onOpenMobileNav} className="icon-button xl:hidden">
             <Menu className="h-4 w-4" />
           </button>
-          {currentSite && (
+          <div className="min-w-0 flex-1 xl:max-w-sm">
+            <SiteSwitcherControl
+              pathname={pathname}
+              siteId={currentSiteId}
+              currentSite={currentSite}
+              sites={sites}
+              loadingSites={loadingSites}
+            />
+          </div>
+          {currentSite && activeSection && (
             <div className="hidden items-center gap-2 xl:flex">
-              <span className="font-semibold text-app-strong">{currentSite.domain}</span>
-              {activeSection && (
-                <div className="flex items-center gap-2 text-sm text-app-muted">
-                  <span className="text-app-line">/</span>
-                  <span className="font-medium text-app-strong">{activeSection}</span>
-                </div>
-              )}
+              <span className="text-app-line">/</span>
+              <span className="font-medium text-app-strong">{activeSection}</span>
+            </div>
+          )}
+          {currentSite && !activeSection && (
+            <div className="hidden items-center gap-2 xl:flex">
+              <span className="text-sm text-app-muted">Website home</span>
             </div>
           )}
         </div>
@@ -1152,6 +1259,8 @@ function TopNav({
               </div>
             </div>
           ) : null}
+
+          <UserMenu user={user} logout={logout} />
         </div>
       </div>
     </header>

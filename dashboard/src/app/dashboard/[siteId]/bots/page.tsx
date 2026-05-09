@@ -97,15 +97,16 @@ export default function BotsPage() {
         }
       />
 
-      {error ? (
-        <InlineErrorState
-          body={error}
-          compact={Boolean(bots)}
-          onRetry={() => setReloadKey((value) => value + 1)}
-        />
-      ) : null}
+      <div className="space-y-6 px-5 md:px-6">
+        {error ? (
+          <InlineErrorState
+            body={error}
+            compact={Boolean(bots)}
+            onRetry={() => setReloadKey((value) => value + 1)}
+          />
+        ) : null}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
         <MetricCard icon={<Workflow className="h-4 w-4" />} label="Total Events" value={summary.totalEvents.toLocaleString()} />
         <MetricCard icon={<Bot className="h-4 w-4" />} label="Bot Events" value={summary.botEvents.toLocaleString()} helper="Flagged by scoring rules" tone="warn" />
         <MetricCard icon={<UserRound className="h-4 w-4" />} label="Human Events" value={summary.humanEvents.toLocaleString()} helper="Treated as likely genuine traffic" tone="good" />
@@ -115,9 +116,9 @@ export default function BotsPage() {
           value={summary.coverage.toString()}
           helper={summary.topReason ? `Lead reason: ${summary.topReason.reason}` : 'No suspicious reasons yet'}
         />
-      </div>
+        </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_0.95fr]">
         <SectionCard
           title="Traffic Split"
         >
@@ -174,9 +175,9 @@ export default function BotsPage() {
             />
           )}
         </SectionCard>
-      </div>
+        </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <SectionCard
           title="Source Coverage"
           action={<StatusChip label={`${bots?.top_bot_sources.length ?? 0} sources`} tone="neutral" />}
@@ -234,6 +235,7 @@ export default function BotsPage() {
             />
           )}
         </SectionCard>
+        </div>
       </div>
     </div>
   )
