@@ -1230,26 +1230,6 @@ function TopNav({
   const trackingState = currentSite ? getSiteTrackingState(currentSite) : null
   const lastSignal = currentSite?.tracking_last_event_at || currentSite?.tracking_last_checked_at || currentSite?.created_at
 
-  const SECTION_LABELS: Record<string, string> = {
-    overview: 'Overview',
-    trend: 'Trend',
-    sources: 'Sources',
-    campaigns: 'Campaigns',
-    pages: 'Pages',
-    products: 'Products',
-    funnel: 'Funnel',
-    realtime: 'Realtime',
-    bots: 'Bots',
-    contacts: 'Contacts',
-    health: 'Health',
-    exports: 'Exports',
-  }
-
-  const activeSection = useMemo(() => {
-    const match = pathname.match(/\/dashboard\/[^/]+\/([^/]+)/)
-    return match ? (SECTION_LABELS[match[1]] ?? '') : ''
-  }, [pathname])
-
   return (
     <header className="sticky top-0 z-20 border-b border-app-line bg-app/95 backdrop-blur">
       <div className="flex min-h-14 items-center justify-between gap-4 px-5 py-3 md:px-8">
@@ -1267,17 +1247,6 @@ function TopNav({
               loadingSites={loadingSites}
             />
           </div>
-          {currentSite && activeSection && (
-            <div className="hidden items-center gap-2 xl:flex">
-              <span className="text-app-line">/</span>
-              <span className="font-medium text-app-strong">{activeSection}</span>
-            </div>
-          )}
-          {currentSite && !activeSection && (
-            <div className="hidden items-center gap-2 xl:flex">
-              <span className="text-sm text-app-muted">Website home</span>
-            </div>
-          )}
         </div>
 
         <div className="flex min-w-0 items-center gap-4">

@@ -2,27 +2,14 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import type { ReactNode } from 'react'
-import { Activity, ArrowRight, KeyRound, Mail, ReceiptText, Settings2, ShieldCheck, Store, Users } from 'lucide-react'
+import { Activity, AlertTriangle, Globe, KeyRound, ReceiptText, Settings, ShieldCheck, Users } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
-import { MetricCard } from '@/components/ui/metric-card'
-import { SectionCard } from '@/components/ui/section-card'
-import { StatusChip } from '@/components/ui/status-chip'
 import { TrackingStatusChip } from '@/components/ui/tracking-status-chip'
 import { useSiteId } from '@/hooks/use-site-id'
 import { sitesApi } from '@/lib/api'
 import { formatRelativeTimeLabel } from '@/lib/dashboard-metadata'
 import { getSiteTrackingState } from '@/lib/tracking-status'
 import type { Site } from '@/lib/types'
-
-type WebsiteApp = {
-  title: string
-  description: string
-  href: string
-  icon: ReactNode
-  status: 'active' | 'comingSoon'
-  cta: string
-}
 
 export default function WebsiteHomePage() {
   const siteId = useSiteId()
@@ -55,162 +42,167 @@ export default function WebsiteHomePage() {
 
   const trackingState = getSiteTrackingState(site)
   const lastSignal = site.tracking_last_event_at || site.tracking_last_checked_at || site.created_at
-
-  const apps: WebsiteApp[] = [
-    {
-      title: 'Analytics',
-      description: 'Traffic, content, commerce, and customer analytics for this website.',
-      href: `/dashboard/${site.id}/overview`,
-      icon: <Activity className="h-5 w-5" />,
-      status: 'active',
-      cta: 'Open analytics',
-    },
-    {
-      title: 'Orders',
-      description: 'Canonical WooCommerce order directory and order detail workspace.',
-      href: `/dashboard/${site.id}/orders`,
-      icon: <ReceiptText className="h-5 w-5" />,
-      status: 'active',
-      cta: 'Open orders',
-    },
-    {
-      title: 'Contacts',
-      description: 'Contact and customer directory anchored to event and commerce identity.',
-      href: `/dashboard/${site.id}/contacts`,
-      icon: <Users className="h-5 w-5" />,
-      status: 'active',
-      cta: 'Open contacts',
-    },
-  ]
+  const isPending = trackingState.label === 'Pending'
 
   return (
     <div className="space-y-6">
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.7fr_1fr]">
-        <div className="card px-6 py-6">
-          <div className="panel-header">
-            <div>
-              <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-app-subtle px-3 py-1 text-xs font-medium text-app-muted">
-                <Store className="h-3.5 w-3.5" />
-                Website workspace
-              </div>
-              <h2 className="text-2xl font-semibold text-app-strong">{site.name}</h2>
-              <p className="mt-2 max-w-2xl text-sm text-app-muted">
-                Manage the apps attached to this website and keep setup, access, and analytics in one place.
-              </p>
-            </div>
-            <TrackingStatusChip site={site} />
+      {/* Header */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-app-subtle text-lg font-bold text-app-strong">
+            {site.name.charAt(0).toUpperCase()}
           </div>
-
-          <div className="metric-grid">
-            <MetricCard
-              icon={<ShieldCheck className="h-4 w-4" />}
-              label="Tracking"
-              value={trackingState.label}
-              helper={trackingState.detail}
-              tone={trackingState.label === 'Active' ? 'good' : trackingState.label === 'Pending' ? 'warn' : 'neutral'}
-            />
-            <MetricCard
-              icon={<Activity className="h-4 w-4" />}
-              label="Last Signal"
-              value={formatRelativeTimeLabel(lastSignal)}
-              helper="Most recent event or verification check"
-            />
-            <MetricCard
-              icon={<Settings2 className="h-4 w-4" />}
-              label="Timezone"
-              value={site.timezone || 'UTC'}
-              helper="Default reporting timezone"
-            />
-            <MetricCard
-              icon={<KeyRound className="h-4 w-4" />}
-              label="Currency"
-              value={site.currency || 'USD'}
-              helper="Store reporting currency"
-            />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-semibold text-app-strong">{site.name}</h1>
+              <TrackingStatusChip site={site} />
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-app-muted">
+              <span className="flex items-center gap-1">
+                <Globe className="h-3.5 w-3.5" />
+                {site.domain}
+              </span>
+              <span className="text-app-line">·</span>
+              <span className="flex items-center gap-1">
+                <Activity className="h-3.5 w-3.5" />
+                {formatRelativeTimeLabel(lastSignal)}
+              </span>
+              {site.timezone && (
+                <>
+                  <span className="text-app-line">·</span>
+                  <span>{site.timezone}</span>
+                </>
+              )}
+              {site.currency && (
+                <>
+                  <span className="text-app-line">·</span>
+                  <span>{site.currency}</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
-
-        <SectionCard
-          title="Next Actions"
-          icon={<ArrowRight className="h-4 w-4" />}
-        >
-          <div className="space-y-2">
-            <Link href={`/dashboard/${site.id}/overview`} className="site-switcher-footer">
-              Open analytics snapshot
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link href={`/dashboard/sites/${site.id}/onboarding`} className="site-switcher-footer">
-              Review onboarding
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link href={`/dashboard/sites/${site.id}/api-keys`} className="site-switcher-footer">
-              Manage API keys
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link href={`/dashboard/teams?siteId=${site.id}`} className="site-switcher-footer">
-              Manage team access
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </SectionCard>
-      </section>
-
-      <SectionCard
-        title="Apps"
-        icon={<Store className="h-4 w-4" />}
-      >
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-          {apps.map((app) => (
-            <div key={app.title} className="rounded-lg border border-app-line bg-white p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-app-subtle text-app-strong">
-                  {app.icon}
-                </div>
-                <StatusChip
-                  label={app.status === 'active' ? 'Available' : 'Coming soon'}
-                  tone={app.status === 'active' ? 'good' : 'neutral'}
-                />
-              </div>
-              <div className="mt-4 text-base font-semibold text-app-strong">{app.title}</div>
-              <p className="mt-2 text-sm text-app-muted">{app.description}</p>
-              <div className="mt-5">
-                {app.status === 'active' ? (
-                  <Link href={app.href} className="btn-secondary w-full justify-between">
-                    {app.cta}
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                ) : (
-                  <button type="button" className="btn-secondary w-full cursor-not-allowed justify-between opacity-65" disabled>
-                    {app.cta}
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+        <div className="flex gap-2">
+          <Link href={`/dashboard/sites/${site.id}/api-keys`} className="btn-secondary text-xs">
+            <KeyRound className="mr-1.5 h-3.5 w-3.5" />
+            API Keys
+          </Link>
+          <Link href={`/dashboard/sites/${site.id}/onboarding`} className="btn-secondary text-xs">
+            <Settings className="mr-1.5 h-3.5 w-3.5" />
+            Setup
+          </Link>
         </div>
-      </SectionCard>
+      </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <SectionCard
-          title="Analytics Foundation"
-          icon={<Activity className="h-4 w-4" />}
-        >
-          <div className="space-y-2 text-sm text-app-muted">
-            <p>Keep the existing reports, funnels, health checks, realtime feed, and customer analytics.</p>
-            <p>Reorganize navigation around apps first, then analytics sections inside the Analytics app.</p>
+      {/* Pending tracking banner */}
+      {isPending && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-amber-800">Tracking not verified yet</div>
+            <p className="mt-0.5 text-sm text-amber-700">{trackingState.detail}</p>
+            <Link href={`/dashboard/sites/${site.id}/onboarding`} className="mt-3 inline-flex items-center text-sm font-medium text-amber-800 underline underline-offset-2 hover:no-underline">
+              Finish setup
+            </Link>
           </div>
-        </SectionCard>
+        </div>
+      )}
 
-        <SectionCard
-          title="Commerce Apps"
-          icon={<Mail className="h-4 w-4" />}
-        >
-          <div className="space-y-2 text-sm text-app-muted">
-            <p>Orders and Contacts now sit as app surfaces next to Analytics in the website workspace.</p>
-            <p>Additional apps can still be layered later without mixing commerce directories back into Analytics navigation.</p>
-          </div>
-        </SectionCard>
+      {/* App grid */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <AppCard
+          title="Analytics"
+          description="Traffic, funnels, revenue, geo, devices, campaigns, and customer analytics."
+          href={`/dashboard/${site.id}/overview`}
+          icon={<Activity className="h-5 w-5" />}
+          tone="emerald"
+        />
+        <AppCard
+          title="Orders"
+          description="WooCommerce order directory, order details, refunds, and commerce sync state."
+          href={`/dashboard/${site.id}/orders`}
+          icon={<ReceiptText className="h-5 w-5" />}
+          tone="blue"
+        />
+        <AppCard
+          title="Contacts"
+          description="Customer and contact directory anchored to event identity and purchase history."
+          href={`/dashboard/${site.id}/contacts`}
+          icon={<Users className="h-5 w-5" />}
+          tone="violet"
+        />
+      </div>
+
+      {/* Quick links */}
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <QuickLink href={`/dashboard/${site.id}/realtime`} icon={<Activity className="h-4 w-4" />} label="Realtime" />
+        <QuickLink href={`/dashboard/${site.id}/health`} icon={<ShieldCheck className="h-4 w-4" />} label="Pipeline Health" />
+        <QuickLink href={`/dashboard/teams?siteId=${site.id}`} icon={<Users className="h-4 w-4" />} label="Team" />
+        <QuickLink href={`/dashboard/sites/${site.id}/api-keys`} icon={<KeyRound className="h-4 w-4" />} label="API Keys" />
       </div>
     </div>
   )
 }
+
+const TONE_CLASSES: Record<string, { bg: string; icon: string; btn: string }> = {
+  emerald: {
+    bg: 'bg-emerald-50 border-emerald-100',
+    icon: 'bg-emerald-100 text-emerald-700',
+    btn: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+  },
+  blue: {
+    bg: 'bg-blue-50 border-blue-100',
+    icon: 'bg-blue-100 text-blue-700',
+    btn: 'bg-blue-600 hover:bg-blue-700 text-white',
+  },
+  violet: {
+    bg: 'bg-violet-50 border-violet-100',
+    icon: 'bg-violet-100 text-violet-700',
+    btn: 'bg-violet-600 hover:bg-violet-700 text-white',
+  },
+}
+
+function AppCard({
+  title,
+  description,
+  href,
+  icon,
+  tone,
+}: {
+  title: string
+  description: string
+  href: string
+  icon: React.ReactNode
+  tone: 'emerald' | 'blue' | 'violet'
+}) {
+  const t = TONE_CLASSES[tone]
+  return (
+    <Link
+      href={href}
+      className={`group flex flex-col rounded-xl border p-5 transition hover:shadow-md ${t.bg}`}
+    >
+      <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${t.icon}`}>
+        {icon}
+      </div>
+      <div className="mt-4 text-base font-semibold text-app-strong">{title}</div>
+      <p className="mt-1.5 flex-1 text-sm text-app-muted">{description}</p>
+      <div className={`mt-5 inline-flex w-full items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition ${t.btn}`}>
+        Open {title}
+      </div>
+    </Link>
+  )
+}
+
+function QuickLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-2.5 rounded-xl border border-app-line bg-white px-4 py-3 text-sm font-medium text-app-strong transition hover:border-slate-300 hover:shadow-sm"
+    >
+      <span className="text-app-muted">{icon}</span>
+      {label}
+    </Link>
+  )
+}
+
+

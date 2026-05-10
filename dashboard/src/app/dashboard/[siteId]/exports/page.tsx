@@ -1,10 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Download, FileSpreadsheet, RefreshCw, Users } from 'lucide-react'
+import { Download, FileSpreadsheet, RefreshCw } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
 import { AnalyticsPage, AnalyticsPageContent } from '@/components/ui/analytics-page-layout'
-import { DetailNote } from '@/components/ui/detail-note'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SectionCard } from '@/components/ui/section-card'
 import { StatusChip } from '@/components/ui/status-chip'
@@ -107,7 +106,7 @@ export default function ExportsPage() {
           }
         >
           <form onSubmit={handleCreateExport} className="space-y-5">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-app-strong">Export Type</label>
                 <select
@@ -128,19 +127,14 @@ export default function ExportsPage() {
                   options={DATE_RANGE_OPTIONS}
                 />
               </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-app-strong">Readiness</label>
-                <div className="flex h-[42px] items-center rounded-md border border-app-line bg-slate-50 px-3 text-sm text-app-muted">
-                  Direct CSV is generated on demand
-                </div>
-              </div>
             </div>
 
-            <div className="rounded-lg border border-app-line bg-app-panel p-4">
-              <div className="text-sm font-semibold text-app-strong">Selected export</div>
-              <p className="mt-2 text-sm text-app-muted">
-                {EXPORT_LABELS[exportType]} export for the {dateRange} range. The generated link is ready
-                immediately and can be reopened from the recent exports list.
+            <div className="flex items-start gap-3 rounded-lg border border-blue-100 bg-blue-50 p-4">
+              <Download className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+              <p className="text-sm text-blue-700">
+                <span className="font-semibold">{EXPORT_LABELS[exportType]}</span> export for the{' '}
+                <span className="font-semibold">{dateRange}</span> range — CSV is generated on demand and
+                available for download immediately.
               </p>
             </div>
 
@@ -196,18 +190,7 @@ export default function ExportsPage() {
         </SectionCard>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <DetailNote
-          icon={<FileSpreadsheet className="h-4 w-4" />}
-          title="CSV export types"
-          body="Events exports preserve event-level rows, orders focus on purchase output, and contact exports summarize profiles plus value signals."
-        />
-        <DetailNote
-          icon={<Users className="h-4 w-4" />}
-          title="Readiness state"
-          body="Prepared exports are marked ready immediately, then switch to downloaded after the first click for quick operator context."
-        />
-        </div>
+
       </AnalyticsPageContent>
     </AnalyticsPage>
   )

@@ -350,20 +350,14 @@ func (s *Stats) GetChannelStats(ctx context.Context, siteID, from, to string) ([
 				anyLast(client_id) as client_id,
 				toInt64(countIf(event_name = 'purchase')) as purchases,
 				toFloat64(sumIf(revenue, event_name = 'purchase')) as revenue,
-				any(source) as src,
-				any(medium) as med,
-				any(gclid) as gclid,
-				any(fbclid) as fbclid,
-				any(ttclid) as ttclid,
-				any(msclkid) as msclkid,
 				multiIf(
-					gclid != '' OR msclkid != '' OR lower(medium) IN ('cpc','ppc','paidsearch','paid search'), 'paid_search',
-					fbclid != '' OR ttclid != '' OR (lower(medium) LIKE '%paid%' AND source IN ('facebook','instagram','tiktok','twitter','x','pinterest','snapchat','linkedin')), 'paid_social',
-					lower(medium) = 'organic', 'organic_search',
-					source IN ('facebook','instagram','tiktok','twitter','x','pinterest','snapchat','linkedin','youtube') AND lower(medium) NOT LIKE '%paid%', 'organic_social',
-					lower(medium) = 'email', 'email',
-					lower(medium) = 'referral' OR (source != '' AND medium = ''), 'referral',
-					source = '' AND medium = '', 'direct',
+					any(gclid) != '' OR any(msclkid) != '' OR lower(any(medium)) IN ('cpc','ppc','paidsearch','paid search'), 'paid_search',
+					any(fbclid) != '' OR any(ttclid) != '' OR (lower(any(medium)) LIKE '%paid%' AND any(source) IN ('facebook','instagram','tiktok','twitter','x','pinterest','snapchat','linkedin')), 'paid_social',
+					lower(any(medium)) = 'organic', 'organic_search',
+					any(source) IN ('facebook','instagram','tiktok','twitter','x','pinterest','snapchat','linkedin','youtube') AND lower(any(medium)) NOT LIKE '%paid%', 'organic_social',
+					lower(any(medium)) = 'email', 'email',
+					lower(any(medium)) = 'referral' OR (any(source) != '' AND any(medium) = ''), 'referral',
+					any(source) = '' AND any(medium) = '', 'direct',
 					'other'
 				) as channel
 			FROM analytics_events

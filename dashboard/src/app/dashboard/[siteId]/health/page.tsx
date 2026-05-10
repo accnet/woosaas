@@ -1,13 +1,9 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import {
-  AlertTriangle,
-  ArrowRight,
   DatabaseZap,
-  HeartPulse,
   PackageCheck,
   RefreshCw,
   ShieldCheck,
@@ -18,7 +14,6 @@ import { AnalyticsPage, AnalyticsPageContent } from '@/components/ui/analytics-p
 import { DetailRow } from '@/components/ui/detail-row'
 import { InlineErrorState } from '@/components/ui/inline-error-state'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
-import { SectionCard } from '@/components/ui/section-card'
 import { StatusChip } from '@/components/ui/status-chip'
 import { statsApi, getApiErrorMessage } from '@/lib/api'
 import { useSiteId } from '@/hooks/use-site-id'
@@ -235,7 +230,6 @@ export default function HealthPage() {
   }
 
   const overallTone = toneFromStatus(health.status)
-  const needsAttention = health.status !== 'healthy'
 
   return (
     <AnalyticsPage>
@@ -287,48 +281,7 @@ export default function HealthPage() {
           ))}
         </div>
 
-        {needsAttention ? (
-          <SectionCard
-            title="Needs Attention"
-            icon={<AlertTriangle className="h-4 w-4" />}
-          >
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
-                  <HeartPulse className="h-4 w-4" />
-                  Current state
-                </div>
-                <p className="mt-2 text-sm text-amber-700">{health.message}</p>
-              </div>
 
-              <Link
-                href={`/dashboard/${siteId}/realtime`}
-                className="rounded-lg border border-app-line bg-white p-4 transition hover:border-slate-300"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-semibold text-app-strong">Inspect live traffic</div>
-                  <ArrowRight className="h-4 w-4 text-app-muted" />
-                </div>
-                <p className="mt-2 text-sm text-app-muted">
-                  Check whether new human events are still arriving in realtime.
-                </p>
-              </Link>
-
-              <Link
-                href={`/dashboard/sites/${siteId}/onboarding`}
-                className="rounded-lg border border-app-line bg-white p-4 transition hover:border-slate-300"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-semibold text-app-strong">Review setup</div>
-                  <ArrowRight className="h-4 w-4 text-app-muted" />
-                </div>
-                <p className="mt-2 text-sm text-app-muted">
-                  Re-check tracking prerequisites, plugin setup, and site-level collection steps.
-                </p>
-              </Link>
-            </div>
-          </SectionCard>
-        ) : null}
       </AnalyticsPageContent>
     </AnalyticsPage>
   )

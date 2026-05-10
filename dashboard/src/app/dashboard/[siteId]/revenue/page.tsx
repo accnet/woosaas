@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { DollarSign, LineChart as LineChartIcon, Package, Target } from 'lucide-react'
+import { DollarSign, Layers2, LineChart as LineChartIcon, Package, RefreshCw, Target } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
 import { AnalyticsPage, AnalyticsPageContent, MetricGrid } from '@/components/ui/analytics-page-layout'
 import { AnalyticsPageSkeleton } from '@/components/ui/analytics-page-skeleton'
@@ -9,12 +9,25 @@ import { MultiLineChart } from '@/components/ui/charts'
 import { MetricCard } from '@/components/ui/metric-card'
 import { SectionCard } from '@/components/ui/section-card'
 import { EmptyState } from '@/components/ui/empty-state'
+import { InlineErrorState } from '@/components/ui/inline-error-state'
+import { StatusChip } from '@/components/ui/status-chip'
 import axios from 'axios'
-import { statsApi } from '@/lib/api'
+import { getApiErrorMessage, statsApi } from '@/lib/api'
 import { DATE_RANGE_OPTIONS, getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import { useSiteId } from '@/hooks/use-site-id'
 import { useDateRange } from '@/hooks/use-date-range'
 import type { ChannelStat, OverviewStats, ProductStats, SourceStats, TrendPoint } from '@/lib/types'
+
+const CHANNEL_LABELS: Record<string, string> = {
+  organic_search: 'Organic Search',
+  paid_search: 'Paid Search',
+  paid_social: 'Paid Social',
+  organic_social: 'Organic Social',
+  email: 'Email',
+  referral: 'Referral',
+  direct: 'Direct',
+  other: 'Other',
+}
 
 function money(v: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(v)
@@ -41,12 +54,17 @@ export default function RevenuePage() {
   const [sources, setSources] = useState<SourceStats[]>([])
   const [channels, setChannels] = useState<ChannelStat[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
   const [dateRange, setDateRange] = useDateRange()
 
   useEffect(() => {
     const controller = new AbortController()
     const loadData = async () => {
-      setLoading(true)
+      if (overview) setRefreshing(true)
+      else setLoading(true)
+      setError(null)
       try {
         const { from, to } = getPresetDateRange(dateRange)
         const [overviewRes, trendRes, productsRes, sourcesRes, channelsRes] = await Promise.all([
@@ -58,34 +76,35 @@ export default function RevenuePage() {
         ])
         setOverview(overviewRes.data)
         setTrend(trendRes.data)
-        setProducts(productsRes.data.sort((a, b) => (b.revenue || 0) - (a.revenue || 0)))
-        setSources(sourcesRes.data.sort((a, b) => (b.revenue || 0) - (a.revenue || 0)).slice(0, 8))
-        setChannels(channelsRes.data.sort((a, b) => (b.revenue || 0) - (a.revenue || 0)))
+        setProducts([...productsRes.data].sort((a, b) => (b.revenue || 0) - (a.revenue || 0)))
+        setSources([...sourcesRes.data].sort((a, b) => (b.revenue || 0) - (a.revenue || 0)).slice(0, 8))
+        setChannels([...channelsRes.data].sort((a, b) => (b.revenue || 0) - (a.revenue || 0)))
       } catch (err) {
         if (axios.isCancel(err)) return
-        console.error('Failed to load revenue data', err)
+        setError(getApiErrorMessage(err, 'Revenue data could not be loaded right now.'))
       } finally {
         setLoading(false)
+        setRefreshing(false)
       }
     }
 
     void loadData()
     return () => controller.abort()
-  }, [dateRange, siteId])
+  }, [dateRange, reloadKey, siteId])
 
   const aov = useMemo(() => {
     if (!overview?.purchases || overview.purchases === 0) return 0
     return (overview.revenue || 0) / overview.purchases
   }, [overview])
 
+  const revenuePerSession = useMemo(() => {
+    if (!overview?.sessions || overview.sessions === 0) return 0
+    return (overview.revenue || 0) / overview.sessions
+  }, [overview])
+
   const maxProductRevenue = useMemo(() => Math.max(...products.map((p) => p.revenue || 0), 0), [products])
   const maxSourceRevenue = useMemo(() => Math.max(...sources.map((s) => s.revenue || 0), 0), [sources])
   const maxChannelRevenue = useMemo(() => Math.max(...channels.map((c) => c.revenue || 0), 0), [channels])
-
-  const CHANNEL_LABELS: Record<string, string> = {
-    organic_search: 'Organic Search', paid_search: 'Paid Search', paid_social: 'Paid Social',
-    organic_social: 'Organic Social', email: 'Email', referral: 'Referral', direct: 'Direct', other: 'Other',
-  }
 
   if (loading) return <AnalyticsPageSkeleton cols={4} />
 
@@ -94,16 +113,35 @@ export default function RevenuePage() {
       <AnalyticsPageHeader
         title="Revenue"
         controls={
-          <DateRangeSelect
-            value={dateRange}
-            onChange={(v) => setDateRange(v as PresetDateRange)}
-            options={DATE_RANGE_OPTIONS}
-          />
+          <>
+            {refreshing && <StatusChip label="Refreshing" tone="info" />}
+            <DateRangeSelect
+              value={dateRange}
+              onChange={(v) => setDateRange(v as PresetDateRange)}
+              options={DATE_RANGE_OPTIONS}
+            />
+            <button
+              type="button"
+              className="btn-secondary gap-2"
+              onClick={() => setReloadKey((k) => k + 1)}
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </>
         }
       />
 
+      {error && (
+        <InlineErrorState
+          body={error}
+          compact={Boolean(overview)}
+          onRetry={() => setReloadKey((k) => k + 1)}
+        />
+      )}
+
       <AnalyticsPageContent>
-        <MetricGrid>
+        <MetricGrid cols={5}>
           <MetricCard
             icon={<DollarSign className="h-4 w-4" />}
             label="Total Revenue"
@@ -128,6 +166,13 @@ export default function RevenuePage() {
             label="Conversion Rate"
             value={`${(overview?.conversion_rate || 0).toFixed(2)}%`}
             tone={overview?.conversion_rate ? 'good' : 'neutral'}
+          />
+          <MetricCard
+            icon={<DollarSign className="h-4 w-4" />}
+            label="Rev / Session"
+            value={money(revenuePerSession)}
+            tone={revenuePerSession > 0 ? 'good' : 'neutral'}
+            helper={`${(overview?.sessions || 0).toLocaleString()} sessions`}
           />
         </MetricGrid>
 
@@ -183,8 +228,8 @@ export default function RevenuePage() {
           </SectionCard>
         </div>
 
-        {channels.length > 0 && (
-          <SectionCard title="Revenue by Channel">
+        <SectionCard title="Revenue by Channel">
+          {channels.length > 0 ? (
             <div className="space-y-1">
               {channels.map((c) => (
                 <HorizontalBar
@@ -196,8 +241,10 @@ export default function RevenuePage() {
                 />
               ))}
             </div>
-          </SectionCard>
-        )}
+          ) : (
+            <EmptyState icon={<Layers2 className="h-8 w-8" />} body="No channel revenue data" className="h-32" />
+          )}
+        </SectionCard>
       </AnalyticsPageContent>
     </AnalyticsPage>
   )
