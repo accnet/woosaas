@@ -187,6 +187,67 @@ func (h *OrdersHandler) ListContacts(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+// GetRetentionCohort returns monthly cohort repeat-purchase rates.
+func (h *OrdersHandler) GetRetentionCohort(c *gin.Context) {
+	siteID := c.Query("site_id")
+	if siteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "site_id is required"})
+		return
+	}
+	if !h.requireSiteAccess(c, siteID) {
+		return
+	}
+
+	cohorts, err := h.repo.GetRetentionCohort(c.Request.Context(), siteID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, cohorts)
+}
+
+// GetRefundStats returns refund analytics.
+func (h *OrdersHandler) GetRefundStats(c *gin.Context) {
+	siteID := c.Query("site_id")
+	from := c.Query("from")
+	to := c.Query("to")
+	if siteID == "" || from == "" || to == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "site_id, from, and to are required"})
+		return
+	}
+	if !h.requireSiteAccess(c, siteID) {
+		return
+	}
+
+	stats, err := h.repo.GetRefundStats(c.Request.Context(), siteID, from, to)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, stats)
+}
+
+// GetCrossSell returns frequently co-purchased product pairs.
+func (h *OrdersHandler) GetCrossSell(c *gin.Context) {
+	siteID := c.Query("site_id")
+	limitStr := c.DefaultQuery("limit", "20")
+	limit, _ := strconv.Atoi(limitStr)
+	if siteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "site_id is required"})
+		return
+	}
+	if !h.requireSiteAccess(c, siteID) {
+		return
+	}
+
+	pairs, err := h.repo.GetCrossSell(c.Request.Context(), siteID, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, pairs)
+}
+
 func (h *OrdersHandler) GetSyncState(c *gin.Context) {
 	siteID := c.Param("site_id")
 	if siteID == "" {

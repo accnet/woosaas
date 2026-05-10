@@ -26,7 +26,7 @@ interface BaseChartProps {
 }
 
 interface MultiLineChartProps extends BaseChartProps {
-  lines: Array<{ dataKey: string; color: string; name: string }>
+  lines: Array<{ dataKey: string; color: string; name: string; yAxisId?: 'left' | 'right' }>
 }
 
 interface LineChartProps {
@@ -106,8 +106,36 @@ export function MultiLineChart({ data, lines, height }: MultiLineChartProps) {
     )
   }
 
+  const hasRightAxis = lines.some((l) => l.yAxisId === 'right')
+
+  const yAxisConfig = hasRightAxis
+    ? [
+        {
+          type: 'value',
+          axisLine: { show: false },
+          axisTick: { show: false },
+          axisLabel: { color: '#94a3b8', fontSize: 11 },
+          splitLine: { lineStyle: { color: '#f1f5f9', type: 'dashed' as const } },
+        },
+        {
+          type: 'value',
+          position: 'right',
+          axisLine: { show: false },
+          axisTick: { show: false },
+          axisLabel: { color: '#10b981', fontSize: 11, formatter: (v: number) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}` },
+          splitLine: { show: false },
+        },
+      ]
+    : {
+        type: 'value',
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { color: '#94a3b8', fontSize: 11 },
+        splitLine: { lineStyle: { color: '#f1f5f9', type: 'dashed' as const } },
+      }
+
   const option = {
-    grid: { left: 0, right: 16, top: 12, bottom: 32, containLabel: true },
+    grid: { left: 0, right: hasRightAxis ? 60 : 16, top: 12, bottom: 32, containLabel: true },
     xAxis: {
       type: 'category',
       data: data.map((d) => d.date),
@@ -116,13 +144,7 @@ export function MultiLineChart({ data, lines, height }: MultiLineChartProps) {
       axisLabel: { color: '#94a3b8', fontSize: 11 },
       splitLine: { show: false },
     },
-    yAxis: {
-      type: 'value',
-      axisLine: { show: false },
-      axisTick: { show: false },
-      axisLabel: { color: '#94a3b8', fontSize: 11 },
-      splitLine: { lineStyle: { color: '#f1f5f9', type: 'dashed' as const } },
-    },
+    yAxis: yAxisConfig,
     tooltip: {
       trigger: 'axis',
       backgroundColor: '#fff',
@@ -143,6 +165,7 @@ export function MultiLineChart({ data, lines, height }: MultiLineChartProps) {
       type: 'line',
       smooth: true,
       symbol: 'none',
+      yAxisIndex: l.yAxisId === 'right' ? 1 : 0,
       data: data.map((d) => (d as unknown as Record<string, number>)[l.dataKey] ?? 0),
       lineStyle: { color: l.color, width: 2.5 },
       itemStyle: { color: l.color },
@@ -159,7 +182,7 @@ export function MultiLineChart({ data, lines, height }: MultiLineChartProps) {
     })),
   }
 
-  return <ReactECharts option={option} style={{ height }} notMerge />
+  return <ReactECharts option={option} style={{ height: chartHeight }} notMerge />
 }
 
 export function BarChart({ data, bars, dataKey = 'name', height = 300 }: BarChartProps) {

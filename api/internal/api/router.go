@@ -170,6 +170,11 @@ func (r *Router) registerStatsRoutes(v1 *gin.RouterGroup) {
 		stats.GET("/export", statsHandler.Export)
 		stats.GET("/customers", statsHandler.GetCustomers)
 		stats.GET("/customers/:client_id", statsHandler.GetCustomer)
+		stats.GET("/devices", statsHandler.GetDeviceStats)
+		stats.GET("/geo", statsHandler.GetGeoStats)
+		stats.GET("/abandonment", statsHandler.GetAbandonmentStats)
+		stats.GET("/heatmap", statsHandler.GetHeatmapStats)
+		stats.GET("/channels", statsHandler.GetChannelStats)
 	}
 }
 
@@ -179,6 +184,9 @@ func (r *Router) registerOrdersRoutes(v1 *gin.RouterGroup) {
 	orders.Use(r.mw.JWTAuth())
 	{
 		orders.GET("/orders", ordersHandler.ListOrders)
+		orders.GET("/orders/retention", ordersHandler.GetRetentionCohort)
+		orders.GET("/orders/refunds", ordersHandler.GetRefundStats)
+		orders.GET("/orders/cross-sell", ordersHandler.GetCrossSell)
 		orders.GET("/orders/:woo_order_id", ordersHandler.GetOrderDetail)
 		orders.GET("/contacts", ordersHandler.ListContacts)
 	}

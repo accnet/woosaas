@@ -468,11 +468,132 @@ func (h *StatsHandler) GetCustomer(c *gin.Context) {
 	c.JSON(http.StatusOK, customer)
 }
 
+// GetDeviceStats returns breakdown by device, browser, and OS.
+func (h *StatsHandler) GetDeviceStats(c *gin.Context) {
+	siteID := c.Query("site_id")
+	from := c.Query("from")
+	to := c.Query("to")
+	if siteID == "" || from == "" || to == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "site_id, from, and to are required"})
+		return
+	}
+	if !h.requireSiteAccess(c, siteID) {
+		return
+	}
+	from, to, ok := normalizeDateRange(c, from, to)
+	if !ok {
+		return
+	}
+	result, err := h.stats.GetDeviceStats(c.Request.Context(), siteID, from, to)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+// GetGeoStats returns breakdown by country.
+func (h *StatsHandler) GetGeoStats(c *gin.Context) {
+	siteID := c.Query("site_id")
+	from := c.Query("from")
+	to := c.Query("to")
+	if siteID == "" || from == "" || to == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "site_id, from, and to are required"})
+		return
+	}
+	if !h.requireSiteAccess(c, siteID) {
+		return
+	}
+	from, to, ok := normalizeDateRange(c, from, to)
+	if !ok {
+		return
+	}
+	result, err := h.stats.GetGeoStats(c.Request.Context(), siteID, from, to)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+// GetAbandonmentStats returns cart abandonment analysis.
+func (h *StatsHandler) GetAbandonmentStats(c *gin.Context) {
+	siteID := c.Query("site_id")
+	from := c.Query("from")
+	to := c.Query("to")
+	if siteID == "" || from == "" || to == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "site_id, from, and to are required"})
+		return
+	}
+	if !h.requireSiteAccess(c, siteID) {
+		return
+	}
+	from, to, ok := normalizeDateRange(c, from, to)
+	if !ok {
+		return
+	}
+	result, err := h.stats.GetAbandonmentStats(c.Request.Context(), siteID, from, to)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+// GetHeatmapStats returns hour-of-day × day-of-week analytics heatmap.
+func (h *StatsHandler) GetHeatmapStats(c *gin.Context) {
+	siteID := c.Query("site_id")
+	from := c.Query("from")
+	to := c.Query("to")
+	metric := c.DefaultQuery("metric", "sessions")
+	if siteID == "" || from == "" || to == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "site_id, from, and to are required"})
+		return
+	}
+	if !h.requireSiteAccess(c, siteID) {
+		return
+	}
+	from, to, ok := normalizeDateRange(c, from, to)
+	if !ok {
+		return
+	}
+	cells, err := h.stats.GetHeatmapStats(c.Request.Context(), siteID, from, to, metric)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, cells)
+}
+
+// GetChannelStats returns revenue/sessions/conversions grouped by marketing channel.
+func (h *StatsHandler) GetChannelStats(c *gin.Context) {
+	siteID := c.Query("site_id")
+	from := c.Query("from")
+	to := c.Query("to")
+	if siteID == "" || from == "" || to == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "site_id, from, and to are required"})
+		return
+	}
+	if !h.requireSiteAccess(c, siteID) {
+		return
+	}
+	from, to, ok := normalizeDateRange(c, from, to)
+	if !ok {
+		return
+	}
+	result, err := h.stats.GetChannelStats(c.Request.Context(), siteID, from, to)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
 // requireSiteAccess checks if the user can read the site.
 // M1: Result is cached in Redis for 5 minutes to avoid a Postgres query on every metrics request.
 func (h *StatsHandler) requireSiteAccess(c *gin.Context, siteID string) bool {
 	userID := c.GetString("user_id")
-	
+
 	cacheKey := fmt.Sprintf("perm:%s:%s", userID, siteID)
 	if allowed, err := h.redis.Get(c.Request.Context(), cacheKey).Bool(); err == nil {
 		if !allowed {
@@ -483,7 +604,7 @@ func (h *StatsHandler) requireSiteAccess(c *gin.Context, siteID string) bool {
 	}
 
 	allowed, err := h.repo.UserHasSitePermission(c.Request.Context(), userID, siteID, "site:read")
-	
+
 	// Cache the boolean result
 	h.redis.Set(c.Request.Context(), cacheKey, allowed, 5*time.Minute)
 

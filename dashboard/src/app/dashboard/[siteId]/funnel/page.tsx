@@ -21,7 +21,7 @@ import { useSiteId } from '@/hooks/use-site-id'
 import axios from 'axios'
 import { getApiErrorMessage, statsApi } from '@/lib/api'
 import { DATE_RANGE_OPTIONS, getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
-import type { FunnelStats } from '@/lib/types'
+import type { FunnelStats, OverviewStats } from '@/lib/types'
 import { useDateRange } from '@/hooks/use-date-range'
 
 function FunnelBar({
@@ -75,6 +75,7 @@ function getBottleneckNarrative(label: string) {
 export default function FunnelPage() {
   const siteId = useSiteId()
   const [funnel, setFunnel] = useState<FunnelStats | null>(null)
+  const [overview, setOverview] = useState<OverviewStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -92,8 +93,12 @@ export default function FunnelPage() {
 
       try {
         const { from, to } = getPresetDateRange(dateRange)
-        const res = await statsApi.funnel(siteId, from, to, { signal: controller.signal })
-        setFunnel(res.data)
+        const [funnelRes, overviewRes] = await Promise.all([
+          statsApi.funnel(siteId, from, to, { signal: controller.signal }),
+          statsApi.overview(siteId, from, to, 'UTC', { signal: controller.signal }),
+        ])
+        setFunnel(funnelRes.data)
+        setOverview(overviewRes.data)
       } catch (err) {
         if (axios.isCancel(err)) return
         setError(getApiErrorMessage(err, 'Funnel analytics could not be loaded right now.'))
@@ -319,6 +324,17 @@ export default function FunnelPage() {
                       {getBottleneckNarrative(funnelSummary.weakestStep?.label || '')}
                     </p>
                   </div>
+                  {overview?.aov && overview.aov > 0 && (
+                    <div className="rounded-lg border border-red-100 bg-red-50 p-4">
+                      <div className="text-sm font-semibold text-red-800">Estimated revenue lost at checkout</div>
+                      <div className="mt-1 text-2xl font-bold text-red-700">
+                        ${((funnel.checkouts - funnel.purchases) * overview.aov).toFixed(2)}
+                      </div>
+                      <p className="mt-1 text-xs text-red-600">
+                        {(funnel.checkouts - funnel.purchases).toLocaleString()} checkout sessions × ${overview.aov.toFixed(2)} AOV
+                      </p>
+                    </div>
+                  )}
                   <div className="rounded-lg border border-app-line bg-app-panel p-4">
                     <div className="text-sm font-semibold text-app-strong">Purchase completion</div>
                     <p className="mt-2 text-sm text-app-muted">

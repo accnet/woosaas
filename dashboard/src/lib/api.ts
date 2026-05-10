@@ -3,17 +3,27 @@ import { clearStoredAuth, getStoredToken } from '@/lib/auth-storage'
 import type {
   APIKey,
   APIKeyResponse,
+  AbandonmentStats,
   AuthResponse,
   BotReportResponse,
   CampaignStats,
+  ChannelStat,
   CreateSiteMemberInput,
   CreateSiteInput,
+  CrossSellPair,
   CustomerDetailResponse,
   CustomerListResponse,
+  DeviceStats,
   EventResponse,
   FunnelStats,
+  GeoStat,
+  HeatmapCell,
   OrderDetail,
   OrderListResponse,
+  RefundStats,
+  RetentionCohort,
+  WooContactListResponse,
+  WooOrderSyncState,
   OverviewStats,
   PageStats,
   PipelineHealth,
@@ -172,16 +182,65 @@ export const statsApi = {
     const params = new URLSearchParams({ site_id: siteId, type, from, to })
     return `${API_URL}/api/v1/stats/export?${params.toString()}`
   },
+  devices: (siteId: string, from: string, to: string, config?: AxiosRequestConfig) =>
+    api.get<DeviceStats>('/api/v1/stats/devices', {
+      params: { site_id: siteId, from, to },
+      ...config,
+    }),
+  geo: (siteId: string, from: string, to: string, config?: AxiosRequestConfig) =>
+    api.get<GeoStat[]>('/api/v1/stats/geo', {
+      params: { site_id: siteId, from, to },
+      ...config,
+    }),
+  abandonment: (siteId: string, from: string, to: string, config?: AxiosRequestConfig) =>
+    api.get<AbandonmentStats>('/api/v1/stats/abandonment', {
+      params: { site_id: siteId, from, to },
+      ...config,
+    }),
+  heatmap: (siteId: string, from: string, to: string, metric = 'sessions', config?: AxiosRequestConfig) =>
+    api.get<HeatmapCell[]>('/api/v1/stats/heatmap', {
+      params: { site_id: siteId, from, to, metric },
+      ...config,
+    }),
+  channels: (siteId: string, from: string, to: string, config?: AxiosRequestConfig) =>
+    api.get<ChannelStat[]>('/api/v1/stats/channels', {
+      params: { site_id: siteId, from, to },
+      ...config,
+    }),
 }
 
 export const ordersApi = {
-  list: (siteId: string, page = 1, pageSize = 25, params?: Record<string, string | number | undefined>) =>
+  list: (siteId: string, page = 1, pageSize = 25, params?: {
+    q?: string
+    payment_status?: string
+    fulfillment_status?: string
+    date_from?: string
+    date_to?: string
+  }) =>
     api.get<OrderListResponse>('/api/v1/orders', {
       params: { site_id: siteId, page, page_size: pageSize, ...(params || {}) },
     }),
   detail: (siteId: string, wooOrderId: string) =>
     api.get<OrderDetail>(`/api/v1/orders/${encodeURIComponent(wooOrderId)}`, {
       params: { site_id: siteId },
+    }),
+  listContacts: (siteId: string, page = 1, pageSize = 25, q?: string) =>
+    api.get<WooContactListResponse>('/api/v1/contacts', {
+      params: { site_id: siteId, page, page_size: pageSize, ...(q ? { q } : {}) },
+    }),
+  syncState: (siteId: string) =>
+    api.get<WooOrderSyncState>(`/api/v1/sites/${siteId}/orders/sync-state`),
+  retention: (siteId: string) =>
+    api.get<RetentionCohort[]>('/api/v1/orders/retention', {
+      params: { site_id: siteId },
+    }),
+  refunds: (siteId: string, from: string, to: string) =>
+    api.get<RefundStats>('/api/v1/orders/refunds', {
+      params: { site_id: siteId, from, to },
+    }),
+  crossSell: (siteId: string, limit = 20) =>
+    api.get<CrossSellPair[]>('/api/v1/orders/cross-sell', {
+      params: { site_id: siteId, limit },
     }),
 }
 

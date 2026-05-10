@@ -3,21 +3,28 @@ import {
   Bot,
   ChartColumn,
   Download,
+  Globe2,
   House,
   Globe,
   HeartPulse,
   KeyRound,
+  Layers2,
   LayoutDashboard,
   LifeBuoy,
   LineChart,
   Mail,
+  MapPin,
   Megaphone,
+  Monitor,
   Package,
   PanelLeft,
   ReceiptText,
+  RefreshCcw,
+  RotateCcw,
   ShoppingCart,
   Settings2,
   Target,
+  TrendingUp,
   Users,
 } from 'lucide-react'
 
@@ -52,18 +59,26 @@ export const siteAppsNav: NavItem[] = [
 
 export const siteAnalyticsNav: NavItem[] = [
   { href: 'overview', label: 'Overview', icon: ChartColumn },
-  { href: 'trend', label: 'Trend', icon: LineChart },
+  { href: 'trend', label: 'Growth', icon: LineChart },
+  { href: 'devices', label: 'Devices', icon: Monitor },
+  { href: 'geo', label: 'Geography', icon: Globe2 },
 ]
 
 export const siteAcquisitionNav: NavItem[] = [
   { href: 'sources', label: 'Sources', icon: Target },
   { href: 'campaigns', label: 'Campaigns', icon: Megaphone },
+  { href: 'channels', label: 'Channels', icon: Layers2 },
 ]
 
 export const siteCommerceNav: NavItem[] = [
+  { href: 'revenue', label: 'Revenue', icon: TrendingUp },
   { href: 'pages', label: 'Pages', icon: PanelLeft },
   { href: 'products', label: 'Products', icon: Package },
   { href: 'funnel', label: 'Funnel', icon: ShoppingCart },
+  { href: 'abandonment', label: 'Abandonment', icon: MapPin },
+  { href: 'heatmap', label: 'Time Heatmap', icon: Target },
+  { href: 'retention', label: 'Retention', icon: RefreshCcw },
+  { href: 'refunds', label: 'Refunds', icon: RotateCcw },
 ]
 
 export const siteOperationsNav: NavItem[] = [

@@ -17,7 +17,7 @@ import { sitesApi, statsApi } from '@/lib/api'
 import { getDataFreshnessState } from '@/lib/data-freshness'
 import { DATE_RANGE_OPTIONS, getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import { useSiteId } from '@/hooks/use-site-id'
-import type { OverviewStats, PageStats, Site, TrendPoint } from '@/lib/types'
+import type { OverviewStats, PageStats, ProductStats, Site, SourceStats, TrendPoint } from '@/lib/types'
 import { useDateRange } from '@/hooks/use-date-range'
 
 const calcDelta = (current: number | undefined, previous: number | undefined): number | null => {
@@ -63,6 +63,8 @@ export default function OverviewPage() {
   const [site, setSite] = useState<Site | null>(null)
   const [trend, setTrend] = useState<TrendPoint[]>([])
   const [pages, setPages] = useState<PageStats[]>([])
+  const [products, setProducts] = useState<ProductStats[]>([])
+  const [sources, setSources] = useState<SourceStats[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [dateRange, setDateRange] = useDateRange()
@@ -77,16 +79,20 @@ export default function OverviewPage() {
       }
       try {
         const { from, to } = getPresetDateRange(dateRange)
-        const [siteRes, overviewRes, trendRes, pagesRes] = await Promise.all([
+        const [siteRes, overviewRes, trendRes, pagesRes, productsRes, sourcesRes] = await Promise.all([
           sitesApi.get(siteId),
           statsApi.overview(siteId, from, to, 'UTC', { signal: controller.signal }),
           statsApi.trend(siteId, from, to, 'day', { signal: controller.signal }),
           statsApi.pages(siteId, from, to, 10, { signal: controller.signal }),
+          statsApi.products(siteId, from, to, 5, { signal: controller.signal }),
+          statsApi.sources(siteId, from, to, { signal: controller.signal }),
         ])
         setSite(siteRes.data)
         setOverview(overviewRes.data)
         setTrend(trendRes.data)
         setPages(pagesRes.data)
+        setProducts(productsRes.data)
+        setSources(sourcesRes.data.slice(0, 5))
       } catch (err) {
         if (axios.isCancel(err)) return
         console.error('Failed to load stats', err)
@@ -135,7 +141,7 @@ export default function OverviewPage() {
 
   const pagesPerSession = useMemo(() =>
     overview && overview.sessions > 0
-      ? (overview.pageviews / overview.sessions).toFixed(2)
+      ? (overview.pages_per_session ?? (overview.pageviews / overview.sessions)).toFixed(2)
       : '0.00',
   [overview])
 
@@ -213,14 +219,15 @@ export default function OverviewPage() {
             />
           </MetricGrid>
 
-          <SectionCard title="Traffic Trend">
+          <SectionCard title="Traffic & Revenue Trend">
             {trend.length > 0 ? (
               <MultiLineChart
                 data={trend}
                 lines={[
-                  { dataKey: 'pageviews', color: '#6366f1', name: 'Pageviews' },
-                  { dataKey: 'sessions', color: '#22c55e', name: 'Sessions' },
-                  { dataKey: 'purchases', color: '#f59e0b', name: 'Purchases' },
+                  { dataKey: 'pageviews', color: '#6366f1', name: 'Pageviews', yAxisId: 'left' },
+                  { dataKey: 'sessions', color: '#22c55e', name: 'Sessions', yAxisId: 'left' },
+                  { dataKey: 'purchases', color: '#f59e0b', name: 'Purchases', yAxisId: 'left' },
+                  { dataKey: 'revenue', color: '#10b981', name: 'Revenue', yAxisId: 'right' },
                 ]}
               />
             ) : (
@@ -270,6 +277,10 @@ export default function OverviewPage() {
               <DetailRow label="Unique Users" value={overview?.users?.toLocaleString() || '0'} />
               <DetailRow label="Sessions" value={overview?.sessions?.toLocaleString() || '0'} />
               <DetailRow label="Pages / Session" value={pagesPerSession} />
+              <DetailRow
+                label="Bounce Rate"
+                value={`${(overview?.bounce_rate ?? 0).toFixed(1)}%`}
+              />
             </div>
           </SectionCard>
         </div>
@@ -281,6 +292,58 @@ export default function OverviewPage() {
               <EmptyState body="No page data available yet." />
             )}
           </SectionCard>
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <SectionCard title="Top Products by Revenue" className="overflow-hidden px-0 py-0">
+              {products.length > 0 ? (
+                <table className="min-w-full">
+                  <thead className="table-header">
+                    <tr>
+                      <th className="table-header-cell text-left">Product</th>
+                      <th className="table-header-cell text-right">Revenue</th>
+                      <th className="table-header-cell text-right">Conv.</th>
+                    </tr>
+                  </thead>
+                  <tbody className="table-body">
+                    {products.map((p) => (
+                      <tr key={p.product_id} className="table-row">
+                        <td className="table-cell truncate max-w-[160px] text-sm font-medium text-app-strong" title={p.product_name}>{p.product_name || p.product_id}</td>
+                        <td className="table-cell text-right text-sm font-medium text-emerald-700">${(p.revenue || 0).toFixed(2)}</td>
+                        <td className="table-cell text-right text-xs text-app-muted">{(p.conversion_rate || 0).toFixed(1)}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <EmptyState body="No product data yet." className="py-6" />
+              )}
+            </SectionCard>
+
+            <SectionCard title="Top Sources by Revenue" className="overflow-hidden px-0 py-0">
+              {sources.length > 0 ? (
+                <table className="min-w-full">
+                  <thead className="table-header">
+                    <tr>
+                      <th className="table-header-cell text-left">Source</th>
+                      <th className="table-header-cell text-right">Revenue</th>
+                      <th className="table-header-cell text-right">Conv.</th>
+                    </tr>
+                  </thead>
+                  <tbody className="table-body">
+                    {sources.map((s) => (
+                      <tr key={`${s.source}-${s.medium}`} className="table-row">
+                        <td className="table-cell text-sm font-medium text-app-strong">{s.source || '(direct)'}<span className="ml-1 text-xs text-app-soft">{s.medium ? `/ ${s.medium}` : ''}</span></td>
+                        <td className="table-cell text-right text-sm font-medium text-emerald-700">${(s.revenue || 0).toFixed(2)}</td>
+                        <td className="table-cell text-right text-xs text-app-muted">{(s.conversion_rate || 0).toFixed(1)}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <EmptyState body="No source data yet." className="py-6" />
+              )}
+            </SectionCard>
+          </div>
         </AnalyticsPageContent>
       </div>
     </AnalyticsPage>

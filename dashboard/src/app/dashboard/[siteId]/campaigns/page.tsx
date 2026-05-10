@@ -148,6 +148,16 @@ export default function CampaignsPage() {
         </MetricGrid>
 
         <div>
+          {totals.topCampaign && (
+            <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">Top Campaign by Revenue</p>
+              <p className="mt-1 text-base font-bold text-emerald-900">{totals.topCampaign.campaign || '(none)'}</p>
+              <p className="mt-0.5 text-sm text-emerald-700">
+                ${totals.topCampaign.revenue.toFixed(2)} revenue &middot; {totals.topCampaign.sessions.toLocaleString()} sessions
+                {totals.topCampaign.source ? ` · via ${totals.topCampaign.source}` : ''}
+              </p>
+            </div>
+          )}
           <SectionCard
             title="Campaign Breakdown"
             className="overflow-hidden px-0 py-0"

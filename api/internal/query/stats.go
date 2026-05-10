@@ -71,9 +71,34 @@ func (s *Stats) GetOverview(ctx context.Context, siteID, from, to, timezone stri
 
 	if stats.Sessions > 0 {
 		stats.ConversionRate = float64(stats.ConvertingSessions) / float64(stats.Sessions) * 100
+		stats.PagesPerSession = float64(stats.Pageviews) / float64(stats.Sessions)
 	}
 	if stats.Orders > 0 {
 		stats.AOV = stats.Revenue / float64(stats.Orders)
+	}
+
+	// Bounce rate: sessions with only a single event
+	bounceQ := `
+		SELECT
+			toInt64(countIf(event_count = 1)) as bounced,
+			toInt64(count()) as total
+		FROM (
+			SELECT session_id, count() as event_count
+			FROM analytics_events
+			WHERE site_id = ? AND event_time >= ? AND event_time <= ? AND bot_score < 70
+			GROUP BY session_id
+		)
+	`
+	bRows, err := s.ch.Query(ctx, bounceQ, siteID, from, to)
+	if err == nil {
+		defer bRows.Close()
+		var bounced, total int64
+		if bRows.Next() {
+			_ = bRows.Scan(&bounced, &total)
+		}
+		if total > 0 {
+			stats.BounceRate = float64(bounced) / float64(total) * 100
+		}
 	}
 
 	s.cache.set(ctx, key, &stats, ttl)
@@ -93,6 +118,8 @@ type OverviewStats struct {
 	ConversionRate     float64 `json:"conversion_rate"`
 	AOV                float64 `json:"aov"`
 	ConvertingSessions int64   `json:"converting_sessions"`
+	BounceRate         float64 `json:"bounce_rate"`
+	PagesPerSession    float64 `json:"pages_per_session"`
 }
 
 // granularityFormats maps granularity strings to ClickHouse date format strings.
@@ -125,7 +152,10 @@ func (s *Stats) GetTrend(ctx context.Context, siteID, from, to, timezone, granul
 			toInt64(uniqExact(session_id)) as sessions,
 			toInt64(uniqExact(client_id)) as users,
 			toInt64(countIf(event_name = 'purchase')) as purchases,
-			toFloat64(sumIf(revenue, event_name = 'purchase')) as total_revenue
+			toFloat64(sumIf(revenue, event_name = 'purchase')) as total_revenue,
+			toInt64(countIf(event_name = 'add_to_cart')) as add_to_carts,
+			toInt64(countIf(event_name = 'checkout_start')) as checkouts,
+			toInt64(countIf(event_name = 'product_view')) as product_views
 		FROM analytics_events
 		WHERE site_id = ? AND event_time >= ? AND event_time <= ? AND bot_score < 70
 		GROUP BY date ORDER BY date
@@ -140,7 +170,7 @@ func (s *Stats) GetTrend(ctx context.Context, siteID, from, to, timezone, granul
 	var points []TrendPoint
 	for rows.Next() {
 		var point TrendPoint
-		err := rows.Scan(&point.Date, &point.Pageviews, &point.Sessions, &point.Users, &point.Purchases, &point.Revenue)
+		err := rows.Scan(&point.Date, &point.Pageviews, &point.Sessions, &point.Users, &point.Purchases, &point.Revenue, &point.AddToCarts, &point.Checkouts, &point.ProductViews)
 		if err != nil {
 			return nil, err
 		}
@@ -154,12 +184,15 @@ func (s *Stats) GetTrend(ctx context.Context, siteID, from, to, timezone, granul
 }
 
 type TrendPoint struct {
-	Date      time.Time `json:"date"`
-	Pageviews int64     `json:"pageviews"`
-	Sessions  int64     `json:"sessions"`
-	Users     int64     `json:"users"`
-	Purchases int64     `json:"purchases"`
-	Revenue   float64   `json:"revenue"`
+	Date         time.Time `json:"date"`
+	Pageviews    int64     `json:"pageviews"`
+	Sessions     int64     `json:"sessions"`
+	Users        int64     `json:"users"`
+	Purchases    int64     `json:"purchases"`
+	Revenue      float64   `json:"revenue"`
+	AddToCarts   int64     `json:"add_to_carts"`
+	Checkouts    int64     `json:"checkouts"`
+	ProductViews int64     `json:"product_views"`
 }
 
 // GetSources returns traffic source breakdown. Results are cached for 5 minutes.

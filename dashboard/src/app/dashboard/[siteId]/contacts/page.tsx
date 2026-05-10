@@ -1,59 +1,89 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
 import axios from 'axios'
-import { ChevronRight, RefreshCw, Users } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, BadgeDollarSign, Crown, RefreshCw, Repeat2, Users } from 'lucide-react'
 import { AnalyticsPageHeader } from '@/components/ui/analytics-page-header'
 import { AnalyticsPage, AnalyticsPageContent, MetricGrid } from '@/components/ui/analytics-page-layout'
-import { FilterPills } from '@/components/ui/filter-pills'
+import { EmptyState } from '@/components/ui/empty-state'
 import { InlineErrorState } from '@/components/ui/inline-error-state'
 import { MetricCard } from '@/components/ui/metric-card'
 import { PaginationControls } from '@/components/ui/pagination-controls'
 import { SearchInput } from '@/components/ui/search-input'
+import { SectionCard } from '@/components/ui/section-card'
 import { StatusChip } from '@/components/ui/status-chip'
 import { TableLoadingSkeleton } from '@/components/ui/table-loading-skeleton'
-import { TableHeaderCell, TableRowActionZone } from '@/components/ui/table-primitives'
-import { TableSection } from '@/components/ui/table-section'
 import { useSiteId } from '@/hooks/use-site-id'
-import { getApiErrorMessage, statsApi } from '@/lib/api'
-import type { Customer, CustomerListResponse } from '@/lib/types'
-
-type ContactFilter = 'all' | 'identified' | 'anonymous' | 'repeat'
+import { getApiErrorMessage, ordersApi } from '@/lib/api'
+import type { OrderContact, WooContactListResponse } from '@/lib/types'
 
 const PAGE_SIZE = 25
 
+const SPEND_TIERS = [
+  { label: 'All', key: 'all' },
+  { label: 'VIP (>$500)', key: 'vip' },
+  { label: 'Repeat (>1 order)', key: 'repeat' },
+  { label: 'New (1 order)', key: 'new' },
+]
+
+type SortKey = 'total_spent' | 'orders_count' | 'last_seen_at'
+type SortDir = 'asc' | 'desc'
+
+function FilterPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full border px-3 py-1 text-xs font-semibold transition-all duration-150 ${
+        active
+          ? 'border-indigo-500 bg-indigo-500 text-white shadow-sm'
+          : 'border-slate-200 bg-white text-slate-500 hover:border-indigo-300 hover:text-indigo-600'
+      }`}
+    >
+      {label}
+    </button>
+  )
+}
+
+function avatarColors(seed: string) {
+  const palettes = [
+    'bg-violet-100 text-violet-700',
+    'bg-blue-100 text-blue-700',
+    'bg-emerald-100 text-emerald-700',
+    'bg-amber-100 text-amber-700',
+    'bg-rose-100 text-rose-700',
+    'bg-cyan-100 text-cyan-700',
+    'bg-indigo-100 text-indigo-700',
+    'bg-orange-100 text-orange-700',
+  ]
+  const idx = (seed.charCodeAt(0) || 0) % palettes.length
+  return palettes[idx]
+}
+
+function money(amount: number) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(
+    amount || 0,
+  )
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return '-'
+  return new Date(value).toLocaleDateString()
+}
+
 export default function ContactsPage() {
   const siteId = useSiteId()
-  const [contacts, setContacts] = useState<Customer[]>([])
+  const [contacts, setContacts] = useState<OrderContact[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
+  const [query, setQuery] = useState('')
+  const [spendTier, setSpendTier] = useState('all')
+  const [sortKey, setSortKey] = useState<SortKey>('total_spent')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
-  const searchParams = useSearchParams()
-  const router = useRouter()
-
-  const [query, setQueryInternal] = useState(searchParams.get('q') ?? '')
-  const [filter, setFilterInternal] = useState<ContactFilter>((searchParams.get('f') as ContactFilter) || 'all')
-
-  const setQuery = (value: string) => {
-    setQueryInternal(value)
-    const params = new URLSearchParams(searchParams.toString())
-    if (value) params.set('q', value)
-    else params.delete('q')
-    router.replace(`?${params.toString()}`, { scroll: false })
-  }
-
-  const setFilter = (value: ContactFilter) => {
-    setFilterInternal(value)
-    const params = new URLSearchParams(searchParams.toString())
-    if (value !== 'all') params.set('f', value)
-    else params.delete('f')
-    router.replace(`?${params.toString()}`, { scroll: false })
-  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -64,13 +94,12 @@ export default function ContactsPage() {
       } else {
         setRefreshing(true)
       }
-
       setError(null)
 
       try {
-        const res = await statsApi.customers(siteId, page, PAGE_SIZE, { signal: controller.signal })
-        const data = res.data as CustomerListResponse
-        setContacts(data.customers)
+        const res = await ordersApi.listContacts(siteId, page, PAGE_SIZE, query || undefined)
+        const data = res.data as WooContactListResponse
+        setContacts(data.contacts)
         setTotalCount(data.total_count)
       } catch (err) {
         if (!axios.isCancel(err)) {
@@ -85,39 +114,47 @@ export default function ContactsPage() {
     void loadData()
 
     return () => controller.abort()
-  }, [contacts.length, page, reloadKey, siteId])
-
-  const filteredContacts = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase()
-
-    return contacts.filter((contact) => {
-      const matchesQuery =
-        !normalizedQuery ||
-        contact.email.toLowerCase().includes(normalizedQuery) ||
-        contact.client_id.toLowerCase().includes(normalizedQuery)
-
-      const matchesFilter =
-        filter === 'all' ||
-        (filter === 'identified' && Boolean(contact.email)) ||
-        (filter === 'anonymous' && !contact.email) ||
-        (filter === 'repeat' && contact.total_orders > 1)
-
-      return matchesQuery && matchesFilter
-    })
-  }, [contacts, filter, query])
+  }, [page, reloadKey, siteId, query])
 
   const totals = useMemo(() => {
-    const visibleRevenue = filteredContacts.reduce((sum, contact) => sum + (contact.total_revenue || 0), 0)
-    const visibleOrders = filteredContacts.reduce((sum, contact) => sum + (contact.total_orders || 0), 0)
-    const identifiedContacts = filteredContacts.filter((contact) => contact.email).length
+    const totalRevenue = contacts.reduce((sum, c) => sum + (c.total_spent || 0), 0)
+    const totalOrders = contacts.reduce((sum, c) => sum + (c.orders_count || 0), 0)
+    return { totalRevenue, totalOrders }
+  }, [contacts])
 
-    return { visibleRevenue, visibleOrders, identifiedContacts }
-  }, [filteredContacts])
+  // Client-side filter + sort on loaded page
+  const displayedContacts = useMemo(() => {
+    let result = [...contacts]
+    if (spendTier === 'vip') result = result.filter((c) => c.total_spent > 500)
+    else if (spendTier === 'repeat') result = result.filter((c) => c.orders_count > 1)
+    else if (spendTier === 'new') result = result.filter((c) => c.orders_count === 1)
+
+    result.sort((a, b) => {
+      let av: number, bv: number
+      if (sortKey === 'total_spent') { av = a.total_spent || 0; bv = b.total_spent || 0 }
+      else if (sortKey === 'orders_count') { av = a.orders_count || 0; bv = b.orders_count || 0 }
+      else { av = new Date(a.last_seen_at || 0).getTime(); bv = new Date(b.last_seen_at || 0).getTime() }
+      return sortDir === 'desc' ? bv - av : av - bv
+    })
+    return result
+  }, [contacts, spendTier, sortKey, sortDir])
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortDir((d) => d === 'desc' ? 'asc' : 'desc')
+    else { setSortKey(key); setSortDir('desc') }
+  }
+
+  function SortIcon({ column }: { column: SortKey }) {
+    if (sortKey !== column) return <ArrowUpDown className="ml-1 h-3 w-3 text-app-subtle" />
+    return sortDir === 'desc'
+      ? <ArrowDown className="ml-1 h-3 w-3 text-indigo-500" />
+      : <ArrowUp className="ml-1 h-3 w-3 text-indigo-500" />
+  }
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
   if (loading && contacts.length === 0) {
-    return <TableLoadingSkeleton rows={6} columns={8} />
+    return <TableLoadingSkeleton rows={6} columns={7} />
   }
 
   return (
@@ -126,9 +163,8 @@ export default function ContactsPage() {
         title="Contacts"
         controls={
           <div className="flex flex-wrap items-center gap-2">
-            <StatusChip label={`${totalCount.toLocaleString()} total`} tone="neutral" />
-            {refreshing ? <StatusChip label="Refreshing" tone="info" /> : null}
-            <SearchInput value={query} onChange={setQuery} placeholder="Search email or client id" />
+            {refreshing ? <StatusChip label="Refreshing…" tone="info" /> : null}
+            <SearchInput value={query} onChange={setQuery} placeholder="Search name, email or phone…" />
             <button
               type="button"
               className="btn-secondary gap-2"
@@ -150,118 +186,120 @@ export default function ContactsPage() {
           />
         ) : null}
 
+        {/* Filter + sort bar */}
+        <div className="rounded-xl border border-app-line bg-white px-4 py-3 shadow-sm">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wider text-app-soft">Segment</span>
+              <div className="flex flex-wrap gap-1">
+                {SPEND_TIERS.map((t) => (
+                  <FilterPill key={t.key} label={t.label} active={spendTier === t.key} onClick={() => setSpendTier(t.key)} />
+                ))}
+              </div>
+            </div>
+            <div className="ml-auto flex items-center gap-3">
+              <span className="text-xs text-app-muted">Sort by:</span>
+              {(['total_spent', 'orders_count', 'last_seen_at'] as SortKey[]).map((key) => {
+                const labels: Record<SortKey, string> = { total_spent: 'Revenue', orders_count: 'Orders', last_seen_at: 'Last Order' }
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`flex items-center text-xs font-semibold transition ${sortKey === key ? 'text-indigo-600' : 'text-app-muted hover:text-app-strong'}`}
+                    onClick={() => toggleSort(key)}
+                  >
+                    {labels[key]}
+                    <SortIcon column={key} />
+                  </button>
+                )
+              })}
+              <span className="text-xs text-app-muted">{totalCount.toLocaleString()} contacts</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Metrics */}
         <MetricGrid>
-          <MetricCard label="Contacts" value={totalCount.toLocaleString()} />
-          <MetricCard label="Orders" value={totals.visibleOrders.toLocaleString()} />
-          <MetricCard label="Revenue" value={`$${totals.visibleRevenue.toFixed(2)}`} tone="good" />
-          <MetricCard label="Identified" value={totals.identifiedContacts.toLocaleString()} />
+          <MetricCard label="Contacts" value={totalCount.toLocaleString()} icon={<Users className="h-5 w-5" />} />
+          <MetricCard label="Total Orders" value={totals.totalOrders.toLocaleString()} />
+          <MetricCard label="Total Revenue" value={money(totals.totalRevenue)} tone="good" icon={<BadgeDollarSign className="h-5 w-5" />} />
         </MetricGrid>
 
-        <TableSection
-          title="Contact Directory"
-          action={
-            <div className="flex items-center gap-2">
-                <StatusChip label={`${filteredContacts.length} visible`} tone="neutral" />
-            </div>
-          }
-          isEmpty={filteredContacts.length === 0}
-          emptyTitle={contacts.length === 0 ? 'No contact data yet' : 'No matching contacts'}
-          emptyBody={
-            contacts.length === 0
-              ? 'Contact records will appear here after identified sessions and orders are collected.'
-              : 'Try a different email fragment, client id, or contact filter.'
-          }
-          emptyIcon={<Users className="h-12 w-12" />}
+        {/* Contact cards */}
+        <SectionCard
+          title="WooCommerce Contacts"
+          action={<StatusChip label={`${displayedContacts.length} shown`} tone="neutral" />}
+          className="px-0 py-0 overflow-hidden"
         >
-          <div className="border-b border-app-line px-6 py-4">
-            <FilterPills
-              value={filter}
-              onChange={setFilter}
-              options={[
-                { value: 'all', label: 'All', count: contacts.length },
-                {
-                  value: 'identified',
-                  label: 'Identified',
-                  count: contacts.filter((contact) => contact.email).length,
-                },
-                {
-                  value: 'anonymous',
-                  label: 'Anonymous',
-                  count: contacts.filter((contact) => !contact.email).length,
-                },
-                {
-                  value: 'repeat',
-                  label: 'Repeat buyers',
-                  count: contacts.filter((contact) => contact.total_orders > 1).length,
-                },
-              ]}
-            />
-          </div>
-          <table className="min-w-full">
-            <thead className="table-header">
-              <tr>
-                <TableHeaderCell>Contact</TableHeaderCell>
-                <TableHeaderCell align="right">Sessions</TableHeaderCell>
-                <TableHeaderCell align="right">Orders</TableHeaderCell>
-                <TableHeaderCell align="right">Revenue</TableHeaderCell>
-                <TableHeaderCell align="right">Avg Order</TableHeaderCell>
-                <TableHeaderCell>Identity</TableHeaderCell>
-                <TableHeaderCell>Last Seen</TableHeaderCell>
-                <TableHeaderCell align="right">Actions</TableHeaderCell>
-              </tr>
-            </thead>
-            <tbody className="table-body">
-              {filteredContacts.map((contact) => (
-                <tr key={contact.client_id} className="table-row">
-                  <td className="table-cell">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-app-subtle text-sm font-medium text-app-strong">
-                        {(contact.email || '?').charAt(0).toUpperCase()}
+          {displayedContacts.length === 0 ? (
+            <div className="px-6 py-10">
+              <EmptyState
+                icon={<Users className="h-10 w-10" />}
+                title="No contacts yet"
+                body="Contacts are derived from synced WooCommerce orders. Enable order sync in the plugin settings."
+              />
+            </div>
+          ) : (
+            <div className="divide-y divide-app-line">
+              {displayedContacts.map((contact) => {
+                const displayName = contact.full_name || contact.email || '?'
+                const avatarClass = avatarColors(displayName)
+                const initial = displayName.charAt(0).toUpperCase()
+                const isVip = contact.total_spent > 500
+                const isRepeat = contact.orders_count > 1
+
+                return (
+                  <div key={contact.id} className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-slate-50/70">
+                    {/* Avatar */}
+                    <div className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold ${avatarClass}`}>
+                      {initial}
+                      {isVip ? (
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400">
+                          <Crown className="h-2.5 w-2.5 text-white" />
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {/* Name + email + badges */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold text-app-strong">{contact.full_name || 'Unknown'}</span>
+                        {isVip ? <StatusChip label="VIP" tone="warn" /> : null}
+                        {isRepeat && !isVip ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                            <Repeat2 className="h-3 w-3" />
+                            Repeat
+                          </span>
+                        ) : null}
                       </div>
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-app-strong">
-                          {contact.email || 'Anonymous'}
-                        </div>
-                        <div className="mt-1 text-xs text-app-soft">
-                          Client ID {contact.client_id.slice(0, 12)}...
-                        </div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0 text-xs text-app-muted">
+                        {contact.email ? <span>{contact.email}</span> : null}
+                        {contact.phone ? <span>{contact.phone}</span> : null}
+                        {contact.company ? <span className="text-app-soft">{contact.company}</span> : null}
                       </div>
                     </div>
-                  </td>
-                  <td className="table-cell text-right">{contact.total_sessions.toLocaleString()}</td>
-                  <td className="table-cell text-right">{contact.total_orders.toLocaleString()}</td>
-                  <td className="table-cell text-right font-medium">${contact.total_revenue.toFixed(2)}</td>
-                  <td className="table-cell text-right">${contact.avg_order_value.toFixed(2)}</td>
-                  <td className="table-cell">
-                    <div className="flex flex-wrap gap-2">
-                      <StatusChip label={contact.email ? 'Known' : 'Anonymous'} tone={contact.email ? 'info' : 'neutral'} />
-                      {contact.total_orders > 1 ? <StatusChip label="Repeat" tone="good" /> : null}
+
+                    {/* Stats */}
+                    <div className="hidden shrink-0 text-right sm:block">
+                      <div className="text-xs text-app-muted">Orders</div>
+                      <div className="mt-0.5 text-sm font-semibold text-app-strong">{contact.orders_count}</div>
                     </div>
-                  </td>
-                  <td className="table-cell">
-                    <div className="text-sm text-app-strong">
-                      {contact.last_seen ? new Date(contact.last_seen).toLocaleDateString() : '-'}
+                    <div className="shrink-0 text-right">
+                      <div className="text-xs text-app-muted">Revenue</div>
+                      <div className={`mt-0.5 text-base font-bold tabular-nums ${isVip ? 'text-amber-600' : 'text-emerald-600'}`}>
+                        {money(contact.total_spent)}
+                      </div>
                     </div>
-                    <div className="mt-1 text-xs text-app-muted">
-                      First seen {contact.first_seen ? new Date(contact.first_seen).toLocaleDateString() : '-'}
+                    <div className="hidden shrink-0 text-right lg:block">
+                      <div className="text-xs text-app-muted">Last order</div>
+                      <div className="mt-0.5 text-xs text-app-strong">{formatDate(contact.last_seen_at)}</div>
                     </div>
-                  </td>
-                  <td className="table-cell">
-                    <TableRowActionZone>
-                      <Link
-                        href={`/dashboard/${siteId}/contacts/${contact.client_id}`}
-                        className="btn-ghost px-2.5 py-1 text-xs"
-                      >
-                        View
-                        <ChevronRight className="ml-1 h-3.5 w-3.5" />
-                      </Link>
-                    </TableRowActionZone>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TableSection>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </SectionCard>
 
         <PaginationControls
           page={page}

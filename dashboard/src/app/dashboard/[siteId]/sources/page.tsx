@@ -46,6 +46,11 @@ export default function SourcesPage() {
   const totalSessions = sources.reduce((sum, s) => sum + s.sessions, 0)
   const totalRevenue = sources.reduce((sum, s) => sum + s.revenue, 0)
   const totalUsers = sources.reduce((sum, s) => sum + s.users, 0)
+  const avgConvRate = sources.length > 0
+    ? sources.reduce((sum, s) => sum + (s.conversion_rate || 0), 0) / sources.length
+    : 0
+  const totalConversions = sources.reduce((sum, s) => sum + (s.conversions || 0), 0)
+  const overallAOV = totalConversions > 0 ? totalRevenue / totalConversions : 0
 
   const columns: Column<SourceStats>[] = [
     { key: 'source', label: 'Source', render: (s) => <span className="font-medium text-app-strong">{s.source || '(direct)'}</span> },
@@ -96,6 +101,17 @@ export default function SourcesPage() {
     { key: 'conversions', label: 'Conversions', align: 'right', sortable: true, render: (s) => s.conversions?.toLocaleString() || '0', sortValue: (s) => s.conversions },
     { key: 'conversion_rate', label: 'Conv. Rate', align: 'right', sortable: true, render: (s) => `${(s.conversion_rate || 0).toFixed(2)}%`, sortValue: (s) => s.conversion_rate },
     {
+      key: 'aov',
+      label: 'AOV',
+      align: 'right',
+      sortable: true,
+      render: (s) => {
+        const aov = (s.conversions || 0) > 0 ? s.revenue / s.conversions : 0
+        return <span className={aov > 0 ? 'font-medium' : 'text-app-muted'}>${aov.toFixed(2)}</span>
+      },
+      sortValue: (s) => (s.conversions || 0) > 0 ? s.revenue / s.conversions : 0,
+    },
+    {
       key: 'revenue',
       label: 'Revenue',
       align: 'right',
@@ -132,11 +148,12 @@ export default function SourcesPage() {
       />
 
       <AnalyticsPageContent>
-        <MetricGrid>
+        <MetricGrid cols={5}>
           <MetricCard label="Sources" value={sources.length.toString()} />
           <MetricCard label="Sessions" value={totalSessions.toLocaleString()} />
           <MetricCard label="Users" value={totalUsers.toLocaleString()} />
           <MetricCard label="Revenue" value={`$${totalRevenue.toFixed(2)}`} tone={totalRevenue > 0 ? 'good' : 'neutral'} />
+          <MetricCard label="Avg Conv. Rate" value={`${avgConvRate.toFixed(2)}%`} helper={`Overall AOV: $${overallAOV.toFixed(2)}`} />
         </MetricGrid>
 
         <div>

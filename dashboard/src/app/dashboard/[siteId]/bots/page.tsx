@@ -93,6 +93,20 @@ export default function BotsPage() {
       />
 
       <AnalyticsPageContent>
+        {summary.botShare > 20 && (
+          <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-5 py-3">
+            <span className="mt-0.5 text-lg">⚠️</span>
+            <div>
+              <p className="text-sm font-bold text-red-800">
+                High Bot Activity Detected: {summary.botShare.toFixed(1)}% of events flagged as suspicious
+              </p>
+              <p className="text-xs text-red-700">
+                This is above the recommended threshold. Consider reviewing your traffic sources and implementing stricter bot filtering.
+              </p>
+            </div>
+          </div>
+        )}
+
         {error ? (
           <InlineErrorState
             body={error}

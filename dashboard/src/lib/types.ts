@@ -119,6 +119,8 @@ export interface OverviewStats {
   conversion_rate: number
   aov: number
   converting_sessions: number
+  bounce_rate: number
+  pages_per_session: number
 }
 
 export interface TrendPoint {
@@ -128,6 +130,9 @@ export interface TrendPoint {
   users: number
   purchases: number
   revenue: number
+  add_to_carts: number
+  checkouts: number
+  product_views: number
 }
 
 export interface SourceStats {
@@ -388,6 +393,29 @@ export interface OrderDetail {
   contact: OrderContact | null
 }
 
+export interface WooContactListResponse {
+  contacts: OrderContact[]
+  total_count: number
+  page: number
+  page_size: number
+}
+
+export interface WooOrderSyncState {
+  site_id: string
+  order_sync_enabled: boolean
+  contact_sync_enabled: boolean
+  status: string
+  last_backfill_modified_at: string | null
+  last_backfill_order_id: string | null
+  last_realtime_synced_at: string | null
+  last_success_at: string | null
+  last_error: string | null
+  last_error_at: string | null
+  backfill_completed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface BotReasonStat {
   reason: string
   count: number
@@ -415,3 +443,112 @@ export interface BotReportResponse {
   top_bot_sources: BotSourceStat[]
   top_bot_sessions: BotSessionStat[]
 }
+
+// ── Device / Geo analytics ──────────────────────────────────────────────────
+
+export interface DeviceBreakdown {
+  name: string
+  sessions: number
+  conversions: number
+  revenue: number
+  conversion_rate: number
+}
+
+export interface DeviceStats {
+  by_device: DeviceBreakdown[]
+  by_browser: DeviceBreakdown[]
+  by_os: DeviceBreakdown[]
+}
+
+export interface GeoStat {
+  country: string
+  sessions: number
+  users: number
+  conversions: number
+  revenue: number
+  conversion_rate: number
+}
+
+// ── Cart Abandonment ────────────────────────────────────────────────────────
+
+export interface AbandonedProduct {
+  product_id: string
+  product_name: string
+  add_to_carts: number
+  purchases: number
+  abandoned: number
+  abandon_rate: number
+}
+
+export interface AbandonmentStats {
+  abandoned_sessions: number
+  cart_sessions: number
+  abandonment_rate: number
+  aov: number
+  estimated_lost_revenue: number
+  top_abandoned_products: AbandonedProduct[]
+}
+
+// ── Time Heatmap ────────────────────────────────────────────────────────────
+
+export interface HeatmapCell {
+  day_of_week: number // 1=Mon … 7=Sun
+  hour_of_day: number // 0–23
+  value: number
+}
+
+// ── Customer Retention Cohort ───────────────────────────────────────────────
+
+export interface RetentionCohort {
+  cohort: string          // "YYYY-MM"
+  new_customers: number
+  returning_customers: number
+  repeat_rate: number
+}
+
+// ── Refund Analytics ────────────────────────────────────────────────────────
+
+export interface RefundTrendPoint {
+  month: string
+  total_orders: number
+  refunded_orders: number
+  refunded_revenue: number
+  refund_rate: number
+}
+
+export interface RefundedProduct {
+  product_name: string
+  refund_count: number
+  refunded_amount: number
+}
+
+export interface RefundStats {
+  total_orders: number
+  refunded_orders: number
+  refund_rate: number
+  refunded_revenue: number
+  total_revenue: number
+  trend: RefundTrendPoint[]
+  top_refunded_products: RefundedProduct[]
+}
+
+// ── Cross-sell ──────────────────────────────────────────────────────────────
+
+export interface CrossSellPair {
+  product_a: string
+  product_b: string
+  co_purchase_count: number
+}
+
+// ── Revenue by Channel ──────────────────────────────────────────────────────
+
+export interface ChannelStat {
+  channel: string
+  sessions: number
+  users: number
+  conversions: number
+  revenue: number
+  conversion_rate: number
+  aov: number
+}
+

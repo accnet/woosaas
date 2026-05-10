@@ -352,9 +352,13 @@ export default function OrderDetailPage() {
                     />
                   </div>
                 ) : (
-                  <div className="mt-0">
-                    <div className="border-t border-app-line bg-blue-50/80 px-5 py-3 text-sm font-medium text-app-strong">
-                      Products to ship
+                  <div>
+                    {/* Column header */}
+                    <div className="grid grid-cols-[minmax(0,1fr)_80px_56px_96px] gap-4 border-t border-app-line bg-slate-50/80 px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-app-soft">
+                      <span>Product</span>
+                      <span className="text-right">Unit price</span>
+                      <span className="text-right">Qty</span>
+                      <span className="text-right">Total</span>
                     </div>
                     <div className="divide-y divide-slate-100">
                       {order.items.map((item) => {
@@ -362,45 +366,56 @@ export default function OrderDetailPage() {
                         return (
                           <div
                             key={item.line_item_id}
-                            className="grid grid-cols-1 gap-4 px-5 py-5 xl:grid-cols-[minmax(0,1.2fr)_88px_72px_100px]"
+                            className="grid grid-cols-[minmax(0,1fr)_80px_56px_96px] items-center gap-4 px-5 py-4"
                           >
-                            <div className="flex min-w-0 items-start gap-4">
-                              <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-app-line bg-slate-50 text-app-soft">
+                            {/* Product info */}
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-app-line bg-slate-50 text-app-soft">
                                 {imageUrl ? (
-                                  <img src={imageUrl} alt={item.name || 'Product image'} className="h-full w-full object-cover" />
+                                  <img src={imageUrl} alt={item.name || 'Product'} className="h-full w-full object-cover" />
                                 ) : (
-                                  <Package2 className="h-6 w-6" />
+                                  <Package2 className="h-5 w-5" />
                                 )}
                               </div>
                               <div className="min-w-0">
-                                <div className="truncate text-lg font-medium text-app-strong">
+                                <div className="truncate text-sm font-semibold text-app-strong">
                                   {item.name || `Item ${item.line_item_id}`}
                                 </div>
-                                <div className="mt-1 text-sm text-app-muted">
-                                  SKU {item.sku || '-'} · Product {item.product_id || '-'}
-                                </div>
-                                <div className="mt-1 text-sm text-app-soft">
-                                  Variation {item.variation_id || '-'}
+                                <div className="mt-0.5 text-xs text-app-muted">
+                                  SKU: {item.sku || '—'}
+                                  {item.variation_id ? ` · Var: ${item.variation_id}` : ''}
                                 </div>
                               </div>
                             </div>
-                            <div className="text-right text-lg font-medium text-app-strong">
+                            {/* Unit price */}
+                            <div className="text-right text-sm text-app-strong">
                               {money(item.unit_price, order.currency)}
                             </div>
-                            <div className="text-right text-lg text-app-strong">x {item.quantity}</div>
-                            <div className="text-right text-lg font-semibold text-app-strong">
+                            {/* Qty */}
+                            <div className="text-right">
+                              <span className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-md bg-slate-100 px-1.5 text-xs font-semibold text-app-strong">
+                                ×{item.quantity}
+                              </span>
+                            </div>
+                            {/* Line total */}
+                            <div className="text-right text-sm font-bold text-app-strong">
                               {money(item.line_total, order.currency)}
                             </div>
                           </div>
                         )
                       })}
                     </div>
+                    {/* Subtotal footer */}
+                    <div className="flex items-center justify-between border-t border-app-line bg-slate-50/80 px-5 py-3">
+                      <span className="text-xs text-app-muted">{order.items.length} {order.items.length === 1 ? 'item' : 'items'}</span>
+                      <span className="text-sm font-semibold text-app-strong">{money(order.subtotal_amount, order.currency)}</span>
+                    </div>
                   </div>
                 )}
               </SectionCard>
 
               <SectionCard
-                title="Payment Info"
+                title="Payment Summary"
                 action={
                   <StatusChip
                     label={order.payment_status || 'unknown'}
@@ -409,37 +424,35 @@ export default function OrderDetailPage() {
                   />
                 }
               >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-4 text-base text-app-strong">
-                    <span>Items</span>
-                    <span>{money(order.subtotal_amount, order.currency)}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-4 text-base text-app-strong">
-                    <span>Shipping</span>
-                    <span>{money(order.shipping_amount, order.currency)}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-4 text-base text-app-strong">
-                    <span>Tax</span>
-                    <span>{money(order.tax_amount, order.currency)}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-4 text-base text-app-strong">
-                    <span>Discount</span>
-                    <span>{money(order.discount_amount, order.currency)}</span>
-                  </div>
-                  <div className="border-t border-app-line pt-3">
-                    <div className="flex items-center justify-between gap-4 text-xl font-semibold text-app-strong">
-                      <span>Total</span>
-                      <span>{money(order.total_amount, order.currency)}</span>
+                <div className="space-y-2">
+                  {[
+                    { label: 'Subtotal', amount: order.subtotal_amount },
+                    { label: 'Shipping', amount: order.shipping_amount },
+                    { label: 'Tax', amount: order.tax_amount },
+                    { label: 'Discount', amount: -order.discount_amount },
+                  ].map(({ label, amount }) => (
+                    <div key={label} className="flex items-center justify-between text-sm text-app-strong">
+                      <span className="text-app-muted">{label}</span>
+                      <span className={amount < 0 ? 'text-emerald-600' : ''}>{money(Math.abs(amount), order.currency)}{amount < 0 ? ' off' : ''}</span>
                     </div>
+                  ))}
+                  {/* Total */}
+                  <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-3 text-base font-bold text-app-strong">
+                    <span>Total</span>
+                    <span>{money(order.total_amount, order.currency)}</span>
                   </div>
-                  <div className="border-t border-app-line pt-4">
+                  {/* Amount due */}
+                  {order.refund_amount > 0 ? (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-app-muted">Refunded</span>
+                      <span className="text-red-600">-{money(order.refund_amount, order.currency)}</span>
+                    </div>
+                  ) : null}
+                  <div className="border-t border-app-line pt-3">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <div className="text-base font-semibold text-app-strong">
-                          Amount due {money(amountDue, order.currency)}
-                        </div>
-                        <div className="mt-1 text-sm text-app-muted">
-                          Refunded {money(order.refund_amount, order.currency)}
+                        <div className="text-sm font-semibold text-app-strong">
+                          Amount due: {money(amountDue, order.currency)}
                         </div>
                       </div>
                       <button
@@ -457,13 +470,14 @@ export default function OrderDetailPage() {
 
               <SectionCard title="Order Activity">
                 <div className="space-y-5">
-                  <div className="rounded-2xl border border-app-line bg-slate-50 p-4">
+                  <div className="rounded-xl border border-app-line bg-slate-50/60 p-4">
                     <label className="block text-sm font-medium text-app-strong">
-                      Add a note (your customer will not see this)
+                      Internal note
                     </label>
+                    <p className="mt-0.5 text-xs text-app-muted">Your customer will not see this.</p>
                     <textarea
-                      className="mt-3 min-h-[88px] w-full rounded-xl border border-app-line bg-white px-3 py-2 text-sm text-app-strong outline-none transition focus:border-blue-300"
-                      placeholder="Internal note"
+                      className="mt-3 min-h-[80px] w-full rounded-xl border border-app-line bg-white px-3 py-2 text-sm text-app-strong outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                      placeholder="Add a note…"
                     />
                   </div>
 
@@ -471,20 +485,26 @@ export default function OrderDetailPage() {
                     {activity.map((item, index) => (
                       <div
                         key={`${item.label}-${item.timestamp}`}
-                        className="grid grid-cols-[18px_minmax(0,1fr)_120px] gap-4 py-3"
+                        className="relative grid grid-cols-[20px_minmax(0,1fr)] gap-3 pb-4 pl-0 last:pb-0"
                       >
-                        <div className="relative flex justify-center">
-                          <span className="mt-1 h-2.5 w-2.5 rounded-full bg-slate-400" />
+                        {/* Timeline spine */}
+                        <div className="flex flex-col items-center">
+                          <span className="mt-1 h-3 w-3 rounded-full border-2 border-indigo-400 bg-white" />
                           {index < activity.length - 1 ? (
-                            <span className="absolute top-4 h-[calc(100%+0.75rem)] w-px bg-slate-200" />
+                            <span className="mt-1 w-px flex-1 bg-slate-200" />
                           ) : null}
                         </div>
-                        <div className="min-w-0 text-base text-app-strong">{item.label}</div>
-                        <div className="text-right text-sm text-app-muted">
-                          {new Date(item.timestamp).toLocaleTimeString([], {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                          })}
+                        {/* Content */}
+                        <div className="min-w-0 pb-1">
+                          <div className="text-sm font-medium text-app-strong">{item.label}</div>
+                          <div className="mt-0.5 text-xs text-app-muted">
+                            {new Date(item.timestamp).toLocaleString([], {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit',
+                            })}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -569,31 +589,29 @@ export default function OrderDetailPage() {
                 ) : (
                   <div className="space-y-3">
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-xl border border-app-line bg-slate-50 px-3 py-3">
-                        <div className="text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">
-                          Source
-                        </div>
-                        <div className="mt-1 text-sm font-medium text-app-strong">
-                          {String(order.attribution.source || '(direct)')}
-                        </div>
-                      </div>
-                      <div className="rounded-xl border border-app-line bg-slate-50 px-3 py-3">
-                        <div className="text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">
-                          Medium
-                        </div>
-                        <div className="mt-1 text-sm font-medium text-app-strong">
-                          {String(order.attribution.medium || '(none)')}
-                        </div>
-                      </div>
+                      {(['source', 'medium', 'campaign', 'term', 'content', 'channel'] as string[])
+                        .filter((key) => order.attribution[key] !== undefined && order.attribution[key] !== null && order.attribution[key] !== '')
+                        .map((key) => (
+                          <div key={key} className="rounded-xl border border-app-line bg-slate-50 px-3 py-2.5">
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-app-soft">
+                              {key}
+                            </div>
+                            <div className="mt-0.5 text-sm font-medium text-app-strong">
+                              {String(order.attribution[key])}
+                            </div>
+                          </div>
+                        ))}
                     </div>
-                    <div className="rounded-xl border border-app-line bg-slate-50 px-3 py-3">
-                      <div className="text-xs font-semibold uppercase tracking-[0.08em] text-app-soft">
-                        Raw payload
-                      </div>
-                      <pre className="mt-2 overflow-x-auto text-xs text-app-strong">
-                        {JSON.stringify(order.attribution || {}, null, 2)}
-                      </pre>
-                    </div>
+                    {Object.keys(order.attribution).some((k) => !['source','medium','campaign','term','content','channel'].includes(k)) ? (
+                      <details className="rounded-xl border border-app-line">
+                        <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-app-muted hover:text-app-strong">
+                          Show full payload
+                        </summary>
+                        <pre className="overflow-x-auto px-3 pb-3 pt-1 text-xs text-app-strong">
+                          {JSON.stringify(order.attribution || {}, null, 2)}
+                        </pre>
+                      </details>
+                    ) : null}
                   </div>
                 )}
               </SectionCard>
