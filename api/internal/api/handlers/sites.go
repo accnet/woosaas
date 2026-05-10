@@ -6,10 +6,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/woosaas/api/internal/ingest"
-	"github.com/woosaas/api/internal/sites"
-	"github.com/woosaas/api/internal/teams"
-	"github.com/woosaas/api/pkg/models"
+	"github.com/accnet/woosaas/api/internal/ingest"
+	"github.com/accnet/woosaas/api/internal/sites"
+	"github.com/accnet/woosaas/api/internal/teams"
+	"github.com/accnet/woosaas/api/pkg/models"
 )
 
 type SitesHandler struct {

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/woosaas/api/pkg/models"
+	"github.com/accnet/woosaas/api/pkg/models"
 )
 
 const OrdersStream = "orders:stream"

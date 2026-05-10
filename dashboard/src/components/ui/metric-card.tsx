@@ -46,7 +46,7 @@ export function MetricCard({
       <div className="text-xs font-medium text-app-soft">{label}</div>
 
       {/* Value — large, bold, tabular */}
-      <div className={`mt-1.5 flex items-center gap-2 font-bold tabular-nums text-app-strong text-[2rem] leading-none ${valueClassName}`.trim()}>
+      <div className={`mt-1.5 flex items-center gap-2 font-bold tabular-nums text-app-strong text-[1.5rem] leading-none ${valueClassName}`.trim()}>
         {value}
         {live && (
           <div className="relative h-2 w-2 shrink-0">

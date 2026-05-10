@@ -3,7 +3,7 @@ package users
 import (
 	"context"
 
-	"github.com/woosaas/api/pkg/models"
+	"github.com/accnet/woosaas/api/pkg/models"
 )
 
 // UserRepository is the interface for user data access.

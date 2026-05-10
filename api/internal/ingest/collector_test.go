@@ -6,7 +6,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
-	"github.com/woosaas/api/pkg/models"
+	"github.com/accnet/woosaas/api/pkg/models"
 )
 
 func TestValidateEventRequiresPurchaseFields(t *testing.T) {

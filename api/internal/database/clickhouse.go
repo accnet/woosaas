@@ -7,7 +7,7 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
-	"github.com/woosaas/api/internal/config"
+	"github.com/accnet/woosaas/api/internal/config"
 )
 
 func NewClickHouse(cfg config.ClickHouseConfig) (driver.Conn, error) {

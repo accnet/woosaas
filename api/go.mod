@@ -1,4 +1,4 @@
-module github.com/woosaas/api
+module github.com/accnet/woosaas/api
 
 go 1.21.0
 

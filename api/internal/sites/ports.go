@@ -3,7 +3,7 @@ package sites
 import (
 	"context"
 
-	"github.com/woosaas/api/pkg/models"
+	"github.com/accnet/woosaas/api/pkg/models"
 )
 
 // SiteRepository is the interface satisfied by Repository.

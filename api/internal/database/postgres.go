@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/woosaas/api/internal/config"
+	"github.com/accnet/woosaas/api/internal/config"
 )
 
 func NewPostgres(cfg config.PostgresConfig) (*pgxpool.Pool, error) {

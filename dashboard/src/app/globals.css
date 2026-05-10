@@ -361,7 +361,7 @@
   }
 
   .stat-value {
-    @apply mt-1 text-2xl font-semibold text-app-strong;
+    @apply mt-1 text-[1.5rem] font-semibold text-app-strong;
 
   }
 

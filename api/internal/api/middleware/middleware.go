@@ -11,9 +11,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
-	"github.com/woosaas/api/internal/auth"
-	"github.com/woosaas/api/internal/observability"
-	"github.com/woosaas/api/pkg/models"
+	"github.com/accnet/woosaas/api/internal/auth"
+	"github.com/accnet/woosaas/api/internal/observability"
+	"github.com/accnet/woosaas/api/pkg/models"
 )
 
 // apiKeyValidator is the minimal interface needed by APIKeyAuth.

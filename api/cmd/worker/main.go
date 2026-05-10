@@ -8,11 +8,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/woosaas/api/internal/config"
-	"github.com/woosaas/api/internal/database"
-	"github.com/woosaas/api/internal/observability"
-	"github.com/woosaas/api/internal/orders"
-	"github.com/woosaas/api/internal/worker"
+	"github.com/accnet/woosaas/api/internal/config"
+	"github.com/accnet/woosaas/api/internal/database"
+	"github.com/accnet/woosaas/api/internal/observability"
+	"github.com/accnet/woosaas/api/internal/orders"
+	"github.com/accnet/woosaas/api/internal/worker"
 )
 
 func main() {

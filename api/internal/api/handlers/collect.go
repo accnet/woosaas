@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/woosaas/api/internal/ingest"
-	"github.com/woosaas/api/internal/sites"
-	"github.com/woosaas/api/pkg/models"
+	"github.com/accnet/woosaas/api/internal/ingest"
+	"github.com/accnet/woosaas/api/internal/sites"
+	"github.com/accnet/woosaas/api/pkg/models"
 )
 
 type CollectHandler struct {

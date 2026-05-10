@@ -9,9 +9,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
-	"github.com/woosaas/api/internal/orders"
-	"github.com/woosaas/api/internal/sites"
-	"github.com/woosaas/api/pkg/models"
+	"github.com/accnet/woosaas/api/internal/orders"
+	"github.com/accnet/woosaas/api/internal/sites"
+	"github.com/accnet/woosaas/api/pkg/models"
 )
 
 const maxWooOrderBatchSize = 100

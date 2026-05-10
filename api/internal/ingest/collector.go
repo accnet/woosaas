@@ -16,9 +16,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/mssola/useragent"
 	"github.com/redis/go-redis/v9"
-	"github.com/woosaas/api/internal/bot"
-	"github.com/woosaas/api/internal/observability"
-	"github.com/woosaas/api/pkg/models"
+	"github.com/accnet/woosaas/api/internal/bot"
+	"github.com/accnet/woosaas/api/internal/observability"
+	"github.com/accnet/woosaas/api/pkg/models"
 )
 
 // ipHashSalt is loaded once from env to avoid hardcoded secrets.

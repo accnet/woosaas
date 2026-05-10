@@ -9,12 +9,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/woosaas/api/internal/api"
-	"github.com/woosaas/api/internal/auth"
-	"github.com/woosaas/api/internal/config"
-	"github.com/woosaas/api/internal/database"
-	"github.com/woosaas/api/internal/observability"
-	"github.com/woosaas/api/internal/sites"
+	"github.com/accnet/woosaas/api/internal/api"
+	"github.com/accnet/woosaas/api/internal/auth"
+	"github.com/accnet/woosaas/api/internal/config"
+	"github.com/accnet/woosaas/api/internal/database"
+	"github.com/accnet/woosaas/api/internal/observability"
+	"github.com/accnet/woosaas/api/internal/sites"
 )
 
 func main() {

@@ -7,8 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
-	"github.com/woosaas/api/internal/auth"
-	"github.com/woosaas/api/internal/sites"
+	"github.com/accnet/woosaas/api/internal/auth"
+	"github.com/accnet/woosaas/api/internal/sites"
 )
 
 // TenantMiddleware ensures tenant isolation

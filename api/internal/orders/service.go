@@ -3,7 +3,7 @@ package orders
 import (
 	"context"
 
-	"github.com/woosaas/api/pkg/models"
+	"github.com/accnet/woosaas/api/pkg/models"
 )
 
 // Service is the application-layer facade over order ingestion and querying.

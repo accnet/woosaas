@@ -14,9 +14,9 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/redis/go-redis/v9"
 	"github.com/shopspring/decimal"
-	"github.com/woosaas/api/internal/observability"
-	"github.com/woosaas/api/internal/orders"
-	"github.com/woosaas/api/pkg/models"
+	"github.com/accnet/woosaas/api/internal/observability"
+	"github.com/accnet/woosaas/api/internal/orders"
+	"github.com/accnet/woosaas/api/pkg/models"
 )
 
 const (

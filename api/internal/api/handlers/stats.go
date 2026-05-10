@@ -7,11 +7,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
-	"github.com/woosaas/api/internal/analytics"
-	"github.com/woosaas/api/internal/customers"
-	"github.com/woosaas/api/internal/export"
-	"github.com/woosaas/api/internal/realtime"
-	"github.com/woosaas/api/internal/sites"
+	"github.com/accnet/woosaas/api/internal/analytics"
+	"github.com/accnet/woosaas/api/internal/customers"
+	"github.com/accnet/woosaas/api/internal/export"
+	"github.com/accnet/woosaas/api/internal/realtime"
+	"github.com/accnet/woosaas/api/internal/sites"
 )
 
 type StatsHandler struct {

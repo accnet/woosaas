@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/woosaas/api/pkg/models"
+	"github.com/accnet/woosaas/api/pkg/models"
 )
 
 // userRepository is the minimal interface Service needs for user data access.

@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/woosaas/api/internal/auth"
-	"github.com/woosaas/api/pkg/models"
+	"github.com/accnet/woosaas/api/internal/auth"
+	"github.com/accnet/woosaas/api/pkg/models"
 )
 
 type AuthHandler struct {

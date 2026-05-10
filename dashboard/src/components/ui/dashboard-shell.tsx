@@ -294,7 +294,7 @@ function SiteSwitcherControl({
         ) : (
           <>
             <div className="min-w-0 text-left">
-              <div className="truncate text-lg font-semibold text-app-strong">
+              <div className="truncate text-[1rem] font-semibold text-app-strong">
                 {selectedSite ? selectedSite.domain : loadingSites ? 'Loading websites...' : 'Select website'}
               </div>
               <div className="sr-only">
@@ -1198,12 +1198,8 @@ function SidebarGroup({
 
 function DemoLogo() {
   return (
-    <Link href="/dashboard" className="flex shrink-0 items-center gap-3 rounded-xl transition hover:opacity-90">
+    <Link href="/dashboard" className="-ml-2 flex shrink-0 items-center gap-3 rounded-xl transition hover:opacity-90 md:-ml-3">
       <div className="app-rail-logo h-11 w-11 rounded-xl">W</div>
-      <div className="hidden min-w-0 sm:block">
-        <div className="text-sm font-semibold leading-none text-app-strong">Demo</div>
-        <div className="mt-1 text-xs leading-none text-app-muted">Woosaas</div>
-      </div>
     </Link>
   )
 }

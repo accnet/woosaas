@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/woosaas/api/internal/analytics"
+	"github.com/accnet/woosaas/api/internal/analytics"
 )
 
 type BotsHandler struct {

@@ -3,7 +3,7 @@ package handlers
 import (
 	"testing"
 
-	"github.com/woosaas/api/pkg/models"
+	"github.com/accnet/woosaas/api/pkg/models"
 )
 
 func TestValidateWooOrderRequiresMandatoryFields(t *testing.T) {

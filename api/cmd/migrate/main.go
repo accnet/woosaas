@@ -11,8 +11,8 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/woosaas/api/internal/config"
-	"github.com/woosaas/api/internal/database"
+	"github.com/accnet/woosaas/api/internal/config"
+	"github.com/accnet/woosaas/api/internal/database"
 )
 
 func main() {

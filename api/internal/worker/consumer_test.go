@@ -3,7 +3,7 @@ package worker
 import (
 	"testing"
 
-	"github.com/woosaas/api/pkg/models"
+	"github.com/accnet/woosaas/api/pkg/models"
 )
 
 func TestNormalizeEventPromotesKnownProperties(t *testing.T) {
