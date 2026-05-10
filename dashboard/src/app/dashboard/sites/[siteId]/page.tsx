@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { Activity, AlertTriangle, Globe, KeyRound, ReceiptText, Settings, ShieldCheck, Users } from 'lucide-react'
+import { Activity, AlertTriangle, Globe, ReceiptText, Settings, ShieldCheck, Users } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { TrackingStatusChip } from '@/components/ui/tracking-status-chip'
 import { useSiteId } from '@/hooks/use-site-id'
@@ -83,10 +83,6 @@ export default function WebsiteHomePage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Link href={`/dashboard/sites/${site.id}/api-keys`} className="btn-secondary text-xs">
-            <KeyRound className="mr-1.5 h-3.5 w-3.5" />
-            API Keys
-          </Link>
           <Link href={`/dashboard/sites/${site.id}/onboarding`} className="btn-secondary text-xs">
             <Settings className="mr-1.5 h-3.5 w-3.5" />
             Setup
@@ -138,7 +134,7 @@ export default function WebsiteHomePage() {
         <QuickLink href={`/dashboard/${site.id}/realtime`} icon={<Activity className="h-4 w-4" />} label="Realtime" />
         <QuickLink href={`/dashboard/${site.id}/health`} icon={<ShieldCheck className="h-4 w-4" />} label="Pipeline Health" />
         <QuickLink href={`/dashboard/teams?siteId=${site.id}`} icon={<Users className="h-4 w-4" />} label="Team" />
-        <QuickLink href={`/dashboard/sites/${site.id}/api-keys`} icon={<KeyRound className="h-4 w-4" />} label="API Keys" />
+        <QuickLink href={`/dashboard/sites/${site.id}/onboarding`} icon={<Settings className="h-4 w-4" />} label="Setup" />
       </div>
     </div>
   )

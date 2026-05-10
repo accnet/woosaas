@@ -7,7 +7,6 @@ import {
   House,
   Globe,
   HeartPulse,
-  KeyRound,
   Layers2,
   LayoutDashboard,
   LifeBuoy,
@@ -89,8 +88,7 @@ export const siteOperationsNav: NavItem[] = [
 ]
 
 export const siteSetupNav: NavItem[] = [
-  { href: '/dashboard/sites/[siteId]/onboarding', label: 'Onboarding', icon: PanelLeft },
-  { href: '/dashboard/sites/[siteId]/api-keys', label: 'API Keys', icon: KeyRound },
+  { href: '/dashboard/sites/[siteId]/onboarding', label: 'Setup', icon: Settings2 },
 ]
 
 export function getCurrentSiteId(pathname: string) {
