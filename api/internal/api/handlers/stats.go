@@ -1,38 +1,37 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
-	"github.com/woosaas/api/internal/customer360"
+	"github.com/woosaas/api/internal/analytics"
+	"github.com/woosaas/api/internal/customers"
 	"github.com/woosaas/api/internal/export"
-	"github.com/woosaas/api/internal/query"
 	"github.com/woosaas/api/internal/realtime"
 	"github.com/woosaas/api/internal/sites"
 )
 
 type StatsHandler struct {
-	stats       *query.Stats
-	bots        *query.Bots
+	stats       *analytics.Stats
+	bots        *analytics.Bots
 	onlineUsers *realtime.OnlineUsers
-	repo        *sites.Repository
+	repo        sites.SiteRepository
 	redis       *redis.Client
 	exports     *export.ExportService
-	customers   *customer360.CustomerService
+	customers   *customers.CustomerService
 }
 
 func NewStatsHandler(
-	stats *query.Stats,
-	bots *query.Bots,
+	stats *analytics.Stats,
+	bots *analytics.Bots,
 	onlineUsers *realtime.OnlineUsers,
-	repo *sites.Repository,
+	repo sites.SiteRepository,
 	redisClient *redis.Client,
 	exports *export.ExportService,
-	customers *customer360.CustomerService,
+	customers *customers.CustomerService,
 ) *StatsHandler {
 	return &StatsHandler{
 		stats:       stats,
@@ -100,7 +99,7 @@ func (h *StatsHandler) GetTrend(c *gin.Context) {
 	}
 
 	if trend == nil {
-		trend = []query.TrendPoint{}
+		trend = []analytics.TrendPoint{}
 	}
 
 	c.JSON(http.StatusOK, trend)
@@ -131,7 +130,7 @@ func (h *StatsHandler) GetSources(c *gin.Context) {
 	}
 
 	if sources == nil {
-		sources = []query.SourceStats{}
+		sources = []analytics.SourceStats{}
 	}
 
 	c.JSON(http.StatusOK, sources)
@@ -162,7 +161,7 @@ func (h *StatsHandler) GetCampaigns(c *gin.Context) {
 	}
 
 	if campaigns == nil {
-		campaigns = []query.CampaignStats{}
+		campaigns = []analytics.CampaignStats{}
 	}
 
 	c.JSON(http.StatusOK, campaigns)
@@ -203,7 +202,7 @@ func (h *StatsHandler) GetPages(c *gin.Context) {
 	}
 
 	if pages == nil {
-		pages = []query.PageStats{}
+		pages = []analytics.PageStats{}
 	}
 
 	c.JSON(http.StatusOK, pages)
@@ -244,7 +243,7 @@ func (h *StatsHandler) GetProducts(c *gin.Context) {
 	}
 
 	if products == nil {
-		products = []query.ProductStats{}
+		products = []analytics.ProductStats{}
 	}
 
 	c.JSON(http.StatusOK, products)
@@ -589,30 +588,8 @@ func (h *StatsHandler) GetChannelStats(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
-// requireSiteAccess checks if the user can read the site.
-// M1: Result is cached in Redis for 5 minutes to avoid a Postgres query on every metrics request.
 func (h *StatsHandler) requireSiteAccess(c *gin.Context, siteID string) bool {
-	userID := c.GetString("user_id")
-
-	cacheKey := fmt.Sprintf("perm:%s:%s", userID, siteID)
-	if allowed, err := h.redis.Get(c.Request.Context(), cacheKey).Bool(); err == nil {
-		if !allowed {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Site not found"})
-			return false
-		}
-		return true
-	}
-
-	allowed, err := h.repo.UserHasSitePermission(c.Request.Context(), userID, siteID, "site:read")
-
-	// Cache the boolean result
-	h.redis.Set(c.Request.Context(), cacheKey, allowed, 5*time.Minute)
-
-	if err != nil || !allowed {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Site not found"})
-		return false
-	}
-	return true
+	return requireSiteAccess(c, h.repo, h.redis, siteID)
 }
 
 func normalizeDateRange(c *gin.Context, from, to string) (string, string, bool) {

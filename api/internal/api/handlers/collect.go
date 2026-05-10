@@ -13,10 +13,10 @@ import (
 
 type CollectHandler struct {
 	collector *ingest.Collector
-	repo      *sites.Repository
+	repo      sites.SiteRepository
 }
 
-func NewCollectHandler(collector *ingest.Collector, repo *sites.Repository) *CollectHandler {
+func NewCollectHandler(collector *ingest.Collector, repo sites.SiteRepository) *CollectHandler {
 	return &CollectHandler{collector: collector, repo: repo}
 }
 

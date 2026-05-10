@@ -17,16 +17,14 @@ import (
 const maxWooOrderBatchSize = 100
 
 type OrdersHandler struct {
-	queue *orders.Queue
-	repo  *orders.Repository
-	sites *sites.Repository
+	svc   *orders.Service
+	sites sites.SiteRepository
 	redis *redis.Client
 }
 
-func NewOrdersHandler(queue *orders.Queue, repo *orders.Repository, sitesRepo *sites.Repository, redisClient *redis.Client) *OrdersHandler {
+func NewOrdersHandler(svc *orders.Service, sitesRepo sites.SiteRepository, redisClient *redis.Client) *OrdersHandler {
 	return &OrdersHandler{
-		queue: queue,
-		repo:  repo,
+		svc:   svc,
 		sites: sitesRepo,
 		redis: redisClient,
 	}
@@ -77,7 +75,7 @@ func (h *OrdersHandler) SyncOrders(c *gin.Context) {
 			continue
 		}
 
-		if err := h.queue.Enqueue(c.Request.Context(), siteID, order, contactSyncEnabled); err != nil {
+		if err := h.svc.Enqueue(c.Request.Context(), siteID, order, contactSyncEnabled); err != nil {
 			resp.Rejected++
 			resp.Errors = append(resp.Errors, models.WooOrderError{
 				WooOrderID: order.WooOrderID,
@@ -131,7 +129,7 @@ func (h *OrdersHandler) ListOrders(c *gin.Context) {
 		filter.DateTo = &parsed
 	}
 
-	result, err := h.repo.ListOrders(c.Request.Context(), filter)
+	result, err := h.svc.ListOrders(c.Request.Context(), filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -150,7 +148,7 @@ func (h *OrdersHandler) GetOrderDetail(c *gin.Context) {
 	}
 
 	orderID := c.Param("woo_order_id")
-	detail, err := h.repo.GetOrderDetail(c.Request.Context(), siteID, orderID)
+	detail, err := h.svc.GetOrderDetail(c.Request.Context(), siteID, orderID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"error": "order not found"})
@@ -174,7 +172,7 @@ func (h *OrdersHandler) ListContacts(c *gin.Context) {
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "25"))
-	result, err := h.repo.ListContacts(c.Request.Context(), orders.ListContactsParams{
+	result, err := h.svc.ListContacts(c.Request.Context(), orders.ListContactsParams{
 		SiteID:   siteID,
 		Page:     page,
 		PageSize: pageSize,
@@ -198,7 +196,7 @@ func (h *OrdersHandler) GetRetentionCohort(c *gin.Context) {
 		return
 	}
 
-	cohorts, err := h.repo.GetRetentionCohort(c.Request.Context(), siteID)
+	cohorts, err := h.svc.GetRetentionCohort(c.Request.Context(), siteID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -219,7 +217,7 @@ func (h *OrdersHandler) GetRefundStats(c *gin.Context) {
 		return
 	}
 
-	stats, err := h.repo.GetRefundStats(c.Request.Context(), siteID, from, to)
+	stats, err := h.svc.GetRefundStats(c.Request.Context(), siteID, from, to)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -240,7 +238,7 @@ func (h *OrdersHandler) GetCrossSell(c *gin.Context) {
 		return
 	}
 
-	pairs, err := h.repo.GetCrossSell(c.Request.Context(), siteID, limit)
+	pairs, err := h.svc.GetCrossSell(c.Request.Context(), siteID, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -261,7 +259,7 @@ func (h *OrdersHandler) GetSyncState(c *gin.Context) {
 		return
 	}
 
-	state, err := h.repo.GetSyncState(c.Request.Context(), siteID)
+	state, err := h.svc.GetSyncState(c.Request.Context(), siteID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"error": "sync state not found"})
@@ -274,23 +272,7 @@ func (h *OrdersHandler) GetSyncState(c *gin.Context) {
 }
 
 func (h *OrdersHandler) requireSiteAccess(c *gin.Context, siteID string) bool {
-	userID := c.GetString("user_id")
-	cacheKey := "perm:" + userID + ":" + siteID
-	if allowed, err := h.redis.Get(c.Request.Context(), cacheKey).Bool(); err == nil {
-		if !allowed {
-			c.JSON(http.StatusNotFound, gin.H{"error": "site not found"})
-			return false
-		}
-		return true
-	}
-
-	allowed, err := h.sites.UserHasSitePermission(c.Request.Context(), userID, siteID, "site:read")
-	h.redis.Set(c.Request.Context(), cacheKey, allowed, 5*time.Minute)
-	if err != nil || !allowed {
-		c.JSON(http.StatusNotFound, gin.H{"error": "site not found"})
-		return false
-	}
-	return true
+	return requireSiteAccess(c, h.sites, h.redis, siteID)
 }
 
 func validateWooOrder(order models.WooOrderInput) error {

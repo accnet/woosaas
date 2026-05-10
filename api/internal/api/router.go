@@ -5,32 +5,31 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	"github.com/woosaas/api/internal/analytics"
 	"github.com/woosaas/api/internal/api/handlers"
 	"github.com/woosaas/api/internal/api/middleware"
 	"github.com/woosaas/api/internal/auth"
-	"github.com/woosaas/api/internal/customer360"
+	"github.com/woosaas/api/internal/customers"
 	"github.com/woosaas/api/internal/export"
 	"github.com/woosaas/api/internal/ingest"
 	"github.com/woosaas/api/internal/orders"
-	"github.com/woosaas/api/internal/query"
 	"github.com/woosaas/api/internal/realtime"
 	"github.com/woosaas/api/internal/sites"
+	"github.com/woosaas/api/internal/users"
 )
 
 type Router struct {
 	engine      *gin.Engine
-	pg          *pgxpool.Pool
 	repo        *sites.Repository
-	jwtManager  *auth.JWTManager
+	authSvc     *auth.Service
 	mw          *middleware.Middleware
 	redisClient *redis.Client
 	collector   *ingest.Collector
-	orderQueue  *orders.Queue
-	orderRepo   *orders.Repository
-	stats       *query.Stats
-	bots        *query.Bots
+	orderSvc    *orders.Service
+	stats       *analytics.Stats
+	bots        *analytics.Bots
 	exports     *export.ExportService
-	customers   *customer360.CustomerService
+	customers   *customers.CustomerService
 	onlineUsers *realtime.OnlineUsers
 }
 
@@ -51,22 +50,23 @@ func NewRouter(
 	// M2: gzip compression via native compress/gzip
 	engine.Use(gzipMiddleware())
 
+	userRepo := users.NewRepository(pg)
+	orderQueue := orders.NewQueue(redisClient)
+	orderRepo := orders.NewRepository(pg)
+
 	return &Router{
-		engine:     engine,
-		pg:         pg,
-		repo:       repo,
-		jwtManager: jwtManager,
+		engine:  engine,
+		repo:    repo,
+		authSvc: auth.NewService(userRepo, jwtManager),
 		// M3: pass allowed origins for proper CORS validation
 		mw:          middleware.NewMiddleware(jwtManager, redisClient, allowedOrigins),
 		redisClient: redisClient,
 		collector:   ingest.NewCollector(redisClient),
-		orderQueue:  orders.NewQueue(redisClient),
-		orderRepo:   orders.NewRepository(pg),
-		// L3: redis now injected into Stats for consistent dependency management
-		stats:       query.NewStats(ch),
-		bots:        query.NewBots(ch),
+		orderSvc:    orders.NewService(orderQueue, orderRepo),
+		stats:       analytics.NewStatsWithCache(ch, redisClient),
+		bots:        analytics.NewBots(ch),
 		exports:     export.NewService(ch),
-		customers:   customer360.NewService(ch),
+		customers:   customers.NewService(ch),
 		onlineUsers: realtime.NewOnlineUsers(redisClient),
 	}
 }
@@ -79,7 +79,7 @@ func (r *Router) Setup() *gin.Engine {
 	r.registerCollectRoutes(v1)
 	r.registerWooSyncRoutes(v1)
 
-	authHandler := handlers.NewAuthHandler(r.repo, r.jwtManager)
+	authHandler := handlers.NewAuthHandler(r.authSvc)
 	r.registerAuthRoutes(v1, authHandler)
 	r.registerDashboardRoutes(v1, authHandler)
 	r.registerStatsRoutes(v1)
@@ -111,7 +111,7 @@ func (r *Router) registerWooSyncRoutes(v1 *gin.RouterGroup) {
 	woo.Use(r.mw.APIKeyAuth(r.repo))
 	woo.Use(r.mw.RateLimit())
 	{
-		ordersHandler := handlers.NewOrdersHandler(r.orderQueue, r.orderRepo, r.repo, r.redisClient)
+		ordersHandler := handlers.NewOrdersHandler(r.orderSvc, r.repo, r.redisClient)
 		woo.POST("/sync", ordersHandler.SyncOrders)
 	}
 }
@@ -131,7 +131,7 @@ func (r *Router) registerDashboardRoutes(v1 *gin.RouterGroup, authHandler *handl
 		dashboard.GET("/me", authHandler.Me)
 
 		sitesHandler := handlers.NewSitesHandler(r.repo, r.collector)
-		ordersHandler := handlers.NewOrdersHandler(r.orderQueue, r.orderRepo, r.repo, r.redisClient)
+		ordersHandler := handlers.NewOrdersHandler(r.orderSvc, r.repo, r.redisClient)
 		dashboard.POST("/sites", sitesHandler.CreateSite)
 		dashboard.GET("/sites", sitesHandler.GetSites)
 		dashboard.GET("/sites/:site_id", sitesHandler.GetSite)
@@ -179,7 +179,7 @@ func (r *Router) registerStatsRoutes(v1 *gin.RouterGroup) {
 }
 
 func (r *Router) registerOrdersRoutes(v1 *gin.RouterGroup) {
-	ordersHandler := handlers.NewOrdersHandler(r.orderQueue, r.orderRepo, r.repo, r.redisClient)
+	ordersHandler := handlers.NewOrdersHandler(r.orderSvc, r.repo, r.redisClient)
 	orders := v1.Group("")
 	orders.Use(r.mw.JWTAuth())
 	{

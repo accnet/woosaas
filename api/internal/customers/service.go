@@ -1,4 +1,4 @@
-package customer360
+package customers
 
 import (
 	"context"

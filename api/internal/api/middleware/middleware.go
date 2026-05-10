@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"net/http"
@@ -12,8 +13,16 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/woosaas/api/internal/auth"
 	"github.com/woosaas/api/internal/observability"
-	"github.com/woosaas/api/internal/sites"
+	"github.com/woosaas/api/pkg/models"
 )
+
+// apiKeyValidator is the minimal interface needed by APIKeyAuth.
+// *sites.Repository satisfies this interface.
+type apiKeyValidator interface {
+	GetSiteByID(ctx context.Context, id string) (*models.Site, error)
+	ValidateAPIKey(ctx context.Context, apiKey string) (*models.Site, error)
+	TouchAPIKeyLastUsedByHash(ctx context.Context, keyHash string) error
+}
 
 type Middleware struct {
 	jwtManager     *auth.JWTManager
@@ -101,7 +110,7 @@ func (m *Middleware) JWTAuth() gin.HandlerFunc {
 
 // APIKeyAuth validates the API key (header or query param) and caches the
 // result in Redis for 5 minutes to avoid per-request DB lookups.
-func (m *Middleware) APIKeyAuth(repo *sites.Repository) gin.HandlerFunc {
+func (m *Middleware) APIKeyAuth(repo apiKeyValidator) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		apiKey := c.GetHeader("X-Api-Key")
 		if apiKey == "" {

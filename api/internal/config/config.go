@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-
 type Config struct {
 	// Server
 	Port string
@@ -43,7 +42,7 @@ type Config struct {
 
 	// Worker
 	WorkerBatchSize     int
-	WorkerFlushInterval int
+	WorkerFlushInterval time.Duration
 	WorkerMaxRetries    int
 
 	// Security
@@ -83,7 +82,7 @@ func Load() *Config {
 		RedisPassword: getEnv("REDIS_PASSWORD", ""),
 
 		WorkerBatchSize:     getEnvInt("WORKER_BATCH_SIZE", 1000),
-		WorkerFlushInterval: getEnvInt("WORKER_FLUSH_INTERVAL", 2),
+		WorkerFlushInterval: time.Duration(getEnvInt("WORKER_FLUSH_INTERVAL", 2)) * time.Second,
 		WorkerMaxRetries:    getEnvInt("WORKER_MAX_RETRIES", 3),
 
 		IPHashSalt: getEnv("IP_HASH_SALT", "woosaas-salt-default"),

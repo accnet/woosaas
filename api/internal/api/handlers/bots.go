@@ -4,14 +4,14 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/woosaas/api/internal/query"
+	"github.com/woosaas/api/internal/analytics"
 )
 
 type BotsHandler struct {
-	bots *query.Bots
+	bots *analytics.Bots
 }
 
-func NewBotsHandler(bots *query.Bots) *BotsHandler {
+func NewBotsHandler(bots *analytics.Bots) *BotsHandler {
 	return &BotsHandler{bots: bots}
 }
 

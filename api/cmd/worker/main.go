@@ -42,9 +42,10 @@ func main() {
 	defer redis.Close()
 
 	// Initialize worker
-	w := worker.NewConsumer(redis, ch, orders.NewRepository(pg), &worker.Config{
+	orderSvc := orders.NewService(orders.NewQueue(redis), orders.NewRepository(pg))
+	w := worker.NewConsumer(redis, ch, orderSvc, logger, &worker.Config{
 		BatchSize:     cfg.WorkerBatchSize,
-		FlushInterval: time.Duration(cfg.WorkerFlushInterval) * time.Second,
+		FlushInterval: cfg.WorkerFlushInterval,
 		MaxRetries:    cfg.WorkerMaxRetries,
 	})
 

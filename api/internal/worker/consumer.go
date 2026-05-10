@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -36,14 +35,15 @@ type Config struct {
 type Consumer struct {
 	redis  *redis.Client
 	ch     driver.Conn
-	orders *orders.Repository
+	orders *orders.Service
 	config *Config
+	logger *observability.StructuredLogger
 	mu     sync.Mutex
 	stopCh chan struct{}
 	wg     sync.WaitGroup
 }
 
-func NewConsumer(redis *redis.Client, ch driver.Conn, orderRepo *orders.Repository, config *Config) *Consumer {
+func NewConsumer(redis *redis.Client, ch driver.Conn, orderSvc *orders.Service, logger *observability.StructuredLogger, config *Config) *Consumer {
 	if config.BatchSize == 0 {
 		config.BatchSize = 1000
 	}
@@ -57,8 +57,9 @@ func NewConsumer(redis *redis.Client, ch driver.Conn, orderRepo *orders.Reposito
 	return &Consumer{
 		redis:  redis,
 		ch:     ch,
-		orders: orderRepo,
+		orders: orderSvc,
 		config: config,
+		logger: logger,
 		stopCh: make(chan struct{}),
 	}
 }
@@ -78,7 +79,7 @@ func (c *Consumer) run(ctx context.Context) {
 	defer c.wg.Done()
 
 	if err := c.ensureConsumerGroup(ctx); err != nil {
-		log.Printf("Failed to initialize Redis consumer group: %v", err)
+		c.logger.LogError(ctx, "init_consumer_group", err, nil)
 		return
 	}
 
@@ -88,6 +89,7 @@ func (c *Consumer) run(ctx context.Context) {
 		maxAge:  c.config.FlushInterval,
 		redis:   c.redis,
 		ch:      c.ch,
+		logger:  c.logger,
 	}
 
 	ticker := time.NewTicker(c.config.FlushInterval)
@@ -97,18 +99,18 @@ func (c *Consumer) run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			if err := batch.flush(context.Background(), c.config.MaxRetries); err != nil {
-				log.Printf("Failed to flush event batch during shutdown: %v", err)
+				c.logger.LogError(context.Background(), "flush_on_shutdown", err, nil)
 			}
 			return
 		case <-c.stopCh:
 			if err := batch.flush(context.Background(), c.config.MaxRetries); err != nil {
-				log.Printf("Failed to flush event batch during shutdown: %v", err)
+				c.logger.LogError(context.Background(), "flush_on_shutdown", err, nil)
 			}
 			return
 		case <-ticker.C:
 			c.mu.Lock()
 			if err := batch.flush(ctx, c.config.MaxRetries); err != nil {
-				log.Printf("Failed to flush event batch: %v", err)
+				c.logger.LogError(ctx, "flush_batch", err, nil)
 			}
 			c.mu.Unlock()
 		default:
@@ -146,7 +148,7 @@ func (c *Consumer) readOnce(ctx context.Context, batch *eventBatchWriter) {
 		return
 	}
 	if err != nil {
-		log.Printf("Failed to read Redis stream: %v", err)
+		c.logger.LogError(ctx, "read_stream", err, nil)
 		return
 	}
 
@@ -157,19 +159,19 @@ func (c *Consumer) readOnce(ctx context.Context, batch *eventBatchWriter) {
 		for _, message := range stream.Messages {
 			if stream.Stream == orders.OrdersStream {
 				if err := c.processOrderMessage(ctx, message); err != nil {
-					log.Printf("Failed to process order message %s: %v", message.ID, err)
+					c.logger.LogError(ctx, "process_order", err, map[string]interface{}{"message_id": message.ID})
 				}
 				continue
 			}
 			event, err := parseMessage(message)
 			if err != nil {
-				log.Printf("Skipping invalid event %s: %v", message.ID, err)
+				c.logger.LogError(ctx, "parse_event", err, map[string]interface{}{"message_id": message.ID})
 				_ = moveMessageToDead(ctx, c.redis, message, err, 0)
 				continue
 			}
 			if batch.add(event) {
 				if err := batch.flush(ctx, c.config.MaxRetries); err != nil {
-					log.Printf("Failed to flush event batch: %v", err)
+					c.logger.LogError(ctx, "flush_batch", err, nil)
 				}
 			}
 		}
@@ -245,6 +247,7 @@ type eventBatchWriter struct {
 	maxAge  time.Duration
 	redis   *redis.Client
 	ch      driver.Conn
+	logger  *observability.StructuredLogger
 }
 
 func (b *eventBatchWriter) add(event queuedEvent) bool {
@@ -351,14 +354,14 @@ func (b *eventBatchWriter) handleFlushError(ctx context.Context, cause error, ma
 	for _, item := range b.events {
 		attempts, err := incrementRetry(ctx, b.redis, item.messageID)
 		if err != nil {
-			log.Printf("Failed to increment retry for event message_id=%s site_id=%s event_id=%s: %v", item.messageID, item.siteID, item.event.EventID, err)
+			b.logger.LogError(ctx, "increment_retry", err, map[string]interface{}{"message_id": item.messageID, "site_id": item.siteID, "event_id": item.event.EventID})
 			kept = append(kept, item)
 			continue
 		}
 		if attempts >= maxRetries {
-			log.Printf("Moving event to dead stream message_id=%s site_id=%s event_id=%s attempts=%d error=%v", item.messageID, item.siteID, item.event.EventID, attempts, cause)
+			b.logger.LogEvent(ctx, "dead_letter", map[string]interface{}{"message_id": item.messageID, "site_id": item.siteID, "event_id": item.event.EventID, "attempts": attempts})
 			if err := moveMessageToDead(ctx, b.redis, item.message, cause, attempts); err != nil {
-				log.Printf("Failed to move event to dead stream message_id=%s: %v", item.messageID, err)
+				b.logger.LogError(ctx, "move_to_dead", err, map[string]interface{}{"message_id": item.messageID})
 				kept = append(kept, item)
 			}
 			continue

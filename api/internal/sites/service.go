@@ -25,58 +25,6 @@ func NewRepository(db *pgxpool.Pool) *Repository {
 	return &Repository{db: db}
 }
 
-// User operations
-
-func (r *Repository) CreateUser(ctx context.Context, email, passwordHash, name string) (*models.User, error) {
-	user := &models.User{
-		ID:           uuid.New().String(),
-		Email:        email,
-		PasswordHash: passwordHash,
-		Name:         name,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
-	}
-
-	_, err := r.db.Exec(ctx, `
-		INSERT INTO users (id, email, password_hash, name, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
-	`, user.ID, user.Email, user.PasswordHash, user.Name, user.CreatedAt, user.UpdatedAt)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to create user: %w", err)
-	}
-
-	return user, nil
-}
-
-func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
-	var user models.User
-	err := r.db.QueryRow(ctx, `
-		SELECT id, email, password_hash, name, created_at, updated_at
-		FROM users WHERE email = $1
-	`, email).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.Name, &user.CreatedAt, &user.UpdatedAt)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &user, nil
-}
-
-func (r *Repository) GetUserByID(ctx context.Context, id string) (*models.User, error) {
-	var user models.User
-	err := r.db.QueryRow(ctx, `
-		SELECT id, email, password_hash, name, created_at, updated_at
-		FROM users WHERE id = $1
-	`, id).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.Name, &user.CreatedAt, &user.UpdatedAt)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &user, nil
-}
-
 // Site operations
 
 func (r *Repository) CreateSite(ctx context.Context, userID, name, domain, timezone, currency string) (*models.Site, error) {
@@ -474,7 +422,10 @@ func (r *Repository) AddSiteMemberByEmail(ctx context.Context, siteID, email, ro
 		return nil, err
 	}
 
-	user, err := r.GetUserByEmail(ctx, email)
+	var userID, userEmail, userName string
+	err := r.db.QueryRow(ctx, `
+		SELECT id, email, name FROM users WHERE email = $1
+	`, email).Scan(&userID, &userEmail, &userName)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("user account not found")
@@ -482,7 +433,7 @@ func (r *Repository) AddSiteMemberByEmail(ctx context.Context, siteID, email, ro
 		return nil, err
 	}
 
-	if hasAccess, err := r.UserHasAccessToSite(ctx, user.ID, siteID); err == nil && hasAccess {
+	if hasAccess, err := r.UserHasAccessToSite(ctx, userID, siteID); err == nil && hasAccess {
 		return nil, fmt.Errorf("user already has access to this site")
 	} else if err != nil {
 		return nil, err
@@ -493,16 +444,16 @@ func (r *Repository) AddSiteMemberByEmail(ctx context.Context, siteID, email, ro
 	if _, err := r.db.Exec(ctx, `
 		INSERT INTO site_members (id, site_id, user_id, role, created_at)
 		VALUES ($1, $2, $3, $4, $5)
-	`, memberID, siteID, user.ID, role, createdAt); err != nil {
+	`, memberID, siteID, userID, role, createdAt); err != nil {
 		return nil, err
 	}
 
 	return &models.SiteMember{
 		ID:        memberID,
 		SiteID:    siteID,
-		UserID:    user.ID,
-		UserEmail: user.Email,
-		UserName:  user.Name,
+		UserID:    userID,
+		UserEmail: userEmail,
+		UserName:  userName,
 		Role:      role,
 		CreatedAt: createdAt,
 	}, nil

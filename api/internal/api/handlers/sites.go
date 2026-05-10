@@ -13,11 +13,11 @@ import (
 )
 
 type SitesHandler struct {
-	repo      *sites.Repository
+	repo      sites.SiteRepository
 	collector *ingest.Collector
 }
 
-func NewSitesHandler(repo *sites.Repository, collector *ingest.Collector) *SitesHandler {
+func NewSitesHandler(repo sites.SiteRepository, collector *ingest.Collector) *SitesHandler {
 	return &SitesHandler{repo: repo, collector: collector}
 }
 

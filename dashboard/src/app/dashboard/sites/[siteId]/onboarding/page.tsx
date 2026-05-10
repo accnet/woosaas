@@ -15,7 +15,6 @@ import {
   KeyRound,
   Plus,
   RefreshCw,
-  ShieldCheck,
 } from 'lucide-react'
 import { InlineErrorState } from '@/components/ui/inline-error-state'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
