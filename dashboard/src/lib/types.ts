@@ -297,6 +297,97 @@ export interface CustomerDetailResponse {
   events: CustomerEvent[]
 }
 
+export interface OrderListItem {
+  woo_order_id: string
+  created_at_woo: string | null
+  customer_name: string
+  customer_email: string
+  payment_status: string
+  fulfillment_status: string
+  total_amount: number
+  currency: string
+  items_count: number
+  status: string
+  contact_id: string | null
+}
+
+export interface OrderListResponse {
+  orders: OrderListItem[]
+  total_count: number
+  page: number
+  page_size: number
+}
+
+export interface OrderItem {
+  line_item_id: string
+  product_id: string
+  variation_id: string
+  sku: string
+  name: string
+  quantity: number
+  unit_price: number
+  line_subtotal: number
+  line_total: number
+  line_tax: number
+}
+
+export interface OrderContact {
+  id: string
+  email: string
+  phone: string
+  full_name: string
+  company: string
+  orders_count: number
+  total_spent: number
+  first_seen_at: string | null
+  last_seen_at: string | null
+  first_name?: string
+  last_name?: string
+  woo_customer_id?: string
+  billing_address?: Record<string, unknown>
+  shipping_address?: Record<string, unknown>
+}
+
+export interface OrderDetail {
+  id: string
+  site_id: string
+  woo_order_id: string
+  woo_customer_id: string
+  status: string
+  payment_status: string
+  fulfillment_status: string
+  currency: string
+  total_amount: number
+  subtotal_amount: number
+  discount_amount: number
+  shipping_amount: number
+  tax_amount: number
+  refund_amount: number
+  items_count: number
+  customer_email: string
+  customer_first_name: string
+  customer_last_name: string
+  customer_phone: string
+  billing_company: string
+  billing_address: Record<string, unknown>
+  shipping_address: Record<string, unknown>
+  client_id: string
+  session_id: string
+  attribution: Record<string, unknown>
+  contact_id: string | null
+  created_at_woo: string | null
+  paid_at_woo: string | null
+  completed_at_woo: string | null
+  modified_at_woo: string
+  deleted_at_woo: string | null
+  synced_at: string
+  created_at: string
+  updated_at: string
+  raw_order: Record<string, unknown>
+  items: OrderItem[]
+  contact: OrderContact | null
+}
+
 export interface BotReasonStat {
   reason: string
   count: number

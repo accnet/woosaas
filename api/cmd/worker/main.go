@@ -11,6 +11,7 @@ import (
 	"github.com/woosaas/api/internal/config"
 	"github.com/woosaas/api/internal/database"
 	"github.com/woosaas/api/internal/observability"
+	"github.com/woosaas/api/internal/orders"
 	"github.com/woosaas/api/internal/worker"
 )
 
@@ -41,7 +42,7 @@ func main() {
 	defer redis.Close()
 
 	// Initialize worker
-	w := worker.NewConsumer(redis, ch, &worker.Config{
+	w := worker.NewConsumer(redis, ch, orders.NewRepository(pg), &worker.Config{
 		BatchSize:     cfg.WorkerBatchSize,
 		FlushInterval: time.Duration(cfg.WorkerFlushInterval) * time.Second,
 		MaxRetries:    cfg.WorkerMaxRetries,

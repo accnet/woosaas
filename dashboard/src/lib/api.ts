@@ -12,6 +12,8 @@ import type {
   CustomerListResponse,
   EventResponse,
   FunnelStats,
+  OrderDetail,
+  OrderListResponse,
   OverviewStats,
   PageStats,
   PipelineHealth,
@@ -170,6 +172,17 @@ export const statsApi = {
     const params = new URLSearchParams({ site_id: siteId, type, from, to })
     return `${API_URL}/api/v1/stats/export?${params.toString()}`
   },
+}
+
+export const ordersApi = {
+  list: (siteId: string, page = 1, pageSize = 25, params?: Record<string, string | number | undefined>) =>
+    api.get<OrderListResponse>('/api/v1/orders', {
+      params: { site_id: siteId, page, page_size: pageSize, ...(params || {}) },
+    }),
+  detail: (siteId: string, wooOrderId: string) =>
+    api.get<OrderDetail>(`/api/v1/orders/${encodeURIComponent(wooOrderId)}`, {
+      params: { site_id: siteId },
+    }),
 }
 
 export function getApiErrorMessage(error: unknown, fallback: string) {

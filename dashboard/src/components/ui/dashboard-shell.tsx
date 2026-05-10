@@ -506,7 +506,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     () => sites.find((site) => site.id === currentSiteId) || null,
     [sites, currentSiteId]
   )
-  const showSecondarySidebar = isAnalyticsRoute(pathname) || isSettingsRoute(pathname)
+  const isOrdersApp = currentSiteId !== null && pathname.startsWith(`/dashboard/${currentSiteId}/orders`)
+  const isContactsApp = currentSiteId !== null && pathname.startsWith(`/dashboard/${currentSiteId}/contacts`)
+  const showSecondarySidebar =
+    (isAnalyticsRoute(pathname) && !isOrdersApp && !isContactsApp) || isSettingsRoute(pathname)
 
   useKeyboardNav(currentSiteId)
 
@@ -588,6 +591,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         currentSite={currentSite}
         sites={sites}
         loadingSites={loadingSites}
+        showSecondarySidebar={showSecondarySidebar}
         user={user}
         logout={logout}
       />
@@ -645,7 +649,15 @@ function AppRail({
     }
 
     if (itemHref === '/dashboard/[siteId]/overview') {
-      return currentSiteId !== null && pathname.startsWith(`/dashboard/${currentSiteId}/`)
+      return currentSiteId !== null && pathname.startsWith(`/dashboard/${currentSiteId}/`) && !pathname.startsWith(`/dashboard/${currentSiteId}/orders`) && !pathname.startsWith(`/dashboard/${currentSiteId}/contacts`)
+    }
+
+    if (itemHref === '/dashboard/[siteId]/orders') {
+      return currentSiteId !== null && pathname.startsWith(`/dashboard/${currentSiteId}/orders`)
+    }
+
+    if (itemHref === '/dashboard/[siteId]/contacts') {
+      return currentSiteId !== null && pathname.startsWith(`/dashboard/${currentSiteId}/contacts`)
     }
 
     return pathname === href
@@ -737,6 +749,7 @@ function MobileNavDrawer({
   currentSite,
   sites,
   loadingSites,
+  showSecondarySidebar,
   user,
   logout,
 }: {
@@ -747,6 +760,7 @@ function MobileNavDrawer({
   currentSite: Site | null
   sites: Site[]
   loadingSites: boolean
+  showSecondarySidebar: boolean
   user: { name?: string | null; email?: string | null } | null
   logout: () => void
 }) {
@@ -768,7 +782,15 @@ function MobileNavDrawer({
     }
 
     if (itemHref === '/dashboard/[siteId]/overview') {
-      return currentSiteId !== null && pathname.startsWith(`/dashboard/${currentSiteId}/`)
+      return currentSiteId !== null && pathname.startsWith(`/dashboard/${currentSiteId}/`) && !pathname.startsWith(`/dashboard/${currentSiteId}/orders`) && !pathname.startsWith(`/dashboard/${currentSiteId}/contacts`)
+    }
+
+    if (itemHref === '/dashboard/[siteId]/orders') {
+      return currentSiteId !== null && pathname.startsWith(`/dashboard/${currentSiteId}/orders`)
+    }
+
+    if (itemHref === '/dashboard/[siteId]/contacts') {
+      return currentSiteId !== null && pathname.startsWith(`/dashboard/${currentSiteId}/contacts`)
     }
 
     return pathname === href
@@ -876,9 +898,19 @@ function MobileNavDrawer({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          <SiteSidebarContent pathname={pathname} siteId={currentSiteId} site={currentSite} sites={sites} loadingSites={loadingSites} compact onNavigate={onClose} />
-        </div>
+        {showSecondarySidebar ? (
+          <div className="flex-1 overflow-y-auto px-4 py-4">
+            <SiteSidebarContent
+              pathname={pathname}
+              siteId={currentSiteId}
+              site={currentSite}
+              sites={sites}
+              loadingSites={loadingSites}
+              compact
+              onNavigate={onClose}
+            />
+          </div>
+        ) : null}
 
         <div className="border-t border-app-line px-4 py-4">
           <div className="mb-3 flex items-center gap-3 rounded-lg border border-app-line bg-slate-50 px-3 py-3">
@@ -1002,7 +1034,9 @@ function SiteSidebarContent({
   )
 
   if (site) {
-    const isAnalyticsApp = pathname.startsWith(`/dashboard/${siteId}/`)
+    const isOrdersApp = pathname.startsWith(`/dashboard/${siteId}/orders`)
+    const isContactsApp = pathname.startsWith(`/dashboard/${siteId}/contacts`)
+    const isAnalyticsApp = pathname.startsWith(`/dashboard/${siteId}/`) && !isOrdersApp && !isContactsApp
 
     return (
       <div className={compact ? 'space-y-6' : 'space-y-7'}>
@@ -1206,7 +1240,7 @@ function TopNav({
     funnel: 'Funnel',
     realtime: 'Realtime',
     bots: 'Bots',
-    customers: 'Customers',
+    contacts: 'Contacts',
     health: 'Health',
     exports: 'Exports',
   }

@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
@@ -77,19 +78,24 @@ func main() {
 }
 
 func runPostgresMigrations(db *pgxpool.Pool, reset bool) error {
-	sql, err := readFirstExisting(
-		"migrations_postgres/001_init.sql",
-		"../migrations_postgres/001_init.sql",
-		"api/migrations_postgres/001_init.sql",
+	files, err := findMigrationFiles(
+		"migrations_postgres",
+		"../migrations_postgres",
+		"api/migrations_postgres",
 	)
 	if err != nil {
-		log.Printf("Could not find init.sql: %v", err)
 		return err
 	}
 
-	for _, statement := range splitSQLStatements(string(sql)) {
-		if _, err := db.Exec(context.Background(), statement); err != nil {
+	for _, file := range files {
+		sql, err := os.ReadFile(filepath.Clean(file))
+		if err != nil {
 			return err
+		}
+		for _, statement := range splitSQLStatements(string(sql)) {
+			if _, err := db.Exec(context.Background(), statement); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -97,19 +103,24 @@ func runPostgresMigrations(db *pgxpool.Pool, reset bool) error {
 }
 
 func runClickHouseMigrations(db driver.Conn, reset bool) error {
-	sql, err := readFirstExisting(
-		"migrations/clickhouse/001_create_events.sql",
-		"../migrations/clickhouse/001_create_events.sql",
-		"api/migrations/clickhouse/001_create_events.sql",
+	files, err := findMigrationFiles(
+		"migrations/clickhouse",
+		"../migrations/clickhouse",
+		"api/migrations/clickhouse",
 	)
 	if err != nil {
-		log.Printf("Could not find 001_create_events.sql: %v", err)
 		return err
 	}
 
-	for _, statement := range splitSQLStatements(string(sql)) {
-		if err := db.Exec(context.Background(), statement); err != nil {
+	for _, file := range files {
+		sql, err := os.ReadFile(filepath.Clean(file))
+		if err != nil {
 			return err
+		}
+		for _, statement := range splitSQLStatements(string(sql)) {
+			if err := db.Exec(context.Background(), statement); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -130,6 +141,27 @@ func readFirstExisting(paths ...string) ([]byte, error) {
 		lastErr = err
 	}
 	return nil, lastErr
+}
+
+func findMigrationFiles(dirs ...string) ([]string, error) {
+	for _, dir := range dirs {
+		entries, err := os.ReadDir(filepath.Clean(dir))
+		if err != nil {
+			continue
+		}
+		files := make([]string, 0, len(entries))
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
+				continue
+			}
+			files = append(files, filepath.Join(dir, entry.Name()))
+		}
+		sort.Strings(files)
+		if len(files) > 0 {
+			return files, nil
+		}
+	}
+	return nil, os.ErrNotExist
 }
 
 func splitSQLStatements(sql string) []string {

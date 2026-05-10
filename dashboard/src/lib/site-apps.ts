@@ -4,7 +4,7 @@ import type { Site } from '@/lib/types'
 type AppTone = 'neutral' | 'info' | 'good' | 'warn'
 
 export type WebsiteAppStatus = {
-  key: 'analytics' | 'supportTickets' | 'emailCampaigns'
+  key: 'analytics' | 'orders' | 'contacts'
   title: string
   label: string
   tone: AppTone
@@ -13,7 +13,7 @@ export type WebsiteAppStatus = {
 }
 
 export type WorkspaceAppSummary = {
-  key: 'analytics' | 'supportTickets' | 'emailCampaigns'
+  key: 'analytics' | 'orders' | 'contacts'
   title: string
   label: string
   tone: AppTone
@@ -52,20 +52,20 @@ export function getWebsiteAppStatuses(site: Site): WebsiteAppStatus[] {
       href: `/dashboard/${site.id}/overview`,
     },
     {
-      key: 'supportTickets',
-      title: 'Support Tickets',
-      label: 'Coming soon',
-      tone: 'neutral',
-      description: 'Coming soon app surface for shared inbox, ticket routing, and support operations.',
-      href: `/dashboard/sites/${site.id}/support-tickets`,
+      key: 'orders',
+      title: 'Orders',
+      label: 'Available',
+      tone: 'good',
+      description: 'Canonical WooCommerce order directory, detail views, and commerce sync state.',
+      href: `/dashboard/${site.id}/orders`,
     },
     {
-      key: 'emailCampaigns',
-      title: 'Email Campaigns',
-      label: 'Coming soon',
-      tone: 'neutral',
-      description: 'Coming soon app surface for audience messaging, journeys, and campaign reporting.',
-      href: `/dashboard/sites/${site.id}/email-campaigns`,
+      key: 'contacts',
+      title: 'Contacts',
+      label: 'Available',
+      tone: 'info',
+      description: 'Customer and contact directory driven by commerce and event identity.',
+      href: `/dashboard/${site.id}/contacts`,
     },
   ]
 }
@@ -86,18 +86,18 @@ export function getWorkspaceAppSummaries(sites: Site[]): WorkspaceAppSummary[] {
           : 'No websites connected yet',
     },
     {
-      key: 'supportTickets',
-      title: 'Support Tickets',
-      label: 'Coming soon',
-      tone: 'neutral',
-      detail: 'Will be built after the analytics workspace is stable',
+      key: 'orders',
+      title: 'Orders',
+      label: 'Live',
+      tone: 'good',
+      detail: 'Canonical order app is available for synced commerce data',
     },
     {
-      key: 'emailCampaigns',
-      title: 'Email Campaigns',
-      label: 'Coming soon',
-      tone: 'neutral',
-      detail: 'Will be built later on top of website, customer, and analytics context',
+      key: 'contacts',
+      title: 'Contacts',
+      label: 'Live',
+      tone: 'info',
+      detail: 'Contact app is available for customer and commerce identity views',
     },
   ]
 }

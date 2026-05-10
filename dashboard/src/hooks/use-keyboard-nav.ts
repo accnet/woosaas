@@ -25,7 +25,7 @@ export function useKeyboardNav(siteId: string | null) {
       const map: Record<string, string> = {
         o: 'overview', t: 'trend', s: 'sources',
         c: 'campaigns', p: 'pages', f: 'funnel',
-        r: 'realtime', b: 'bots', u: 'customers',
+        r: 'realtime', b: 'bots', u: 'contacts',
         h: 'health', x: 'exports',
       }
 

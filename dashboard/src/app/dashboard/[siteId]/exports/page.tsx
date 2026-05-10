@@ -24,6 +24,12 @@ type ExportHistoryItem = {
 }
 
 const STORAGE_KEY = 'woosaas-recent-exports'
+const EXPORT_LABELS: Record<ExportType, string> = {
+  events: 'Events',
+  orders: 'Orders',
+  customers: 'Contacts',
+}
+
 export default function ExportsPage() {
   const siteId = useSiteId()
   const [loading, setLoading] = useState(false)
@@ -111,7 +117,7 @@ export default function ExportsPage() {
                 >
                   <option value="events">Events</option>
                   <option value="orders">Orders</option>
-                  <option value="customers">Customers</option>
+                  <option value="customers">Contacts</option>
                 </select>
               </div>
               <div>
@@ -133,8 +139,8 @@ export default function ExportsPage() {
             <div className="rounded-lg border border-app-line bg-app-panel p-4">
               <div className="text-sm font-semibold text-app-strong">Selected export</div>
               <p className="mt-2 text-sm text-app-muted">
-                {exportType} export for the {dateRange} range. The generated link is ready immediately and can be
-                reopened from the recent exports list.
+                {EXPORT_LABELS[exportType]} export for the {dateRange} range. The generated link is ready
+                immediately and can be reopened from the recent exports list.
               </p>
             </div>
 
@@ -158,7 +164,7 @@ export default function ExportsPage() {
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <StatusChip label={item.type} tone="info" />
+                        <StatusChip label={EXPORT_LABELS[item.type]} tone="info" />
                         <StatusChip label={item.range} tone="neutral" />
                         <StatusChip label={item.status} tone={item.status === 'ready' ? 'good' : 'neutral'} />
                       </div>
@@ -184,7 +190,7 @@ export default function ExportsPage() {
             <EmptyState
               icon={<FileSpreadsheet className="h-12 w-12" />}
               title="No exports prepared yet"
-              body="Create an events, orders, or customers export to populate this history panel."
+              body="Create an events, orders, or contacts export to populate this history panel."
             />
           )}
         </SectionCard>
@@ -194,7 +200,7 @@ export default function ExportsPage() {
         <DetailNote
           icon={<FileSpreadsheet className="h-4 w-4" />}
           title="CSV export types"
-          body="Events exports preserve event-level rows, orders focus on purchase output, and customer exports summarize profiles plus value signals."
+          body="Events exports preserve event-level rows, orders focus on purchase output, and contact exports summarize profiles plus value signals."
         />
         <DetailNote
           icon={<Users className="h-4 w-4" />}

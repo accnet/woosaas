@@ -7,7 +7,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-woosaas}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./api/migrations_postgres/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+      - ./api/migrations_postgres:/docker-entrypoint-initdb.d:ro
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:

@@ -14,6 +14,7 @@ import {
   Megaphone,
   Package,
   PanelLeft,
+  ReceiptText,
   ShoppingCart,
   Settings2,
   Target,
@@ -43,6 +44,8 @@ export const settingsNav: NavItem[] = [
 export const siteAppsNav: NavItem[] = [
   { href: '/dashboard/sites/[siteId]', label: 'Home', icon: House },
   { href: '/dashboard/[siteId]/overview', label: 'Analytics', icon: ChartColumn },
+  { href: '/dashboard/[siteId]/orders', label: 'Orders', icon: ReceiptText },
+  { href: '/dashboard/[siteId]/contacts', label: 'Contacts', icon: Users },
   { href: '/dashboard/sites/[siteId]/support-tickets', label: 'Support Tickets', icon: LifeBuoy, status: 'comingSoon' },
   { href: '/dashboard/sites/[siteId]/email-campaigns', label: 'Email Campaigns', icon: Mail, status: 'comingSoon' },
 ]
@@ -65,7 +68,6 @@ export const siteCommerceNav: NavItem[] = [
 
 export const siteOperationsNav: NavItem[] = [
   { href: 'realtime', label: 'Realtime', icon: Activity },
-  { href: 'customers', label: 'Customers', icon: Users },
   { href: 'bots', label: 'Bots', icon: Bot },
   { href: 'exports', label: 'Exports', icon: Download },
   { href: 'health', label: 'Health', icon: HeartPulse },
@@ -135,6 +137,14 @@ export function getCurrentSiteApp(pathname: string) {
 
   if (/^\/dashboard\/sites\/[^/]+(?:\/|$)/.test(pathname)) {
     return 'Website Home'
+  }
+
+  if (/^\/dashboard\/(?!sites\/)[^/]+\/orders(?:\/|$)/.test(pathname)) {
+    return 'Orders'
+  }
+
+  if (/^\/dashboard\/(?!sites\/)[^/]+\/contacts(?:\/|$)/.test(pathname)) {
+    return 'Contacts'
   }
 
   if (/^\/dashboard\/(?!sites\/)[^/]+\/.+/.test(pathname)) {
@@ -216,6 +226,20 @@ export function buildPageMeta(pathname: string) {
     return {
       title: 'Email Campaigns',
       description: 'Coming soon campaign workspace for this website.',
+    }
+  }
+
+  if (/^\/dashboard\/[^/]+\/orders(?:\/|$)/.test(pathname)) {
+    return {
+      title: 'Orders',
+      description: 'Canonical commerce order workspace for this website.',
+    }
+  }
+
+  if (/^\/dashboard\/[^/]+\/contacts(?:\/|$)/.test(pathname)) {
+    return {
+      title: 'Contacts',
+      description: 'Customer and contact workspace for this website.',
     }
   }
 

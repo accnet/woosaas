@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Activity, ArrowRight, KeyRound, LifeBuoy, Mail, Settings2, ShieldCheck, Store } from 'lucide-react'
+import { Activity, ArrowRight, KeyRound, Mail, ReceiptText, Settings2, ShieldCheck, Store, Users } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { MetricCard } from '@/components/ui/metric-card'
 import { SectionCard } from '@/components/ui/section-card'
@@ -66,20 +66,20 @@ export default function WebsiteHomePage() {
       cta: 'Open analytics',
     },
     {
-      title: 'Support Tickets',
-      description: 'Shared support inbox and ticket operations for this website.',
-      href: `/dashboard/sites/${site.id}/support-tickets`,
-      icon: <LifeBuoy className="h-5 w-5" />,
-      status: 'comingSoon',
-      cta: 'Coming soon',
+      title: 'Orders',
+      description: 'Canonical WooCommerce order directory and order detail workspace.',
+      href: `/dashboard/${site.id}/orders`,
+      icon: <ReceiptText className="h-5 w-5" />,
+      status: 'active',
+      cta: 'Open orders',
     },
     {
-      title: 'Email Campaigns',
-      description: 'Audience messaging, lifecycle flows, and campaign performance.',
-      href: `/dashboard/sites/${site.id}/email-campaigns`,
-      icon: <Mail className="h-5 w-5" />,
-      status: 'comingSoon',
-      cta: 'Coming soon',
+      title: 'Contacts',
+      description: 'Contact and customer directory anchored to event and commerce identity.',
+      href: `/dashboard/${site.id}/contacts`,
+      icon: <Users className="h-5 w-5" />,
+      status: 'active',
+      cta: 'Open contacts',
     },
   ]
 
@@ -202,12 +202,12 @@ export default function WebsiteHomePage() {
         </SectionCard>
 
         <SectionCard
-          title="Expansion Path"
+          title="Commerce Apps"
           icon={<Mail className="h-4 w-4" />}
         >
           <div className="space-y-2 text-sm text-app-muted">
-            <p>Support Tickets can take ownership of conversations, assignees, and SLA views.</p>
-            <p>Email Campaigns can later introduce audience, automations, and reporting in the same website context.</p>
+            <p>Orders and Contacts now sit as app surfaces next to Analytics in the website workspace.</p>
+            <p>Additional apps can still be layered later without mixing commerce directories back into Analytics navigation.</p>
           </div>
         </SectionCard>
       </div>

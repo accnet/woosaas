@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,13 +16,15 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/shopspring/decimal"
 	"github.com/woosaas/api/internal/observability"
+	"github.com/woosaas/api/internal/orders"
 	"github.com/woosaas/api/pkg/models"
 )
 
 const (
-	eventsStream  = "events:stream"
-	deadStream    = "events:dead"
-	consumerGroup = "woosaas-workers"
+	eventsStream     = "events:stream"
+	deadStream       = "events:dead"
+	ordersDeadStream = "orders:dead"
+	consumerGroup    = "woosaas-workers"
 )
 
 type Config struct {
@@ -33,13 +36,14 @@ type Config struct {
 type Consumer struct {
 	redis  *redis.Client
 	ch     driver.Conn
+	orders *orders.Repository
 	config *Config
 	mu     sync.Mutex
 	stopCh chan struct{}
 	wg     sync.WaitGroup
 }
 
-func NewConsumer(redis *redis.Client, ch driver.Conn, config *Config) *Consumer {
+func NewConsumer(redis *redis.Client, ch driver.Conn, orderRepo *orders.Repository, config *Config) *Consumer {
 	if config.BatchSize == 0 {
 		config.BatchSize = 1000
 	}
@@ -53,6 +57,7 @@ func NewConsumer(redis *redis.Client, ch driver.Conn, config *Config) *Consumer 
 	return &Consumer{
 		redis:  redis,
 		ch:     ch,
+		orders: orderRepo,
 		config: config,
 		stopCh: make(chan struct{}),
 	}
@@ -117,6 +122,10 @@ func (c *Consumer) ensureConsumerGroup(ctx context.Context) error {
 	if err != nil && !isBusyGroupErr(err) {
 		return err
 	}
+	err = c.redis.XGroupCreateMkStream(ctx, orders.OrdersStream, consumerGroup, "0").Err()
+	if err != nil && !isBusyGroupErr(err) {
+		return err
+	}
 	return nil
 }
 
@@ -129,7 +138,7 @@ func (c *Consumer) readOnce(ctx context.Context, batch *eventBatchWriter) {
 	streams, err := c.redis.XReadGroup(ctx, &redis.XReadGroupArgs{
 		Group:    consumerGroup,
 		Consumer: consumerName(),
-		Streams:  []string{eventsStream, ">"},
+		Streams:  streamReadGroupArgs(),
 		Count:    count,
 		Block:    time.Second,
 	}).Result()
@@ -146,6 +155,12 @@ func (c *Consumer) readOnce(ctx context.Context, batch *eventBatchWriter) {
 
 	for _, stream := range streams {
 		for _, message := range stream.Messages {
+			if stream.Stream == orders.OrdersStream {
+				if err := c.processOrderMessage(ctx, message); err != nil {
+					log.Printf("Failed to process order message %s: %v", message.ID, err)
+				}
+				continue
+			}
 			event, err := parseMessage(message)
 			if err != nil {
 				log.Printf("Skipping invalid event %s: %v", message.ID, err)
@@ -159,6 +174,28 @@ func (c *Consumer) readOnce(ctx context.Context, batch *eventBatchWriter) {
 			}
 		}
 	}
+}
+
+func (c *Consumer) processOrderMessage(ctx context.Context, message redis.XMessage) error {
+	item, err := parseOrderMessage(message)
+	if err != nil {
+		return moveOrderMessageToDead(ctx, c.redis, message, err, 0)
+	}
+
+	if err := c.orders.UpsertOrderSnapshot(ctx, item.siteID, item.order, item.contactSyncEnabled); err != nil {
+		_ = c.orders.MarkSyncError(ctx, item.siteID, item.contactSyncEnabled, err)
+		attempts, retryErr := incrementRetryForStream(ctx, c.redis, orders.OrdersStream, message.ID)
+		if retryErr != nil {
+			return retryErr
+		}
+		if attempts >= c.config.MaxRetries {
+			return moveOrderMessageToDead(ctx, c.redis, message, err, attempts)
+		}
+		return err
+	}
+
+	c.redis.Del(ctx, retryKeyForStream(orders.OrdersStream, message.ID))
+	return c.redis.XAck(ctx, orders.OrdersStream, consumerGroup, message.ID).Err()
 }
 
 var (
@@ -357,13 +394,31 @@ func parseMessage(message redis.XMessage) (queuedEvent, error) {
 }
 
 func incrementRetry(ctx context.Context, redisClient *redis.Client, messageID string) (int, error) {
-	key := fmt.Sprintf("events:retry:%s", messageID)
+	key := retryKeyForStream(eventsStream, messageID)
 	attempts, err := redisClient.Incr(ctx, key).Result()
 	if err != nil {
 		return 0, err
 	}
 	redisClient.Expire(ctx, key, 24*time.Hour)
 	return int(attempts), nil
+}
+
+func incrementRetryForStream(ctx context.Context, redisClient *redis.Client, stream, messageID string) (int, error) {
+	key := retryKeyForStream(stream, messageID)
+	attempts, err := redisClient.Incr(ctx, key).Result()
+	if err != nil {
+		return 0, err
+	}
+	redisClient.Expire(ctx, key, 24*time.Hour)
+	return int(attempts), nil
+}
+
+func retryKeyForStream(stream, messageID string) string {
+	return fmt.Sprintf("%s:retry:%s", stream, messageID)
+}
+
+func streamReadGroupArgs() []string {
+	return []string{eventsStream, orders.OrdersStream, ">", ">"}
 }
 
 func moveMessageToDead(ctx context.Context, redisClient *redis.Client, message redis.XMessage, cause error, attempts int) error {
@@ -386,7 +441,64 @@ func moveMessageToDead(ctx context.Context, redisClient *redis.Client, message r
 	if err := redisClient.XAck(ctx, eventsStream, consumerGroup, message.ID).Err(); err != nil {
 		return err
 	}
-	redisClient.Del(ctx, fmt.Sprintf("events:retry:%s", message.ID))
+	redisClient.Del(ctx, retryKeyForStream(eventsStream, message.ID))
+	return nil
+}
+
+type queuedOrder struct {
+	messageID          string
+	message            redis.XMessage
+	siteID             string
+	contactSyncEnabled bool
+	order              models.WooOrderInput
+}
+
+func parseOrderMessage(message redis.XMessage) (queuedOrder, error) {
+	siteID, ok := message.Values["site_id"].(string)
+	if !ok || siteID == "" {
+		return queuedOrder{}, fmt.Errorf("missing site_id")
+	}
+	orderJSON, ok := message.Values["order"].(string)
+	if !ok || orderJSON == "" {
+		return queuedOrder{}, fmt.Errorf("missing order payload")
+	}
+	contactSyncRaw, _ := message.Values["contact_sync_enabled"].(string)
+
+	var order models.WooOrderInput
+	if err := json.Unmarshal([]byte(orderJSON), &order); err != nil {
+		return queuedOrder{}, err
+	}
+
+	return queuedOrder{
+		messageID:          message.ID,
+		message:            message,
+		siteID:             siteID,
+		contactSyncEnabled: strings.EqualFold(contactSyncRaw, "true"),
+		order:              order,
+	}, nil
+}
+
+func moveOrderMessageToDead(ctx context.Context, redisClient *redis.Client, message redis.XMessage, cause error, attempts int) error {
+	values := map[string]interface{}{
+		"source_stream": orders.OrdersStream,
+		"source_id":     message.ID,
+		"error":         cause.Error(),
+		"attempts":      attempts,
+		"dead_at":       time.Now().UTC().Format(time.RFC3339Nano),
+	}
+	for key, value := range message.Values {
+		values[key] = value
+	}
+	if err := redisClient.XAdd(ctx, &redis.XAddArgs{
+		Stream: ordersDeadStream,
+		Values: values,
+	}).Err(); err != nil {
+		return err
+	}
+	if err := redisClient.XAck(ctx, orders.OrdersStream, consumerGroup, message.ID).Err(); err != nil {
+		return err
+	}
+	redisClient.Del(ctx, retryKeyForStream(orders.OrdersStream, message.ID))
 	return nil
 }
 

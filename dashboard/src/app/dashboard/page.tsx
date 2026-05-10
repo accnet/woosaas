@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, AlertTriangle, ArrowRight, Globe, Layers3, LifeBuoy, Mail, Plus, ShieldCheck, Store } from 'lucide-react'
+import { Activity, AlertTriangle, ArrowRight, Globe, Layers3, Plus, ReceiptText, ShieldCheck, Store, Users } from 'lucide-react'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { MetricCard } from '@/components/ui/metric-card'
@@ -156,7 +156,7 @@ export default function DashboardPage() {
             <div key={app.key} className="rounded-lg border border-app-line bg-white p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-app-subtle text-app-strong">
-                  {app.key === 'analytics' ? <Activity className="h-5 w-5" /> : app.key === 'supportTickets' ? <LifeBuoy className="h-5 w-5" /> : <Mail className="h-5 w-5" />}
+                  {app.key === 'analytics' ? <Activity className="h-5 w-5" /> : app.key === 'orders' ? <ReceiptText className="h-5 w-5" /> : <Users className="h-5 w-5" />}
                 </div>
                 <StatusChip label={app.label} tone={app.tone} />
               </div>

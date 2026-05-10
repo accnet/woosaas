@@ -3,6 +3,7 @@ package api
 import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/woosaas/api/internal/api/handlers"
 	"github.com/woosaas/api/internal/api/middleware"
@@ -10,19 +11,22 @@ import (
 	"github.com/woosaas/api/internal/customer360"
 	"github.com/woosaas/api/internal/export"
 	"github.com/woosaas/api/internal/ingest"
+	"github.com/woosaas/api/internal/orders"
 	"github.com/woosaas/api/internal/query"
 	"github.com/woosaas/api/internal/realtime"
 	"github.com/woosaas/api/internal/sites"
 )
 
-
 type Router struct {
 	engine      *gin.Engine
+	pg          *pgxpool.Pool
 	repo        *sites.Repository
 	jwtManager  *auth.JWTManager
 	mw          *middleware.Middleware
 	redisClient *redis.Client
 	collector   *ingest.Collector
+	orderQueue  *orders.Queue
+	orderRepo   *orders.Repository
 	stats       *query.Stats
 	bots        *query.Bots
 	exports     *export.ExportService
@@ -31,6 +35,7 @@ type Router struct {
 }
 
 func NewRouter(
+	pg *pgxpool.Pool,
 	repo *sites.Repository,
 	jwtManager *auth.JWTManager,
 	redisClient *redis.Client,
@@ -47,13 +52,16 @@ func NewRouter(
 	engine.Use(gzipMiddleware())
 
 	return &Router{
-		engine:      engine,
-		repo:        repo,
-		jwtManager:  jwtManager,
+		engine:     engine,
+		pg:         pg,
+		repo:       repo,
+		jwtManager: jwtManager,
 		// M3: pass allowed origins for proper CORS validation
 		mw:          middleware.NewMiddleware(jwtManager, redisClient, allowedOrigins),
 		redisClient: redisClient,
 		collector:   ingest.NewCollector(redisClient),
+		orderQueue:  orders.NewQueue(redisClient),
+		orderRepo:   orders.NewRepository(pg),
 		// L3: redis now injected into Stats for consistent dependency management
 		stats:       query.NewStats(ch),
 		bots:        query.NewBots(ch),
@@ -69,11 +77,13 @@ func (r *Router) Setup() *gin.Engine {
 
 	v1 := r.engine.Group("/api/v1")
 	r.registerCollectRoutes(v1)
+	r.registerWooSyncRoutes(v1)
 
 	authHandler := handlers.NewAuthHandler(r.repo, r.jwtManager)
 	r.registerAuthRoutes(v1, authHandler)
 	r.registerDashboardRoutes(v1, authHandler)
 	r.registerStatsRoutes(v1)
+	r.registerOrdersRoutes(v1)
 
 	return r.engine
 }
@@ -96,6 +106,16 @@ func (r *Router) registerCollectRoutes(v1 *gin.RouterGroup) {
 	}
 }
 
+func (r *Router) registerWooSyncRoutes(v1 *gin.RouterGroup) {
+	woo := v1.Group("/woo/orders")
+	woo.Use(r.mw.APIKeyAuth(r.repo))
+	woo.Use(r.mw.RateLimit())
+	{
+		ordersHandler := handlers.NewOrdersHandler(r.orderQueue, r.orderRepo, r.repo, r.redisClient)
+		woo.POST("/sync", ordersHandler.SyncOrders)
+	}
+}
+
 func (r *Router) registerAuthRoutes(v1 *gin.RouterGroup, authHandler *handlers.AuthHandler) {
 	authGroup := v1.Group("/auth")
 	{
@@ -111,6 +131,7 @@ func (r *Router) registerDashboardRoutes(v1 *gin.RouterGroup, authHandler *handl
 		dashboard.GET("/me", authHandler.Me)
 
 		sitesHandler := handlers.NewSitesHandler(r.repo, r.collector)
+		ordersHandler := handlers.NewOrdersHandler(r.orderQueue, r.orderRepo, r.repo, r.redisClient)
 		dashboard.POST("/sites", sitesHandler.CreateSite)
 		dashboard.GET("/sites", sitesHandler.GetSites)
 		dashboard.GET("/sites/:site_id", sitesHandler.GetSite)
@@ -126,6 +147,7 @@ func (r *Router) registerDashboardRoutes(v1 *gin.RouterGroup, authHandler *handl
 		dashboard.PUT("/sites/:site_id/members/:member_id", sitesHandler.UpdateSiteMember)
 		dashboard.DELETE("/sites/:site_id/members/:member_id", sitesHandler.DeleteSiteMember)
 		dashboard.POST("/sites/:site_id/debug-event", sitesHandler.SendDebugEvent)
+		dashboard.GET("/sites/:site_id/orders/sync-state", ordersHandler.GetSyncState)
 	}
 }
 
@@ -148,5 +170,16 @@ func (r *Router) registerStatsRoutes(v1 *gin.RouterGroup) {
 		stats.GET("/export", statsHandler.Export)
 		stats.GET("/customers", statsHandler.GetCustomers)
 		stats.GET("/customers/:client_id", statsHandler.GetCustomer)
+	}
+}
+
+func (r *Router) registerOrdersRoutes(v1 *gin.RouterGroup) {
+	ordersHandler := handlers.NewOrdersHandler(r.orderQueue, r.orderRepo, r.repo, r.redisClient)
+	orders := v1.Group("")
+	orders.Use(r.mw.JWTAuth())
+	{
+		orders.GET("/orders", ordersHandler.ListOrders)
+		orders.GET("/orders/:woo_order_id", ordersHandler.GetOrderDetail)
+		orders.GET("/contacts", ordersHandler.ListContacts)
 	}
 }

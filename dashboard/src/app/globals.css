@@ -303,6 +303,8 @@
     @apply px-4 py-2.5 text-left text-[11px] font-semibold uppercase text-app-soft;
 
     letter-spacing: 0.08em;
+    vertical-align: middle;
+    white-space: nowrap;
   }
 
   .table-body {
@@ -310,12 +312,31 @@
   }
 
   .table-row {
-    @apply border-b border-slate-100;
-    position: relative;
     transition: background 150ms ease;
   }
 
-  .table-row::before {
+  .table-row:hover .table-cell {
+    background: #f8fbff;
+  }
+
+  .table-cell {
+    @apply whitespace-nowrap px-4 py-3.5 text-sm;
+
+    color: #314056;
+    vertical-align: middle;
+    border-bottom: 1px solid #f1f5f9;
+    background: #fff;
+  }
+
+  .table-row:last-child .table-cell {
+    border-bottom: 0;
+  }
+
+  .table-row .table-cell:first-child {
+    position: relative;
+  }
+
+  .table-row .table-cell:first-child::before {
     content: '';
     position: absolute;
     left: 0;
@@ -327,18 +348,8 @@
     border-radius: 0 1px 1px 0;
   }
 
-  .table-row:hover::before {
+  .table-row:hover .table-cell:first-child::before {
     width: 2px;
-  }
-
-  .table-row:hover {
-    background: #f8fbff;
-  }
-
-  .table-cell {
-    @apply whitespace-nowrap px-4 py-3.5 text-sm;
-
-    color: #314056;
   }
 
   .stat-card {
@@ -615,6 +626,11 @@
 
   .text-balance {
     text-wrap: balance;
+  }
+
+  .right-3,
+  .right-4 {
+    right: -0.8rem;
   }
 
   .bg-grid {
