@@ -11,6 +11,7 @@ import (
 	"github.com/accnet/woosaas/api/internal/ingest"
 	"github.com/accnet/woosaas/api/internal/orders"
 	"github.com/accnet/woosaas/api/internal/realtime"
+	appsettings "github.com/accnet/woosaas/api/internal/settings"
 	"github.com/accnet/woosaas/api/internal/sites"
 	"github.com/accnet/woosaas/api/internal/users"
 	"github.com/gin-gonic/gin"
@@ -19,18 +20,19 @@ import (
 )
 
 type Router struct {
-	engine      *gin.Engine
-	repo        *sites.Repository
-	authSvc     *auth.Service
-	mw          *middleware.Middleware
-	redisClient *redis.Client
-	collector   *ingest.Collector
-	orderSvc    *orders.Service
-	stats       *analytics.Stats
-	bots        *analytics.Bots
-	exports     *export.ExportService
-	customers   *customers.CustomerService
-	onlineUsers *realtime.OnlineUsers
+	engine       *gin.Engine
+	repo         *sites.Repository
+	authSvc      *auth.Service
+	mw           *middleware.Middleware
+	redisClient  *redis.Client
+	collector    *ingest.Collector
+	orderSvc     *orders.Service
+	settingsRepo *appsettings.Repository
+	stats        *analytics.Stats
+	bots         *analytics.Bots
+	exports      *export.ExportService
+	customers    *customers.CustomerService
+	onlineUsers  *realtime.OnlineUsers
 }
 
 func NewRouter(
@@ -59,15 +61,16 @@ func NewRouter(
 		repo:    repo,
 		authSvc: auth.NewService(userRepo, jwtManager),
 		// M3: pass allowed origins for proper CORS validation
-		mw:          middleware.NewMiddleware(jwtManager, redisClient, allowedOrigins),
-		redisClient: redisClient,
-		collector:   ingest.NewCollector(redisClient),
-		orderSvc:    orders.NewService(orderQueue, orderRepo),
-		stats:       analytics.NewStatsWithCache(ch, redisClient),
-		bots:        analytics.NewBots(ch),
-		exports:     export.NewService(ch),
-		customers:   customers.NewService(ch),
-		onlineUsers: realtime.NewOnlineUsers(redisClient),
+		mw:           middleware.NewMiddleware(jwtManager, redisClient, allowedOrigins),
+		redisClient:  redisClient,
+		collector:    ingest.NewCollector(redisClient),
+		orderSvc:     orders.NewService(orderQueue, orderRepo),
+		settingsRepo: appsettings.NewRepository(pg),
+		stats:        analytics.NewStatsWithCache(ch, redisClient),
+		bots:         analytics.NewBots(ch),
+		exports:      export.NewService(ch),
+		customers:    customers.NewService(ch),
+		onlineUsers:  realtime.NewOnlineUsers(redisClient),
 	}
 }
 
@@ -130,9 +133,17 @@ func (r *Router) registerDashboardRoutes(v1 *gin.RouterGroup, authHandler *handl
 	dashboard.Use(r.mw.JWTAuth())
 	{
 		dashboard.GET("/me", authHandler.Me)
+		dashboard.PUT("/me", authHandler.UpdateProfile)
+		dashboard.PUT("/me/password", authHandler.ChangePassword)
 
 		sitesHandler := handlers.NewSitesHandler(r.repo, r.collector)
 		ordersHandler := handlers.NewOrdersHandler(r.orderSvc, r.repo, r.redisClient)
+		settingsHandler := handlers.NewSettingsHandler(r.settingsRepo)
+		dashboard.GET("/settings", settingsHandler.GetUserSettings)
+		dashboard.PUT("/settings", settingsHandler.UpdateUserSettings)
+		dashboard.GET("/billing/profile", settingsHandler.GetBillingProfile)
+		dashboard.PUT("/billing/profile", settingsHandler.UpdateBillingProfile)
+		dashboard.GET("/billing/invoices", settingsHandler.ListInvoices)
 		dashboard.POST("/sites", sitesHandler.CreateSite)
 		dashboard.GET("/sites", sitesHandler.GetSites)
 		dashboard.GET("/sites/:site_id", sitesHandler.GetSite)

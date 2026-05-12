@@ -2,7 +2,9 @@ import {
   Activity,
   Bot,
   ChartColumn,
+  CreditCard,
   Download,
+  FileText,
   Globe2,
   House,
   Globe,
@@ -11,6 +13,7 @@ import {
   LayoutDashboard,
   LifeBuoy,
   LineChart,
+  LockKeyhole,
   Mail,
   MapPin,
   Megaphone,
@@ -35,16 +38,19 @@ export type NavItem = {
 }
 
 export const appNav: NavItem[] = [
-  { href: '/dashboard', label: 'Workspace', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/sites', label: 'Websites', icon: Globe },
 ]
 
 export const settingsRootNav: NavItem[] = [
-  { href: '/dashboard/teams', label: 'Setting', icon: Settings2 },
+  { href: '/dashboard/settings/general', label: 'Setting', icon: Settings2 },
 ]
 
 export const settingsNav: NavItem[] = [
-  { href: '/dashboard/teams', label: 'Teams', icon: Users },
+  { href: '/dashboard/settings/general', label: 'General', icon: Settings2 },
+  { href: '/dashboard/settings/authentication', label: 'Authentication', icon: LockKeyhole },
+  { href: '/dashboard/settings/billing', label: 'Billing Information', icon: CreditCard },
+  { href: '/dashboard/settings/invoices', label: 'Invoices', icon: FileText },
 ]
 
 export const siteAppsNav: NavItem[] = [
@@ -93,7 +99,7 @@ export const siteSetupNav: NavItem[] = [
 
 export function getCurrentSiteId(pathname: string) {
   const analyticsMatch = pathname.match(/^\/dashboard\/([^/]+)\//)
-  if (analyticsMatch?.[1] && analyticsMatch[1] !== 'sites') {
+  if (analyticsMatch?.[1] && !['sites', 'settings', 'teams'].includes(analyticsMatch[1])) {
     return analyticsMatch[1]
   }
 
@@ -128,11 +134,11 @@ export function isSiteWorkspaceRoute(pathname: string) {
 }
 
 export function isAnalyticsRoute(pathname: string) {
-  return /^\/dashboard\/(?!sites\/)[^/]+\//.test(pathname)
+  return /^\/dashboard\/(?!sites\/|settings\/|teams(?:\/|$))[^/]+\//.test(pathname)
 }
 
 export function isSettingsRoute(pathname: string) {
-  return pathname === '/dashboard/teams'
+  return pathname === '/dashboard/settings' || pathname.startsWith('/dashboard/settings/')
 }
 
 export function getCurrentSiteApp(pathname: string) {
@@ -202,8 +208,8 @@ export function resolveSiteRoute(pathname: string, nextSiteId: string) {
 export function buildPageMeta(pathname: string) {
   if (pathname === '/dashboard') {
     return {
-      title: 'Workspace',
-      description: 'Track website readiness, app adoption, and operational priorities across the workspace.',
+      title: 'Dashboard',
+      description: 'Track website readiness, app adoption, and operational priorities across your sites.',
     }
   }
 
@@ -217,7 +223,35 @@ export function buildPageMeta(pathname: string) {
   if (pathname === '/dashboard/teams') {
     return {
       title: 'Teams',
-      description: 'Manage workspace members, website access, and assigned roles.',
+      description: 'Invite system members and manage assigned permissions.',
+    }
+  }
+
+  if (pathname === '/dashboard/settings/general') {
+    return {
+      title: 'General',
+      description: 'Manage user defaults used across your dashboard and new websites.',
+    }
+  }
+
+  if (pathname === '/dashboard/settings/authentication') {
+    return {
+      title: 'Authentication',
+      description: 'Manage your profile and password.',
+    }
+  }
+
+  if (pathname === '/dashboard/settings/billing') {
+    return {
+      title: 'Billing Information',
+      description: 'Manage billing contact and address details.',
+    }
+  }
+
+  if (pathname === '/dashboard/settings/invoices') {
+    return {
+      title: 'Invoices',
+      description: 'Review invoice history for your account.',
     }
   }
 

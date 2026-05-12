@@ -1,7 +1,8 @@
 'use client'
 
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
+import { useUserSettings } from '@/lib/settings-context'
 
 interface DateRangeContextValue {
   dateRange: PresetDateRange
@@ -13,7 +14,12 @@ interface DateRangeContextValue {
 const DateRangeContext = createContext<DateRangeContextValue | null>(null)
 
 export function DateRangeProvider({ children }: { children: ReactNode }) {
-  const [dateRange, setDateRange] = useState<PresetDateRange>('30d')
+  const { settings } = useUserSettings()
+  const [dateRange, setDateRange] = useState<PresetDateRange>(settings.default_date_range)
+
+  useEffect(() => {
+    setDateRange(settings.default_date_range)
+  }, [settings.default_date_range])
 
   const { from, to } = getPresetDateRange(dateRange)
 

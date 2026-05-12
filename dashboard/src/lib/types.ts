@@ -89,12 +89,72 @@ export interface AuthResponse {
 export interface CreateSiteInput {
   name: string
   domain: string
+  timezone?: string
+  currency?: string
 }
 
 export interface UpdateSiteInput {
   name?: string
   timezone?: string
   currency?: string
+}
+
+export interface UserSettings {
+  user_id: string
+  timezone: string
+  currency: string
+  default_date_range: '24h' | '7d' | '30d' | '90d'
+  dashboard_density: 'comfortable' | 'compact'
+  landing_page: 'sites' | 'dashboard'
+  created_at: string
+  updated_at: string
+}
+
+export interface UpdateUserSettingsInput {
+  timezone?: string
+  currency?: string
+  default_date_range?: UserSettings['default_date_range']
+  dashboard_density?: UserSettings['dashboard_density']
+  landing_page?: UserSettings['landing_page']
+}
+
+export interface UpdateProfileInput {
+  name: string
+}
+
+export interface ChangePasswordInput {
+  current_password: string
+  new_password: string
+}
+
+export interface BillingProfile {
+  billing_name: string
+  company: string
+  email: string
+  phone: string
+  tax_id: string
+  address_line1: string
+  address_line2: string
+  city: string
+  state: string
+  postal_code: string
+  country: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface Invoice {
+  id: string
+  invoice_number: string
+  status: 'draft' | 'open' | 'paid' | 'void' | 'uncollectible'
+  amount_cents: number
+  currency: string
+  issued_at: string | null
+  due_at: string | null
+  paid_at: string | null
+  hosted_url: string
+  pdf_url: string
+  created_at: string
 }
 
 export interface CreateSiteMemberInput {

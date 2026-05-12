@@ -5,8 +5,10 @@ import type {
   APIKeyResponse,
   AbandonmentStats,
   AuthResponse,
+  BillingProfile,
   BotReportResponse,
   CampaignStats,
+  ChangePasswordInput,
   ChannelStat,
   CreateSiteMemberInput,
   CreateSiteInput,
@@ -18,6 +20,7 @@ import type {
   FunnelStats,
   GeoStat,
   HeatmapCell,
+  Invoice,
   OrderDetail,
   OrderListResponse,
   RefundStats,
@@ -36,9 +39,12 @@ import type {
   SourceStats,
   TrackingCodeResponse,
   TrendPoint,
+  UpdateProfileInput,
   UpdateSiteMemberInput,
   UpdateSiteInput,
+  UpdateUserSettingsInput,
   User,
+  UserSettings,
 } from '@/lib/types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
@@ -82,6 +88,22 @@ export const authApi = {
   login: (email: string, password: string) =>
     api.post<AuthResponse>('/api/v1/auth/login', { email, password }),
   me: () => api.get<User>('/api/v1/me'),
+}
+
+export const profileApi = {
+  update: (data: UpdateProfileInput) => api.put<User>('/api/v1/me', data),
+  changePassword: (data: ChangePasswordInput) => api.put('/api/v1/me/password', data),
+}
+
+export const settingsApi = {
+  get: () => api.get<UserSettings>('/api/v1/settings'),
+  update: (data: UpdateUserSettingsInput) => api.put<UserSettings>('/api/v1/settings', data),
+}
+
+export const billingApi = {
+  getProfile: () => api.get<BillingProfile>('/api/v1/billing/profile'),
+  updateProfile: (data: BillingProfile) => api.put<BillingProfile>('/api/v1/billing/profile', data),
+  listInvoices: () => api.get<Invoice[]>('/api/v1/billing/invoices'),
 }
 
 // Sites API

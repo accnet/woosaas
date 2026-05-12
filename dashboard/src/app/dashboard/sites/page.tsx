@@ -8,7 +8,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { SearchInput } from '@/components/ui/search-input'
 import { StatusChip } from '@/components/ui/status-chip'
 import { TrackingStatusChip } from '@/components/ui/tracking-status-chip'
-import { sitesApi } from '@/lib/api'
+import { settingsApi, sitesApi } from '@/lib/api'
 import { formatRelativeTimeLabel } from '@/lib/dashboard-metadata'
 import { getWebsiteAppStatuses } from '@/lib/site-apps'
 import { getSiteTrackingRank, getSiteTrackingState, type SiteTrackingLabel } from '@/lib/tracking-status'
@@ -29,6 +29,7 @@ export default function SitesPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<CreateSiteInput>({ name: '', domain: '' })
+  const [siteDefaults, setSiteDefaults] = useState<Pick<CreateSiteInput, 'timezone' | 'currency'>>({})
   const [statusFilter, setStatusFilter] = useState<'All' | SiteTrackingLabel>('All')
   const [query, setQuery] = useState('')
   const [recentSiteIds, setRecentSiteIds] = useState<string[]>([])
@@ -49,7 +50,7 @@ export default function SitesPage() {
     event.preventDefault()
     try {
       await sitesApi.create(form)
-      setForm({ name: '', domain: '' })
+      setForm({ name: '', domain: '', ...siteDefaults })
       setShowForm(false)
       await loadSites()
     } catch (err) {
@@ -59,6 +60,23 @@ export default function SitesPage() {
 
   useEffect(() => {
     void loadSites()
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const loadDefaults = async () => {
+      try {
+        const res = await settingsApi.get()
+        if (cancelled) return
+        const defaults = { timezone: res.data.timezone, currency: res.data.currency }
+        setSiteDefaults(defaults)
+        setForm((current) => ({ ...current, ...defaults }))
+      } catch {
+        // Website creation still works without user-level defaults.
+      }
+    }
+    void loadDefaults()
+    return () => { cancelled = true }
   }, [])
 
   useEffect(() => {

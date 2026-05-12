@@ -471,7 +471,7 @@ function UserMenu({
               <Globe className="h-4 w-4" />
               <span>Websites</span>
             </Link>
-            <Link href="/dashboard/teams" className="nav-item nav-item-idle" onClick={() => setOpen(false)}>
+            <Link href="/dashboard/settings/general" className="nav-item nav-item-idle" onClick={() => setOpen(false)}>
               <Settings2 className="h-4 w-4" />
               <span>Setting</span>
             </Link>
@@ -802,7 +802,7 @@ function MobileNavDrawer({
       <div className="mobile-shell-drawer">
         <div className="flex items-center justify-between border-b border-app-line px-4 py-4">
           <div>
-            <div className="text-sm font-semibold text-app-strong">Workspace</div>
+            <div className="text-sm font-semibold text-app-strong">Dashboard</div>
             <div className="text-xs text-app-muted">{currentSite ? currentSite.domain : 'Connected websites'}</div>
           </div>
           <button type="button" onClick={onClose} className="icon-button">
@@ -812,7 +812,7 @@ function MobileNavDrawer({
 
         <div className="border-b border-app-line px-4 py-4">
           <div className="pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-app-soft">
-            Workspace
+            Dashboard
           </div>
           <div className="grid grid-cols-2 gap-2">
             {appNav.map((item) => {
@@ -958,7 +958,7 @@ function SiteSidebar({
       {showSettingsSidebar ? (
         <div className="border-b border-app-line px-5 py-4">
           <div className="text-lg font-semibold text-app-strong">Setting</div>
-          <div className="mt-1 text-sm text-app-muted">Workspace management and access controls.</div>
+          <div className="mt-1 text-sm text-app-muted">User settings, authentication, billing, and invoices.</div>
         </div>
       ) : null}
 

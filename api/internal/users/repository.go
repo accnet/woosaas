@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/accnet/woosaas/api/pkg/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/accnet/woosaas/api/pkg/models"
 )
 
 type Repository struct {
@@ -66,4 +66,27 @@ func (r *Repository) GetUserByID(ctx context.Context, id string) (*models.User, 
 	}
 
 	return &user, nil
+}
+
+func (r *Repository) UpdateUser(ctx context.Context, id, name string) (*models.User, error) {
+	var user models.User
+	err := r.db.QueryRow(ctx, `
+		UPDATE users
+		SET name = $2, updated_at = NOW()
+		WHERE id = $1
+		RETURNING id, email, password_hash, name, created_at, updated_at
+	`, id, name).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.Name, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *Repository) UpdatePassword(ctx context.Context, id, passwordHash string) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE users
+		SET password_hash = $2, updated_at = NOW()
+		WHERE id = $1
+	`, id, passwordHash)
+	return err
 }

@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { DashboardShell } from '@/components/ui/dashboard-shell'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { UserSettingsProvider } from '@/lib/settings-context'
 import { useAuthStore } from '@/store/auth'
 
 export default function DashboardLayout({
@@ -32,5 +33,9 @@ export default function DashboardLayout({
     return null
   }
 
-  return <DashboardShell>{children}</DashboardShell>
+  return (
+    <UserSettingsProvider>
+      <DashboardShell>{children}</DashboardShell>
+    </UserSettingsProvider>
+  )
 }

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Activity, AlertTriangle, Globe, Plus } from 'lucide-react'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
@@ -10,13 +11,16 @@ import { StatusChip } from '@/components/ui/status-chip'
 import { TrackingStatusChip } from '@/components/ui/tracking-status-chip'
 import { sitesApi } from '@/lib/api'
 import { formatRelativeTimeLabel } from '@/lib/dashboard-metadata'
+import { useUserSettings } from '@/lib/settings-context'
 import { getWebsiteAppStatuses } from '@/lib/site-apps'
 import { getSiteTrackingState } from '@/lib/tracking-status'
 import type { Site } from '@/lib/types'
 import { useAuthStore } from '@/store/auth'
 
 export default function DashboardPage() {
+  const router = useRouter()
   const { user } = useAuthStore()
+  const { settings, loading: loadingSettings } = useUserSettings()
   const [sites, setSites] = useState<Site[]>([])
   const [loadingSites, setLoadingSites] = useState(true)
 
@@ -26,7 +30,7 @@ export default function DashboardPage() {
         const res = await sitesApi.list()
         setSites(res.data)
       } catch (err) {
-        console.error('Failed to load workspace sites', err)
+        console.error('Failed to load dashboard sites', err)
       } finally {
         setLoadingSites(false)
       }
@@ -34,6 +38,12 @@ export default function DashboardPage() {
 
     void loadSites()
   }, [])
+
+  useEffect(() => {
+    if (!loadingSettings && settings.landing_page === 'sites') {
+      router.replace('/dashboard/sites')
+    }
+  }, [loadingSettings, router, settings.landing_page])
 
   const activeSites = sites.filter((site) => getSiteTrackingState(site).label === 'Active').length
 
@@ -117,19 +127,19 @@ export default function DashboardPage() {
       )}
 
       {/* Website grid */}
-      <SectionCard title="Website Workspaces" icon={<Globe className="h-4 w-4" />}>
+      <SectionCard title="Websites" icon={<Globe className="h-4 w-4" />}>
         {loadingSites ? (
           <LoadingSpinner className="py-16" />
         ) : sites.length === 0 ? (
           <EmptyState
             icon={<Plus className="h-7 w-7" />}
             title="No websites yet"
-            body="Add the first website to start collecting analytics and managing your workspace."
+            body="Add the first website to start collecting analytics and managing your sites."
           />
         ) : (
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {sites.map((site) => (
-              <WorkspaceSiteCard key={site.id} site={site} />
+              <DashboardSiteCard key={site.id} site={site} />
             ))}
           </div>
         )}
@@ -138,7 +148,7 @@ export default function DashboardPage() {
   )
 }
 
-function WorkspaceSiteCard({ site }: { site: Site }) {
+function DashboardSiteCard({ site }: { site: Site }) {
   const trackingState = getSiteTrackingState(site)
   const lastSignal = site.tracking_last_event_at || site.tracking_last_checked_at || site.created_at
   const apps = getWebsiteAppStatuses(site)

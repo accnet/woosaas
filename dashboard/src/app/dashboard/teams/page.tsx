@@ -73,7 +73,7 @@ export default function TeamsPage() {
   useEffect(() => {
     let cancelled = false
 
-    const loadWorkspaceAccess = async () => {
+    const loadSystemAccess = async () => {
       if (records.length === 0) {
         setLoading(true)
       } else {
@@ -138,7 +138,7 @@ export default function TeamsPage() {
         )
       } catch (err) {
         if (!cancelled) {
-          setError(getApiErrorMessage(err, 'Workspace team access could not be loaded right now.'))
+          setError(getApiErrorMessage(err, 'Team access could not be loaded right now.'))
         }
       } finally {
         if (!cancelled) {
@@ -148,7 +148,7 @@ export default function TeamsPage() {
       }
     }
 
-    void loadWorkspaceAccess()
+    void loadSystemAccess()
 
     return () => {
       cancelled = true
@@ -281,7 +281,7 @@ export default function TeamsPage() {
       ) : null}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-        <MetricCard icon={<Users className="h-4 w-4" />} label="People" value={summary.uniquePeople.toString()} helper="Unique members across the workspace" />
+        <MetricCard icon={<Users className="h-4 w-4" />} label="People" value={summary.uniquePeople.toString()} helper="Unique members in the system" />
         <MetricCard icon={<ShieldCheck className="h-4 w-4" />} label="Access Grants" value={summary.accessGrants.toString()} helper="Website-level access rows" />
         <MetricCard icon={<Users className="h-4 w-4" />} label="Shared Websites" value={summary.sharedSites.toString()} helper="Websites with at least one teammate" />
         <MetricCard icon={<ShieldCheck className="h-4 w-4" />} label="Admins" value={summary.admins.toString()} helper="Owner and admin assignments" />

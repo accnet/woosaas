@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/accnet/woosaas/api/pkg/models"
 )
@@ -12,6 +13,8 @@ type userRepository interface {
 	CreateUser(ctx context.Context, email, passwordHash, name string) (*models.User, error)
 	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
 	GetUserByID(ctx context.Context, id string) (*models.User, error)
+	UpdateUser(ctx context.Context, id, name string) (*models.User, error)
+	UpdatePassword(ctx context.Context, id, passwordHash string) error
 }
 
 // Service encapsulates authentication business logic.
@@ -71,4 +74,32 @@ func (s *Service) Login(ctx context.Context, email, password string) (*models.Us
 // GetUser returns a user by ID.
 func (s *Service) GetUser(ctx context.Context, userID string) (*models.User, error) {
 	return s.users.GetUserByID(ctx, userID)
+}
+
+func (s *Service) UpdateProfile(ctx context.Context, userID, name string) (*models.User, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, fmt.Errorf("name is required")
+	}
+	return s.users.UpdateUser(ctx, userID, name)
+}
+
+func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
+	if len(newPassword) < 8 {
+		return fmt.Errorf("new password must be at least 8 characters")
+	}
+
+	user, err := s.users.GetUserByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("user not found")
+	}
+	if !CheckPassword(currentPassword, user.PasswordHash) {
+		return fmt.Errorf("current password is incorrect")
+	}
+
+	passwordHash, err := HashPassword(newPassword)
+	if err != nil {
+		return fmt.Errorf("failed to process password")
+	}
+	return s.users.UpdatePassword(ctx, userID, passwordHash)
 }
