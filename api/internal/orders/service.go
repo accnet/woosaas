@@ -49,6 +49,10 @@ func (s *Service) GetSyncState(ctx context.Context, siteID string) (*models.WooO
 	return s.repo.GetSyncState(ctx, siteID)
 }
 
+func (s *Service) UpdateBackfillState(ctx context.Context, siteID string, req models.WooOrderBackfillStateRequest) error {
+	return s.repo.UpdateBackfillState(ctx, siteID, req)
+}
+
 func (s *Service) UpsertOrderSnapshot(ctx context.Context, siteID string, order models.WooOrderInput, contactSyncEnabled bool) error {
 	return s.repo.UpsertOrderSnapshot(ctx, siteID, order, contactSyncEnabled)
 }

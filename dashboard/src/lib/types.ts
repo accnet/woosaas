@@ -323,6 +323,11 @@ export interface OrderListResponse {
   page_size: number
 }
 
+export interface OrderItemMeta {
+  key: string
+  value: unknown
+}
+
 export interface OrderItem {
   line_item_id: string
   product_id: string
@@ -334,6 +339,11 @@ export interface OrderItem {
   line_subtotal: number
   line_total: number
   line_tax: number
+  thumbnail_url?: string
+  image_url?: string
+  external_variant_id?: string
+  variant_attributes?: Record<string, unknown>
+  meta?: OrderItemMeta[]
 }
 
 export interface OrderContact {
@@ -551,4 +561,3 @@ export interface ChannelStat {
   conversion_rate: number
   aov: number
 }
-

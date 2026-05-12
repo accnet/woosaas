@@ -159,6 +159,15 @@ type LoginRequest struct {
 	Password string `json:"password" validate:"required"`
 }
 
+type UpdateProfileRequest struct {
+	Name string `json:"name" validate:"required,min=1,max=255"`
+}
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password" validate:"required"`
+	NewPassword     string `json:"new_password" validate:"required,min=8"`
+}
+
 // AuthResponse for auth responses
 type AuthResponse struct {
 	Token string `json:"token"`
@@ -196,6 +205,55 @@ type UpdateSiteMemberRequest struct {
 
 type DebugEventRequest struct {
 	EventName string `json:"event_name" validate:"required"`
+}
+
+type UserSettings struct {
+	UserID           string    `json:"user_id"`
+	Timezone         string    `json:"timezone"`
+	Currency         string    `json:"currency"`
+	DefaultDateRange string    `json:"default_date_range"`
+	DashboardDensity string    `json:"dashboard_density"`
+	LandingPage      string    `json:"landing_page"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
+type UpdateUserSettingsRequest struct {
+	Timezone         string `json:"timezone,omitempty"`
+	Currency         string `json:"currency,omitempty"`
+	DefaultDateRange string `json:"default_date_range,omitempty"`
+	DashboardDensity string `json:"dashboard_density,omitempty"`
+	LandingPage      string `json:"landing_page,omitempty"`
+}
+
+type BillingProfile struct {
+	BillingName  string    `json:"billing_name"`
+	Company      string    `json:"company"`
+	Email        string    `json:"email"`
+	Phone        string    `json:"phone"`
+	TaxID        string    `json:"tax_id"`
+	AddressLine1 string    `json:"address_line1"`
+	AddressLine2 string    `json:"address_line2"`
+	City         string    `json:"city"`
+	State        string    `json:"state"`
+	PostalCode   string    `json:"postal_code"`
+	Country      string    `json:"country"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type Invoice struct {
+	ID            string     `json:"id"`
+	InvoiceNumber string     `json:"invoice_number"`
+	Status        string     `json:"status"`
+	AmountCents   int64      `json:"amount_cents"`
+	Currency      string     `json:"currency"`
+	IssuedAt      *time.Time `json:"issued_at"`
+	DueAt         *time.Time `json:"due_at"`
+	PaidAt        *time.Time `json:"paid_at"`
+	HostedURL     string     `json:"hosted_url"`
+	PDFURL        string     `json:"pdf_url"`
+	CreatedAt     time.Time  `json:"created_at"`
 }
 
 // ErrorResponse for error responses

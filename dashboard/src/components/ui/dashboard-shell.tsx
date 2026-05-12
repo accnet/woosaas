@@ -1228,37 +1228,41 @@ function TopNav({
 
   return (
     <header className="sticky top-0 z-20 border-b border-app-line bg-app/95 backdrop-blur">
-      <div className="flex min-h-14 items-center justify-between gap-4 px-5 py-3 md:px-8">
-        <div className="flex min-w-0 items-center gap-4">
-          <DemoLogo />
-          <button type="button" onClick={onOpenMobileNav} className="icon-button xl:hidden">
-            <Menu className="h-4 w-4" />
-          </button>
-          <div className="min-w-0 flex-1 xl:max-w-sm">
-            <SiteSwitcherControl
-              pathname={pathname}
-              siteId={currentSiteId}
-              currentSite={currentSite}
-              sites={sites}
-              loadingSites={loadingSites}
-            />
-          </div>
+      <div className="flex min-h-14 items-center gap-0 px-5 md:px-8">
+        {/* Left: logo + mobile menu + site switcher + inline status */}
+        <DemoLogo />
+        <button type="button" onClick={onOpenMobileNav} className="icon-button ml-2 xl:hidden">
+          <Menu className="h-4 w-4" />
+        </button>
+
+        <div className="ml-3 min-w-0 xl:max-w-xs">
+          <SiteSwitcherControl
+            pathname={pathname}
+            siteId={currentSiteId}
+            currentSite={currentSite}
+            sites={sites}
+            loadingSites={loadingSites}
+          />
         </div>
 
-        <div className="flex min-w-0 items-center gap-4">
-          {currentSite && trackingState && lastSignal ? (
-            <div className="hidden shrink-0 items-center gap-3 rounded-lg border border-app-line bg-white px-3 py-2 md:flex">
-              <TrackingStatusChip site={currentSite} />
-              <div className="hidden max-w-[220px] truncate text-xs font-medium text-app-muted 2xl:block">
-                {trackingState.detail}
-              </div>
-              <div className="hidden h-5 w-px bg-slate-200 xl:block" />
-              <div className="whitespace-nowrap text-xs text-app-muted">
-                Last signal <span className="font-semibold text-app-strong">{formatRelativeTimeLabel(lastSignal)}</span>
-              </div>
-            </div>
-          ) : null}
+        {currentSite && trackingState ? (
+          <div className="ml-4 hidden items-center gap-3 md:flex">
+            <span className="h-5 w-px bg-slate-200" />
+            <TrackingStatusChip site={currentSite} />
+            <span className="whitespace-nowrap text-xs text-app-muted">{trackingState.detail}</span>
+            {lastSignal ? (
+              <>
+                <span className="h-4 w-px bg-slate-200" />
+                <span className="whitespace-nowrap text-xs text-app-muted">
+                  Last signal <span className="font-semibold text-app-strong">{formatRelativeTimeLabel(lastSignal)}</span>
+                </span>
+              </>
+            ) : null}
+          </div>
+        ) : null}
 
+        {/* Right: user menu */}
+        <div className="ml-auto pl-4">
           <UserMenu user={user} logout={logout} />
         </div>
       </div>

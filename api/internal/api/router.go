@@ -2,9 +2,6 @@ package api
 
 import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
-	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/redis/go-redis/v9"
 	"github.com/accnet/woosaas/api/internal/analytics"
 	"github.com/accnet/woosaas/api/internal/api/handlers"
 	"github.com/accnet/woosaas/api/internal/api/middleware"
@@ -16,6 +13,9 @@ import (
 	"github.com/accnet/woosaas/api/internal/realtime"
 	"github.com/accnet/woosaas/api/internal/sites"
 	"github.com/accnet/woosaas/api/internal/users"
+	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 )
 
 type Router struct {
@@ -113,6 +113,7 @@ func (r *Router) registerWooSyncRoutes(v1 *gin.RouterGroup) {
 	{
 		ordersHandler := handlers.NewOrdersHandler(r.orderSvc, r.repo, r.redisClient)
 		woo.POST("/sync", ordersHandler.SyncOrders)
+		woo.POST("/backfill-state", ordersHandler.UpdateBackfillState)
 	}
 }
 

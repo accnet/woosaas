@@ -30,7 +30,8 @@ Outside this repo:
 That plugin is responsible for:
 
 - browser and commerce tracking on WordPress / WooCommerce
-- sending order snapshots to `/api/v1/woo/orders/sync`
+- sending each newly created order plus later order snapshots to `/api/v1/woo/orders/sync`
+- reporting backfill cursor/state to `/api/v1/woo/orders/backfill-state`
 - admin-side sync/backfill controls
 
 ## Architecture
@@ -45,10 +46,11 @@ That plugin is responsible for:
 
 ### Order path
 
-1. plugin sends canonical order snapshots to `/api/v1/woo/orders/sync`
+1. plugin sends a canonical snapshot immediately when a WooCommerce order is created, then sends later changes to `/api/v1/woo/orders/sync`
 2. API validates payloads and publishes to Redis stream `orders:stream`
 3. worker consumes the stream and writes to PostgreSQL
-4. dashboard reads:
+4. plugin reports backfill progress to `/api/v1/woo/orders/backfill-state`
+5. dashboard reads:
    - `/api/v1/orders`
    - `/api/v1/orders/:woo_order_id`
    - `/api/v1/contacts`

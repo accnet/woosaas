@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/accnet/woosaas/api/pkg/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/accnet/woosaas/api/pkg/models"
 )
 
 type Repository struct {
@@ -62,7 +62,7 @@ func (r *Repository) UpsertOrderSnapshot(ctx context.Context, siteID string, inp
 	if err != nil && err != pgx.ErrNoRows {
 		return err
 	}
-	if existingModified != nil && !modifiedAt.After(*existingModified) {
+	if existingModified != nil && existingModified.After(*modifiedAt) {
 		return r.markSyncSuccess(ctx, tx, siteID, contactSyncEnabled)
 	}
 
@@ -155,16 +155,20 @@ func (r *Repository) UpsertOrderSnapshot(ctx context.Context, siteID string, inp
 	}
 	for _, item := range input.Items {
 		rawItemJSON := marshalJSON(item)
+		variantAttrsJSON := marshalJSONMap(item.VariantAttributes)
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO woo_order_items (
 				site_id, woo_order_id, line_item_id, product_id, variation_id, sku, name, quantity,
-				unit_price, line_subtotal, line_total, line_tax, raw_item_json, updated_at
+				unit_price, line_subtotal, line_total, line_tax, raw_item_json,
+				external_variant_id, variant_attributes_json, updated_at
 			) VALUES (
 				$1, $2, $3, $4, $5, $6, $7, $8,
-				$9, $10, $11, $12, $13, NOW()
+				$9, $10, $11, $12, $13,
+				$14, $15, NOW()
 			)
 		`, siteID, input.WooOrderID, item.LineItemID, nullIfEmpty(item.ProductID), nullIfEmpty(item.VariationID), nullIfEmpty(item.SKU), nullIfEmpty(item.Name), item.Quantity,
-			item.UnitPrice, item.LineSubtotal, item.LineTotal, item.LineTax, rawItemJSON); err != nil {
+			item.UnitPrice, item.LineSubtotal, item.LineTotal, item.LineTax, rawItemJSON,
+			nullIfEmpty(item.ExternalVariantID), variantAttrsJSON); err != nil {
 			return err
 		}
 	}
@@ -291,7 +295,8 @@ func (r *Repository) GetOrderDetail(ctx context.Context, siteID, wooOrderID stri
 
 	itemsRows, err := r.db.Query(ctx, `
 		SELECT line_item_id, COALESCE(product_id, ''), COALESCE(variation_id, ''), COALESCE(sku, ''), COALESCE(name, ''),
-			quantity, unit_price::float8, line_subtotal::float8, line_total::float8, line_tax::float8
+			quantity, unit_price::float8, line_subtotal::float8, line_total::float8, line_tax::float8,
+			COALESCE(external_variant_id, ''), variant_attributes_json, raw_item_json
 		FROM woo_order_items
 		WHERE site_id = $1 AND woo_order_id = $2
 		ORDER BY created_at ASC, line_item_id ASC
@@ -303,8 +308,24 @@ func (r *Repository) GetOrderDetail(ctx context.Context, siteID, wooOrderID stri
 	detail.Items = make([]models.WooOrderItem, 0)
 	for itemsRows.Next() {
 		var item models.WooOrderItem
-		if err := itemsRows.Scan(&item.LineItemID, &item.ProductID, &item.VariationID, &item.SKU, &item.Name, &item.Quantity, &item.UnitPrice, &item.LineSubtotal, &item.LineTotal, &item.LineTax); err != nil {
+		var variantAttrsJSON, rawItemJSON []byte
+		if err := itemsRows.Scan(&item.LineItemID, &item.ProductID, &item.VariationID, &item.SKU, &item.Name, &item.Quantity, &item.UnitPrice, &item.LineSubtotal, &item.LineTotal, &item.LineTax,
+			&item.ExternalVariantID, &variantAttrsJSON, &rawItemJSON); err != nil {
 			return nil, err
+		}
+		item.VariantAttributes = unmarshalMap(variantAttrsJSON)
+		var rawItem map[string]interface{}
+		if err := json.Unmarshal(rawItemJSON, &rawItem); err == nil {
+			item.ThumbnailURL = stringFromMap(rawItem, "thumbnail_url")
+			item.ImageURL = stringFromMap(rawItem, "image_url")
+			if metaRaw, ok := rawItem["meta"]; ok {
+				if metaBytes, err := json.Marshal(metaRaw); err == nil {
+					var meta []models.WooOrderItemMeta
+					if err := json.Unmarshal(metaBytes, &meta); err == nil {
+						item.Meta = meta
+					}
+				}
+			}
 		}
 		detail.Items = append(detail.Items, item)
 	}
@@ -409,6 +430,45 @@ func (r *Repository) GetSyncState(ctx context.Context, siteID string) (*models.W
 		return nil, err
 	}
 	return &state, nil
+}
+
+func (r *Repository) UpdateBackfillState(ctx context.Context, siteID string, req models.WooOrderBackfillStateRequest) error {
+	lastModified, err := parseOptionalTimePtr(req.LastBackfillModifiedAt)
+	if err != nil {
+		return fmt.Errorf("invalid last_backfill_modified_at")
+	}
+	completedAt, err := parseOptionalTimePtr(req.BackfillCompletedAt)
+	if err != nil {
+		return fmt.Errorf("invalid backfill_completed_at")
+	}
+
+	_, err = r.db.Exec(ctx, `
+		INSERT INTO woo_order_sync_state (
+			site_id, status, last_backfill_modified_at, last_backfill_order_id,
+			backfill_completed_at, updated_at
+		) VALUES (
+			$1, $2, $3, $4,
+			CASE WHEN $2 = 'done' THEN COALESCE($5, NOW()) ELSE NULL END,
+			NOW()
+		)
+		ON CONFLICT (site_id) DO UPDATE SET
+			status = EXCLUDED.status,
+			last_backfill_modified_at = CASE
+				WHEN EXCLUDED.status = 'idle' THEN NULL
+				ELSE COALESCE(EXCLUDED.last_backfill_modified_at, woo_order_sync_state.last_backfill_modified_at)
+			END,
+			last_backfill_order_id = CASE
+				WHEN EXCLUDED.status = 'idle' THEN NULL
+				ELSE COALESCE(EXCLUDED.last_backfill_order_id, woo_order_sync_state.last_backfill_order_id)
+			END,
+			backfill_completed_at = CASE
+				WHEN EXCLUDED.status = 'done' THEN COALESCE(EXCLUDED.backfill_completed_at, NOW())
+				WHEN EXCLUDED.status = 'idle' THEN NULL
+				ELSE woo_order_sync_state.backfill_completed_at
+			END,
+			updated_at = NOW()
+	`, siteID, req.Status, lastModified, req.LastBackfillOrderID, completedAt)
+	return err
 }
 
 func (r *Repository) getContactByID(ctx context.Context, siteID, id string) (*models.WooOrderContact, error) {
@@ -637,6 +697,13 @@ func unmarshalMap(value []byte) map[string]interface{} {
 		return map[string]interface{}{}
 	}
 	return decoded
+}
+
+func stringFromMap(value map[string]interface{}, key string) string {
+	if decoded, ok := value[key].(string); ok {
+		return decoded
+	}
+	return ""
 }
 
 func chooseJSON(existing []byte, incoming []byte) []byte {

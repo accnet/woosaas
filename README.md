@@ -63,10 +63,11 @@ If plugin behavior changes, remember that plugin commits and pushes happen in th
 
 ### 2. Woo order sync
 
-1. WooCommerce plugin posts order snapshots to `POST /api/v1/woo/orders/sync`
+1. WooCommerce plugin posts each newly created order, plus later status/refund/delete snapshots, to `POST /api/v1/woo/orders/sync`
 2. API validates payloads and enqueues them to Redis stream `orders:stream`
 3. Worker consumes order messages and materializes them into PostgreSQL
-4. Dashboard reads orders, contacts, and sync state from order endpoints
+4. Plugin reports resumable backfill progress to `POST /api/v1/woo/orders/backfill-state`
+5. Dashboard reads orders, contacts, and sync state from order endpoints
 
 ## Main API Surfaces
 
@@ -105,6 +106,7 @@ Analytics:
 Orders:
 
 - `POST /api/v1/woo/orders/sync`
+- `POST /api/v1/woo/orders/backfill-state`
 - `GET /api/v1/orders`
 - `GET /api/v1/orders/:woo_order_id`
 - `GET /api/v1/contacts`
@@ -211,4 +213,3 @@ PostgreSQL is used for:
 - [docs/plugin-setup.md](docs/plugin-setup.md)
 - [docs/plugin-test-checklist.md](docs/plugin-test-checklist.md)
 - [docs/observability-alerts.md](docs/observability-alerts.md)
-

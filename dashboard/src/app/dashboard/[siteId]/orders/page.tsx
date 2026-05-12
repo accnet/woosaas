@@ -90,19 +90,47 @@ function FilterPill({ label, active, onClick }: { label: string; active: boolean
   )
 }
 
-function SyncWarningBanner({ state }: { state: WooOrderSyncState }) {
-  if (state.order_sync_enabled) return null
-  return (
-    <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-3.5">
-      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-100">
-        <AlertTriangle className="h-4 w-4 text-amber-600" />
+function formatSyncMoment(value: string | null) {
+  if (!value) return 'Not recorded'
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString()
+}
+
+function SyncStateBanner({ state }: { state: WooOrderSyncState }) {
+  if (!state.order_sync_enabled) {
+    return (
+      <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-3.5">
+        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-100">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-amber-800">Order sync is disabled</p>
+          <p className="mt-0.5 text-xs text-amber-700">
+            New WooCommerce orders will not be recorded. Enable sync in{' '}
+            <span className="font-semibold">WooSaaS plugin → Settings</span>.
+          </p>
+        </div>
       </div>
+    )
+  }
+
+  const tone = state.status === 'error' ? 'danger' : state.status === 'running' ? 'info' : 'good'
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-app-line bg-white px-4 py-3.5 lg:flex-row lg:items-center lg:justify-between">
       <div className="min-w-0">
-        <p className="text-sm font-medium text-amber-800">Order sync is disabled</p>
-        <p className="mt-0.5 text-xs text-amber-700">
-          New WooCommerce orders will not be recorded. Enable sync in{' '}
-          <span className="font-semibold">WooSaaS plugin → Settings</span>.
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-medium text-app-strong">WooCommerce order sync</p>
+          <StatusChip label={state.status || 'unknown'} tone={tone} />
+        </div>
+        <p className="mt-1 text-xs text-app-muted">
+          Last realtime sync: {formatSyncMoment(state.last_realtime_synced_at)}. Last success: {formatSyncMoment(state.last_success_at)}.
         </p>
+      </div>
+      <div className="grid gap-1 text-xs text-app-muted sm:grid-cols-2 sm:gap-x-5">
+        <span>Backfill cursor: {state.last_backfill_order_id || 'Not started'}</span>
+        <span>Backfill modified: {formatSyncMoment(state.last_backfill_modified_at)}</span>
+        <span>Backfill completed: {formatSyncMoment(state.backfill_completed_at)}</span>
+        <span>{state.last_error ? `Last error: ${state.last_error}` : 'No recent sync error'}</span>
       </div>
     </div>
   )
@@ -209,7 +237,7 @@ export default function OrdersPage() {
       />
 
       <AnalyticsPageContent>
-        {syncState && <SyncWarningBanner state={syncState} />}
+        {syncState && <SyncStateBanner state={syncState} />}
 
         {error ? (
           <InlineErrorState

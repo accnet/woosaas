@@ -89,3 +89,45 @@ func TestHeaderBoolDefault(t *testing.T) {
 		t.Fatal("expected yes to parse as true")
 	}
 }
+
+func TestValidateBackfillState(t *testing.T) {
+	validTime := "2026-05-12T10:00:00Z"
+	tests := []struct {
+		name    string
+		input   models.WooOrderBackfillStateRequest
+		wantErr string
+	}{
+		{
+			name:  "running valid",
+			input: models.WooOrderBackfillStateRequest{Status: "running", LastBackfillModifiedAt: &validTime},
+		},
+		{
+			name:    "invalid status",
+			input:   models.WooOrderBackfillStateRequest{Status: "paused"},
+			wantErr: "status must be idle, running, done, or error",
+		},
+		{
+			name: "invalid modified timestamp",
+			input: func() models.WooOrderBackfillStateRequest {
+				value := "not-a-time"
+				return models.WooOrderBackfillStateRequest{Status: "running", LastBackfillModifiedAt: &value}
+			}(),
+			wantErr: "last_backfill_modified_at is invalid",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateBackfillState(tt.input)
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("validateBackfillState() error = %v", err)
+				}
+				return
+			}
+			if err == nil || err.Error() != tt.wantErr {
+				t.Fatalf("validateBackfillState() error = %v, want %q", err, tt.wantErr)
+			}
+		})
+	}
+}

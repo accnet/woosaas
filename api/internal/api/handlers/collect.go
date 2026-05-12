@@ -5,10 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/accnet/woosaas/api/internal/ingest"
 	"github.com/accnet/woosaas/api/internal/sites"
 	"github.com/accnet/woosaas/api/pkg/models"
+	"github.com/gin-gonic/gin"
 )
 
 type CollectHandler struct {
@@ -82,6 +82,10 @@ func (h *CollectHandler) CollectBatch(c *gin.Context) {
 	var req models.BatchEventRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if len(req.Events) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "events is required"})
 		return
 	}
 

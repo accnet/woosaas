@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5"
-	"github.com/redis/go-redis/v9"
 	"github.com/accnet/woosaas/api/internal/orders"
 	"github.com/accnet/woosaas/api/internal/sites"
 	"github.com/accnet/woosaas/api/pkg/models"
+	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
+	"github.com/redis/go-redis/v9"
 )
 
 const maxWooOrderBatchSize = 100
@@ -88,6 +88,30 @@ func (h *OrdersHandler) SyncOrders(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, resp)
+}
+
+func (h *OrdersHandler) UpdateBackfillState(c *gin.Context) {
+	siteID := c.GetString("site_id")
+	if siteID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "site_id missing from API key context"})
+		return
+	}
+
+	var req models.WooOrderBackfillStateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := validateBackfillState(req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.svc.UpdateBackfillState(c.Request.Context(), siteID, req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": req.Status})
 }
 
 func (h *OrdersHandler) ListOrders(c *gin.Context) {
@@ -294,6 +318,29 @@ func validateWooOrder(order models.WooOrderInput) error {
 	if _, err := time.Parse(time.RFC3339Nano, order.ModifiedAtWoo); err != nil {
 		if _, fallbackErr := time.Parse(time.RFC3339, order.ModifiedAtWoo); fallbackErr != nil {
 			return errInvalidOrder("modified_at_woo is invalid")
+		}
+	}
+	return nil
+}
+
+func validateBackfillState(req models.WooOrderBackfillStateRequest) error {
+	switch strings.TrimSpace(req.Status) {
+	case "idle", "running", "done", "error":
+	default:
+		return errInvalidOrder("status must be idle, running, done, or error")
+	}
+	if req.LastBackfillModifiedAt != nil && strings.TrimSpace(*req.LastBackfillModifiedAt) != "" {
+		if _, err := time.Parse(time.RFC3339Nano, *req.LastBackfillModifiedAt); err != nil {
+			if _, fallbackErr := time.Parse(time.RFC3339, *req.LastBackfillModifiedAt); fallbackErr != nil {
+				return errInvalidOrder("last_backfill_modified_at is invalid")
+			}
+		}
+	}
+	if req.BackfillCompletedAt != nil && strings.TrimSpace(*req.BackfillCompletedAt) != "" {
+		if _, err := time.Parse(time.RFC3339Nano, *req.BackfillCompletedAt); err != nil {
+			if _, fallbackErr := time.Parse(time.RFC3339, *req.BackfillCompletedAt); fallbackErr != nil {
+				return errInvalidOrder("backfill_completed_at is invalid")
+			}
 		}
 	}
 	return nil

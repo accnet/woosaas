@@ -45,6 +45,57 @@ function renderAddress(address: Record<string, unknown>) {
   return lines.join(', ')
 }
 
+function str(v: unknown): string {
+  return typeof v === 'string' ? v.trim() : ''
+}
+
+function AddressBlock({ address, showPhone = false }: { address: Record<string, unknown>; showPhone?: boolean }) {
+  const firstName = str(address.first_name)
+  const lastName = str(address.last_name)
+  const name = [firstName, lastName].filter(Boolean).join(' ')
+  const company = str(address.company)
+  const address1 = str(address.address_1)
+  const address2 = str(address.address_2)
+  const city = str(address.city)
+  const state = str(address.state)
+  const postcode = str(address.postcode)
+  const country = str(address.country)
+  const phone = str(address.phone)
+
+  const cityLine = [
+    city,
+    [state, postcode].filter(Boolean).join(' '),
+  ]
+    .filter(Boolean)
+    .join(', ')
+
+  const lines = [name, company, address1, address2, cityLine, country].filter(Boolean)
+
+  if (lines.length === 0) {
+    return <p className="text-sm text-app-soft">No address on file</p>
+  }
+
+  return (
+    <address className="not-italic">
+      {lines.map((line, i) => (
+        <p
+          key={i}
+          className={
+            i === 0
+              ? 'text-sm font-medium text-app-strong'
+              : 'text-sm text-app-strong'
+          }
+        >
+          {line}
+        </p>
+      ))}
+      {showPhone && phone ? (
+        <p className="mt-1 text-sm text-app-muted">{phone}</p>
+      ) : null}
+    </address>
+  )
+}
+
 function chipTone(value: string): 'neutral' | 'info' | 'good' | 'warn' | 'danger' {
   const normalized = value.toLowerCase()
   if (normalized === 'paid' || normalized === 'fulfilled' || normalized === 'completed') return 'good'
@@ -118,6 +169,8 @@ function extractItemImageUrl(rawOrder: Record<string, unknown>, item: OrderItem)
   const productImage = asObject(product?.image)
 
   return firstString(
+    item.thumbnail_url,
+    item.image_url,
     image?.src,
     image?.url,
     rawLineItem?.image_url,
@@ -127,6 +180,26 @@ function extractItemImageUrl(rawOrder: Record<string, unknown>, item: OrderItem)
     product?.image_url,
     product?.featured_image
   )
+}
+
+function formatVariantAttributes(attributes: Record<string, unknown> | null | undefined) {
+  if (!attributes) return ''
+
+  const orderedLabels = ['Style', 'Color', 'Size']
+  const parts = orderedLabels
+    .map((label) => {
+      const value = attributes[label]
+      return value ? `${label}: ${String(value)}` : ''
+    })
+    .filter(Boolean)
+
+  Object.entries(attributes).forEach(([key, value]) => {
+    if (!orderedLabels.includes(key) && value) {
+      parts.push(`${key}: ${String(value)}`)
+    }
+  })
+
+  return parts.join(' · ')
 }
 
 type ActivityItem = {
@@ -143,6 +216,16 @@ export default function OrderDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [actionsOpen, setActionsOpen] = useState(false)
   const [paymentOpen, setPaymentOpen] = useState(false)
+  const [expandedMeta, setExpandedMeta] = useState<Set<string>>(new Set())
+
+  const toggleMeta = (lineItemId: string) => {
+    setExpandedMeta((prev) => {
+      const next = new Set(prev)
+      if (next.has(lineItemId)) next.delete(lineItemId)
+      else next.add(lineItemId)
+      return next
+    })
+  }
   const actionsRef = useRef<HTMLDivElement | null>(null)
   const paymentRef = useRef<HTMLDivElement | null>(null)
 
@@ -363,44 +446,86 @@ export default function OrderDetailPage() {
                     <div className="divide-y divide-slate-100">
                       {order.items.map((item) => {
                         const imageUrl = extractItemImageUrl(order.raw_order || {}, item)
+                        const publicMeta = (item.meta || []).filter((m) => !m.key.startsWith('_'))
+                        const privateMeta = (item.meta || []).filter((m) => m.key.startsWith('_'))
+                        const hasMeta = publicMeta.length > 0 || privateMeta.length > 0
+                        const isExpanded = expandedMeta.has(item.line_item_id)
                         return (
-                          <div
-                            key={item.line_item_id}
-                            className="grid grid-cols-[minmax(0,1fr)_80px_56px_96px] items-center gap-4 px-5 py-4"
-                          >
-                            {/* Product info */}
-                            <div className="flex min-w-0 items-center gap-3">
-                              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-app-line bg-slate-50 text-app-soft">
-                                {imageUrl ? (
-                                  <img src={imageUrl} alt={item.name || 'Product'} className="h-full w-full object-cover" />
-                                ) : (
-                                  <Package2 className="h-5 w-5" />
-                                )}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="truncate text-sm font-semibold text-app-strong">
-                                  {item.name || `Item ${item.line_item_id}`}
+                          <div key={item.line_item_id} className="border-b border-slate-100 last:border-0">
+                            <div className="grid grid-cols-[minmax(0,1fr)_80px_56px_96px] items-center gap-4 px-5 py-4">
+                              {/* Product info */}
+                              <div className="flex min-w-0 items-center gap-3">
+                                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-app-line bg-slate-50 text-app-soft">
+                                  {imageUrl ? (
+                                    <img src={imageUrl} alt={item.name || 'Product'} className="h-full w-full object-cover" />
+                                  ) : (
+                                    <Package2 className="h-5 w-5" />
+                                  )}
                                 </div>
-                                <div className="mt-0.5 text-xs text-app-muted">
-                                  SKU: {item.sku || '—'}
-                                  {item.variation_id ? ` · Var: ${item.variation_id}` : ''}
+                                <div className="min-w-0">
+                                  <div className="truncate text-sm font-semibold text-app-strong">
+                                    {item.name || `Item ${item.line_item_id}`}
+                                  </div>
+                                  {formatVariantAttributes(item.variant_attributes) ? (
+                                    <div className="mt-0.5 text-xs font-medium text-app-muted">
+                                      {formatVariantAttributes(item.variant_attributes)}
+                                    </div>
+                                  ) : null}
+                                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-app-muted">
+                                    <span>SKU: {item.sku || '—'}</span>
+                                    {item.variation_id ? <span>Var: {item.variation_id}</span> : null}
+                                    {item.external_variant_id ? <span className="font-mono text-app-soft">ext:{item.external_variant_id}</span> : null}
+                                    {hasMeta ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleMeta(item.line_item_id)}
+                                        className="ml-1 font-medium text-app-soft underline underline-offset-2 transition-colors hover:text-app-strong"
+                                      >
+                                        {isExpanded ? 'hide meta' : `meta (${(item.meta || []).length})`}
+                                      </button>
+                                    ) : null}
+                                  </div>
                                 </div>
                               </div>
+                              {/* Unit price */}
+                              <div className="text-right text-sm text-app-strong">
+                                {money(item.unit_price, order.currency)}
+                              </div>
+                              {/* Qty */}
+                              <div className="text-right">
+                                <span className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-md bg-slate-100 px-1.5 text-xs font-semibold text-app-strong">
+                                  ×{item.quantity}
+                                </span>
+                              </div>
+                              {/* Line total */}
+                              <div className="text-right text-sm font-bold text-app-strong">
+                                {money(item.line_total, order.currency)}
+                              </div>
                             </div>
-                            {/* Unit price */}
-                            <div className="text-right text-sm text-app-strong">
-                              {money(item.unit_price, order.currency)}
-                            </div>
-                            {/* Qty */}
-                            <div className="text-right">
-                              <span className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-md bg-slate-100 px-1.5 text-xs font-semibold text-app-strong">
-                                ×{item.quantity}
-                              </span>
-                            </div>
-                            {/* Line total */}
-                            <div className="text-right text-sm font-bold text-app-strong">
-                              {money(item.line_total, order.currency)}
-                            </div>
+                            {/* Expandable meta panel */}
+                            {isExpanded && hasMeta ? (
+                              <div className="border-t border-slate-100 bg-slate-50/70 px-5 py-3">
+                                <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
+                                  {publicMeta.map((m) => (
+                                    <>
+                                      <span key={`k-${m.key}`} className="text-xs font-medium text-app-muted">{m.key}</span>
+                                      <span key={`v-${m.key}`} className="truncate text-xs text-app-strong">{String(m.value ?? '')}</span>
+                                    </>
+                                  ))}
+                                  {privateMeta.length > 0 ? (
+                                    <>
+                                      <span className="col-span-2 mt-1 text-[10px] font-semibold uppercase tracking-wider text-app-soft">Private</span>
+                                      {privateMeta.map((m) => (
+                                        <>
+                                          <span key={`k-${m.key}`} className="font-mono text-xs text-app-soft">{m.key}</span>
+                                          <span key={`v-${m.key}`} className="truncate text-xs text-app-muted">{String(m.value ?? '')}</span>
+                                        </>
+                                      ))}
+                                    </>
+                                  ) : null}
+                                </div>
+                              </div>
+                            ) : null}
                           </div>
                         )
                       })}
@@ -552,9 +677,9 @@ export default function OrderDetailPage() {
                   <div className="border-t border-app-line pt-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-sm font-medium text-app-muted">Shipping address</div>
-                        <div className="mt-2 text-base leading-7 text-app-strong">
-                          {renderAddress(order.shipping_address)}
+                        <p className="text-xs font-semibold uppercase tracking-wider text-app-soft">Shipping address</p>
+                        <div className="mt-2 space-y-0.5">
+                          <AddressBlock address={order.shipping_address} />
                         </div>
                       </div>
                       <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-app-soft" />
@@ -562,9 +687,17 @@ export default function OrderDetailPage() {
                   </div>
 
                   <div className="border-t border-app-line pt-4">
-                    <div className="text-sm font-medium text-app-muted">Billing address</div>
-                    <div className="mt-2 text-base leading-7 text-app-strong">
-                      {renderAddress(order.billing_address)}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-app-soft">Billing address</p>
+                        <div className="mt-2 space-y-0.5">
+                          {JSON.stringify(order.billing_address) === JSON.stringify(order.shipping_address) ? (
+                            <p className="text-sm text-app-muted">Same as shipping address</p>
+                          ) : (
+                            <AddressBlock address={order.billing_address} showPhone />
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

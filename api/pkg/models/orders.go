@@ -14,6 +14,13 @@ type WooOrderSyncResponse struct {
 	Errors   []WooOrderError `json:"errors,omitempty"`
 }
 
+type WooOrderBackfillStateRequest struct {
+	Status                 string  `json:"status"`
+	LastBackfillModifiedAt *string `json:"last_backfill_modified_at,omitempty"`
+	LastBackfillOrderID    *string `json:"last_backfill_order_id,omitempty"`
+	BackfillCompletedAt    *string `json:"backfill_completed_at,omitempty"`
+}
+
 type WooOrderError struct {
 	WooOrderID string `json:"woo_order_id,omitempty"`
 	Error      string `json:"error"`
@@ -52,17 +59,27 @@ type WooOrderInput struct {
 	RawOrder          map[string]interface{} `json:"raw_order"`
 }
 
+type WooOrderItemMeta struct {
+	Key   string      `json:"key"`
+	Value interface{} `json:"value"`
+}
+
 type WooOrderItemInput struct {
-	LineItemID   string  `json:"line_item_id"`
-	ProductID    string  `json:"product_id"`
-	VariationID  string  `json:"variation_id"`
-	SKU          string  `json:"sku"`
-	Name         string  `json:"name"`
-	Quantity     int     `json:"quantity"`
-	UnitPrice    float64 `json:"unit_price"`
-	LineSubtotal float64 `json:"line_subtotal"`
-	LineTotal    float64 `json:"line_total"`
-	LineTax      float64 `json:"line_tax"`
+	LineItemID        string                 `json:"line_item_id"`
+	ProductID         string                 `json:"product_id"`
+	VariationID       string                 `json:"variation_id"`
+	SKU               string                 `json:"sku"`
+	Name              string                 `json:"name"`
+	Quantity          int                    `json:"quantity"`
+	UnitPrice         float64                `json:"unit_price"`
+	LineSubtotal      float64                `json:"line_subtotal"`
+	LineTotal         float64                `json:"line_total"`
+	LineTax           float64                `json:"line_tax"`
+	ThumbnailURL      string                 `json:"thumbnail_url,omitempty"`
+	ImageURL          string                 `json:"image_url,omitempty"`
+	ExternalVariantID string                 `json:"external_variant_id,omitempty"`
+	VariantAttributes map[string]interface{} `json:"variant_attributes,omitempty"`
+	Meta              []WooOrderItemMeta     `json:"meta,omitempty"`
 }
 
 type WooOrderListResponse struct {
@@ -87,16 +104,21 @@ type WooOrderListItem struct {
 }
 
 type WooOrderItem struct {
-	LineItemID   string  `json:"line_item_id"`
-	ProductID    string  `json:"product_id"`
-	VariationID  string  `json:"variation_id"`
-	SKU          string  `json:"sku"`
-	Name         string  `json:"name"`
-	Quantity     int     `json:"quantity"`
-	UnitPrice    float64 `json:"unit_price"`
-	LineSubtotal float64 `json:"line_subtotal"`
-	LineTotal    float64 `json:"line_total"`
-	LineTax      float64 `json:"line_tax"`
+	LineItemID        string                 `json:"line_item_id"`
+	ProductID         string                 `json:"product_id"`
+	VariationID       string                 `json:"variation_id"`
+	SKU               string                 `json:"sku"`
+	Name              string                 `json:"name"`
+	Quantity          int                    `json:"quantity"`
+	UnitPrice         float64                `json:"unit_price"`
+	LineSubtotal      float64                `json:"line_subtotal"`
+	LineTotal         float64                `json:"line_total"`
+	LineTax           float64                `json:"line_tax"`
+	ThumbnailURL      string                 `json:"thumbnail_url,omitempty"`
+	ImageURL          string                 `json:"image_url,omitempty"`
+	ExternalVariantID string                 `json:"external_variant_id,omitempty"`
+	VariantAttributes map[string]interface{} `json:"variant_attributes,omitempty"`
+	Meta              []WooOrderItemMeta     `json:"meta,omitempty"`
 }
 
 type WooOrderContact struct {
