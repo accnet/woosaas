@@ -14,12 +14,13 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const { hasHydrated, isAuthenticated, login } = useAuthStore()
+  const postRegisterHref = '/dashboard/sites'
 
   useEffect(() => {
     if (hasHydrated && isAuthenticated) {
-      router.replace('/dashboard')
+      router.replace(postRegisterHref)
     }
-  }, [hasHydrated, isAuthenticated, router])
+  }, [hasHydrated, isAuthenticated, postRegisterHref, router])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -29,7 +30,7 @@ export default function RegisterPage() {
     try {
       const response = await authApi.register(name, email, password)
       login(response.data.token, response.data.user)
-      router.push('/dashboard')
+      router.push(postRegisterHref)
     } catch (error) {
       setError(getApiErrorMessage(error, 'Registration failed'))
     } finally {

@@ -13,12 +13,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const { hasHydrated, isAuthenticated, login } = useAuthStore()
+  const postLoginHref = '/dashboard/sites'
 
   useEffect(() => {
     if (hasHydrated && isAuthenticated) {
-      router.replace('/dashboard')
+      router.replace(postLoginHref)
     }
-  }, [hasHydrated, isAuthenticated, router])
+  }, [hasHydrated, isAuthenticated, postLoginHref, router])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -28,7 +29,7 @@ export default function LoginPage() {
     try {
       const response = await authApi.login(email, password)
       login(response.data.token, response.data.user)
-      router.push('/dashboard')
+      router.push(postLoginHref)
     } catch (error) {
       setError(getApiErrorMessage(error, 'Login failed'))
     } finally {

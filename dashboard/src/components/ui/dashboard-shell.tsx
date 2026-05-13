@@ -573,14 +573,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     window.localStorage.setItem(APP_RAIL_EXPANDED_KEY, String(appRailExpanded))
   }, [appRailExpanded])
 
-  useEffect(() => {
-    if (loadingSites || currentSiteId || pathname !== '/dashboard' || sites.length === 0) {
-      return
-    }
-
-    router.replace(`/dashboard/sites/${sites[0].id}`)
-  }, [currentSiteId, loadingSites, pathname, router, sites])
-
   return (
     <div className="min-h-screen bg-app">
       <MobileNavDrawer
