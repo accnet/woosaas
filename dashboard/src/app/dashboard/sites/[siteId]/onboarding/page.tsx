@@ -478,33 +478,22 @@ function CopyField({
   onCopy: (v: string) => void
   extra?: React.ReactNode
 }) {
-  const copied = copiedValue === copyValue
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-1.5">
-        <span className="text-[11px] font-semibold uppercase tracking-widest text-app-soft">{label}</span>
+    <div className="flex items-center gap-2 rounded-lg border border-app-line bg-white px-3 py-2.5">
+      <span className="w-16 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-app-soft">{label}</span>
+      <div className={`min-w-0 flex-1 break-all text-sm ${mono ? 'font-mono' : ''} ${masked ? 'text-app-muted' : 'text-app-strong'}`}>
+        {value}
       </div>
-      <div className="flex items-center gap-0 overflow-hidden rounded-lg border border-app-line bg-white transition focus-within:ring-2 focus-within:ring-blue-500/20">
-        <div className={`min-w-0 flex-1 truncate px-3.5 py-2.5 text-sm ${mono ? 'font-mono' : ''} ${masked ? 'text-app-muted' : 'text-app-strong'}`}>
-          {value}
-        </div>
-        {extra && (
-          <div className="flex shrink-0 items-center border-l border-app-line px-1">
-            {extra}
-          </div>
-        )}
+      <div className="flex shrink-0 items-center gap-1">
+        {extra}
         <button
           type="button"
           onClick={() => onCopy(copyValue)}
           disabled={masked}
-          className={`flex shrink-0 items-center gap-1.5 border-l border-app-line px-3.5 py-2.5 text-xs font-medium transition disabled:opacity-40
-            ${copied
-              ? 'bg-emerald-50 text-emerald-700'
-              : 'bg-slate-50 text-app-muted hover:bg-slate-100 hover:text-app-strong'
-            }`}
+          className="inline-flex items-center gap-1.5 rounded-md bg-slate-50 px-2.5 py-1 text-xs font-medium text-app-strong ring-1 ring-inset ring-app-line transition hover:bg-slate-100 disabled:opacity-40"
         >
-          {copied
-            ? <><Check className="h-3.5 w-3.5" /> Copied</>
+          {copiedValue === copyValue
+            ? <><Check className="h-3.5 w-3.5 text-emerald-600" /> Copied</>
             : <><Copy className="h-3.5 w-3.5" /> Copy</>
           }
         </button>
