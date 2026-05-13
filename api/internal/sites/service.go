@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/accnet/woosaas/api/internal/teams"
+	"github.com/accnet/woosaas/api/pkg/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/accnet/woosaas/api/internal/teams"
-	"github.com/accnet/woosaas/api/pkg/models"
 )
 
 type Repository struct {
