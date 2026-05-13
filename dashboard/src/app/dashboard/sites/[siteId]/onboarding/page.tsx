@@ -20,7 +20,7 @@ import {
 import { InlineErrorState } from '@/components/ui/inline-error-state'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { TrackingStatusChip } from '@/components/ui/tracking-status-chip'
-import { getApiErrorMessage, sitesApi } from '@/lib/api'
+import { API_URL, getApiErrorMessage, sitesApi } from '@/lib/api'
 import { getSiteTrackingState } from '@/lib/tracking-status'
 import type { APIKey, APIKeyResponse, Site } from '@/lib/types'
 
@@ -420,9 +420,9 @@ export default function OnboardingPage({ params }: { params: Promise<{ siteId: s
                             }
                           />
                           <CopyField
-                            label="Site URL"
-                            value={site.domain}
-                            copyValue={site.domain}
+                            label="API URL"
+                            value={API_URL}
+                            copyValue={API_URL}
                             copiedValue={copiedValue}
                             onCopy={handleCopy}
                           />
