@@ -153,6 +153,7 @@ func (r *Router) registerDashboardRoutes(v1 *gin.RouterGroup, authHandler *handl
 		// API Keys
 		dashboard.POST("/sites/:site_id/api-keys", sitesHandler.CreateAPIKey)
 		dashboard.GET("/sites/:site_id/api-keys", sitesHandler.GetAPIKeys)
+		dashboard.DELETE("/sites/:site_id/api-keys/:key_id", sitesHandler.DeleteAPIKey)
 		dashboard.GET("/sites/:site_id/tracking-code", sitesHandler.GetTrackingCode)
 		dashboard.GET("/sites/:site_id/members", sitesHandler.GetSiteMembers)
 		dashboard.POST("/sites/:site_id/members", sitesHandler.AddSiteMember)

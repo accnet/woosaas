@@ -117,6 +117,8 @@ export const sitesApi = {
   getApiKeys: (id: string) => api.get<APIKey[]>(`/api/v1/sites/${id}/api-keys`),
   createApiKey: (id: string, name: string) =>
     api.post<APIKeyResponse>(`/api/v1/sites/${id}/api-keys`, { name }),
+  deleteApiKey: (siteId: string, keyId: string) =>
+    api.delete(`/api/v1/sites/${siteId}/api-keys/${keyId}`),
   getMembers: (id: string) => api.get<SiteMembersResponse>(`/api/v1/sites/${id}/members`),
   addMember: (id: string, data: CreateSiteMemberInput) =>
     api.post<SiteMember>(`/api/v1/sites/${id}/members`, data),

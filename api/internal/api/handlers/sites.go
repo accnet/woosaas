@@ -4,12 +4,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/accnet/woosaas/api/internal/ingest"
 	"github.com/accnet/woosaas/api/internal/sites"
 	"github.com/accnet/woosaas/api/internal/teams"
 	"github.com/accnet/woosaas/api/pkg/models"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type SitesHandler struct {
@@ -155,6 +155,25 @@ func (h *SitesHandler) CreateAPIKey(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, apiKey)
+}
+
+// DeleteAPIKey revokes and removes an API key
+func (h *SitesHandler) DeleteAPIKey(c *gin.Context) {
+	userID := c.GetString("user_id")
+	siteID := c.Param("site_id")
+	keyID := c.Param("key_id")
+
+	if !h.requireSitePermission(c, userID, siteID, "api_keys:write") {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Site not found"})
+		return
+	}
+
+	if err := h.repo.RevokeAPIKey(c.Request.Context(), keyID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete API key"})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }
 
 // GetAPIKeys returns all API keys for a site
