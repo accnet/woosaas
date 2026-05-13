@@ -80,11 +80,9 @@ export default function OnboardingPage({ params }: { params: Promise<{ siteId: s
   }
 
   const handleRegenerateKey = async () => {
-    if (!apiKeys[0]) return
     setRegenerating(true)
     setError(null)
     try {
-      await sitesApi.deleteApiKey(siteId, apiKeys[0].id)
       const res = await sitesApi.createApiKey(siteId, 'Plugin Key')
       const newKey = res.data as APIKeyResponse
       setActiveSecret(newKey.key)

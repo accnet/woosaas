@@ -194,7 +194,13 @@ func (r *Repository) CreateAPIKey(ctx context.Context, siteID, name string) (*mo
 		CreatedAt: time.Now(),
 	}
 
-	_, err := r.db.Exec(ctx, `
+	// Revoke all existing keys for this site first (only 1 active key per site)
+	_, err := r.db.Exec(ctx, `UPDATE api_keys SET status = 'revoked' WHERE site_id = $1`, siteID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to revoke existing API keys: %w", err)
+	}
+
+	_, err = r.db.Exec(ctx, `
 		INSERT INTO api_keys (id, site_id, key_hash, key_prefix, name, status, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`, apiKeyRecord.ID, apiKeyRecord.SiteID, apiKeyRecord.KeyHash, apiKeyRecord.KeyPrefix, apiKeyRecord.Name, apiKeyRecord.Status, apiKeyRecord.CreatedAt)
@@ -217,7 +223,7 @@ func (r *Repository) CreateAPIKey(ctx context.Context, siteID, name string) (*mo
 func (r *Repository) GetAPIKeysBySiteID(ctx context.Context, siteID string) ([]models.APIKey, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, site_id, key_hash, key_prefix, name, status, last_used_at, created_at
-		FROM api_keys WHERE site_id = $1
+		FROM api_keys WHERE site_id = $1 AND status = 'active'
 		ORDER BY created_at DESC
 	`, siteID)
 
