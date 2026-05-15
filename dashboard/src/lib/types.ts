@@ -374,6 +374,11 @@ export interface OrderListItem {
   items_count: number
   status: string
   contact_id: string | null
+  delivery_method: string
+  shipping_city: string
+  shipping_postcode: string
+  shipping_state: string
+  shipping_country: string
 }
 
 export interface OrderListResponse {
@@ -461,6 +466,7 @@ export interface OrderDetail {
   raw_order: Record<string, unknown>
   items: OrderItem[]
   contact: OrderContact | null
+  delivery_method: string
 }
 
 export interface WooContactListResponse {

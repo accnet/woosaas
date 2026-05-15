@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react'
 
 export interface Column<T> {
   key: string
@@ -19,6 +19,7 @@ export function DataTable<T>({
   emptyBody = 'No rows match the current criteria.',
   keyExtractor,
   framed = false,
+  pageSize,
 }: {
   columns: Column<T>[]
   data: T[]
@@ -26,9 +27,16 @@ export function DataTable<T>({
   emptyBody?: string
   keyExtractor: (item: T) => string
   framed?: boolean
+  pageSize?: number
 }) {
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [currentPage, setCurrentPage] = useState(1)
+
+  // Reset to page 1 when data or sort changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [data])
 
   const sorted = useMemo(() => {
     if (!sortKey) return data
@@ -46,6 +54,9 @@ export function DataTable<T>({
         : String(bVal).localeCompare(String(aVal))
     })
   }, [data, sortKey, sortDirection, columns])
+
+  const totalPages = pageSize ? Math.max(1, Math.ceil(sorted.length / pageSize)) : 1
+  const paginated = pageSize ? sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize) : sorted
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
@@ -97,7 +108,7 @@ export function DataTable<T>({
           </thead>
           <tbody className="table-body">
             {sorted.length > 0 ? (
-              sorted.map((item) => (
+              paginated.map((item) => (
                 <tr key={keyExtractor(item)} className="table-row">
                   {columns.map((col) => (
                     <td
@@ -122,6 +133,36 @@ export function DataTable<T>({
           </tbody>
         </table>
       </div>
+      {pageSize && totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-app-line px-4 py-2.5">
+          <span className="text-xs text-app-muted">
+            {((currentPage - 1) * pageSize) + 1}–{Math.min(currentPage * pageSize, sorted.length)} / {sorted.length} rows
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => p - 1)}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-app-line bg-white text-app-soft transition hover:border-app-soft hover:text-app-strong disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Previous page"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </button>
+            <span className="px-2 text-xs tabular-nums text-app-muted">
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((p) => p + 1)}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-app-line bg-white text-app-soft transition hover:border-app-soft hover:text-app-strong disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Next page"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

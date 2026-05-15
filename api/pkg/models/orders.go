@@ -57,6 +57,7 @@ type WooOrderInput struct {
 	DeletedAtWoo      *string                `json:"deleted_at_woo,omitempty"`
 	Items             []WooOrderItemInput    `json:"items"`
 	RawOrder          map[string]interface{} `json:"raw_order"`
+	DeliveryMethod    string                 `json:"delivery_method,omitempty"`
 }
 
 type WooOrderItemMeta struct {
@@ -101,6 +102,11 @@ type WooOrderListItem struct {
 	ItemsCount        int        `json:"items_count"`
 	Status            string     `json:"status"`
 	ContactID         *string    `json:"contact_id"`
+	DeliveryMethod    string     `json:"delivery_method"`
+	ShippingCity      string     `json:"shipping_city"`
+	ShippingPostcode  string     `json:"shipping_postcode"`
+	ShippingState     string     `json:"shipping_state"`
+	ShippingCountry   string     `json:"shipping_country"`
 }
 
 type WooOrderItem struct {
@@ -176,6 +182,7 @@ type WooOrderDetail struct {
 	RawOrder          map[string]interface{} `json:"raw_order"`
 	Items             []WooOrderItem         `json:"items"`
 	Contact           *WooOrderContact       `json:"contact"`
+	DeliveryMethod    string                 `json:"delivery_method"`
 }
 
 type WooContactListResponse struct {

@@ -507,11 +507,13 @@
   }
 
   .site-switcher-trigger {
-    @apply flex h-10 w-full items-center justify-between gap-3 rounded-md bg-transparent px-0 text-left transition;
+    @apply flex h-10 w-full items-center justify-between gap-2.5 rounded-lg border bg-white px-2.5 text-left transition;
+    border-color: #dbe3ee;
   }
 
   .site-switcher-trigger:hover {
-    color: #172033;
+    background: #f6f9fc;
+    border-color: #b8c8da;
   }
 
   .site-switcher-panel {

@@ -102,13 +102,13 @@ func (r *Repository) UpsertOrderSnapshot(ctx context.Context, siteID string, inp
 			total_amount, subtotal_amount, discount_amount, shipping_amount, tax_amount, refund_amount, items_count,
 			customer_email, customer_first_name, customer_last_name, customer_phone, billing_company,
 			billing_address_json, shipping_address_json, client_id, session_id, attribution_json, contact_id,
-			created_at_woo, paid_at_woo, completed_at_woo, modified_at_woo, deleted_at_woo, raw_order_json, synced_at, updated_at
+			created_at_woo, paid_at_woo, completed_at_woo, modified_at_woo, deleted_at_woo, raw_order_json, delivery_method, synced_at, updated_at
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7,
 			$8, $9, $10, $11, $12, $13, $14,
 			$15, $16, $17, $18, $19,
 			$20, $21, $22, $23, $24, $25,
-			$26, $27, $28, $29, $30, $31, NOW(), NOW()
+			$26, $27, $28, $29, $30, $31, $32, NOW(), NOW()
 		)
 		ON CONFLICT (site_id, woo_order_id) DO UPDATE SET
 			woo_customer_id = EXCLUDED.woo_customer_id,
@@ -140,13 +140,14 @@ func (r *Repository) UpsertOrderSnapshot(ctx context.Context, siteID string, inp
 			modified_at_woo = EXCLUDED.modified_at_woo,
 			deleted_at_woo = EXCLUDED.deleted_at_woo,
 			raw_order_json = EXCLUDED.raw_order_json,
+			delivery_method = EXCLUDED.delivery_method,
 			synced_at = NOW(),
 			updated_at = NOW()
 	`, siteID, input.WooOrderID, nullIfEmpty(input.WooCustomerID), input.Status, nullIfEmpty(input.PaymentStatus), nullIfEmpty(input.FulfillmentStatus), input.Currency,
 		input.TotalAmount, input.SubtotalAmount, input.DiscountAmount, input.ShippingAmount, input.TaxAmount, input.RefundAmount, normalizedItemsCount(input),
 		nullIfEmpty(normalizeEmail(input.CustomerEmail)), nullIfEmpty(strings.TrimSpace(input.CustomerFirstName)), nullIfEmpty(strings.TrimSpace(input.CustomerLastName)), nullIfEmpty(normalizePhone(input.CustomerPhone)), nullIfEmpty(strings.TrimSpace(input.BillingCompany)),
 		billingJSON, shippingJSON, nullIfEmpty(strings.TrimSpace(input.ClientID)), nullIfEmpty(strings.TrimSpace(input.SessionID)), attributionJSON, contactID,
-		createdAt, paidAt, completedAt, modifiedAt, deletedAt, rawOrderJSON); err != nil {
+		createdAt, paidAt, completedAt, modifiedAt, deletedAt, rawOrderJSON, nullIfEmpty(input.DeliveryMethod)); err != nil {
 		return err
 	}
 
@@ -220,7 +221,12 @@ func (r *Repository) ListOrders(ctx context.Context, params ListOrdersParams) (*
 		SELECT woo_order_id, created_at_woo,
 			COALESCE(NULLIF(TRIM(CONCAT(COALESCE(customer_first_name, ''), ' ', COALESCE(customer_last_name, ''))), ''), customer_email, 'Unknown') AS customer_name,
 			COALESCE(customer_email, ''), COALESCE(payment_status, ''), COALESCE(fulfillment_status, ''),
-			COALESCE(total_amount::float8, 0), COALESCE(currency, ''), COALESCE(items_count, 0), COALESCE(status, ''), contact_id::text
+			COALESCE(total_amount::float8, 0), COALESCE(currency, ''), COALESCE(items_count, 0), COALESCE(status, ''), contact_id::text,
+			COALESCE(delivery_method, ''),
+			COALESCE(shipping_address_json->>'city', ''),
+			COALESCE(shipping_address_json->>'postcode', ''),
+			COALESCE(shipping_address_json->>'state', ''),
+			COALESCE(shipping_address_json->>'country', '')
 		FROM woo_orders
 		WHERE ` + where + `
 		ORDER BY created_at_woo DESC NULLS LAST, woo_order_id DESC
@@ -247,6 +253,11 @@ func (r *Repository) ListOrders(ctx context.Context, params ListOrdersParams) (*
 			&item.ItemsCount,
 			&item.Status,
 			&item.ContactID,
+			&item.DeliveryMethod,
+			&item.ShippingCity,
+			&item.ShippingPostcode,
+			&item.ShippingState,
+			&item.ShippingCountry,
 		); err != nil {
 			return nil, err
 		}
@@ -272,7 +283,7 @@ func (r *Repository) GetOrderDetail(ctx context.Context, siteID, wooOrderID stri
 			COALESCE(customer_phone, ''), COALESCE(billing_company, ''), billing_address_json, shipping_address_json,
 			COALESCE(client_id, ''), COALESCE(session_id, ''), attribution_json, contact_id::text,
 			created_at_woo, paid_at_woo, completed_at_woo, modified_at_woo, deleted_at_woo, synced_at, created_at, updated_at,
-			raw_order_json
+			raw_order_json, COALESCE(delivery_method, '')
 		FROM woo_orders
 		WHERE site_id = $1 AND woo_order_id = $2
 	`, siteID, wooOrderID).Scan(
@@ -283,7 +294,7 @@ func (r *Repository) GetOrderDetail(ctx context.Context, siteID, wooOrderID stri
 		&detail.CustomerPhone, &detail.BillingCompany, &billingJSON, &shippingJSON,
 		&detail.ClientID, &detail.SessionID, &attributionJSON, &detail.ContactID,
 		&detail.CreatedAtWoo, &detail.PaidAtWoo, &detail.CompletedAtWoo, &detail.ModifiedAtWoo, &detail.DeletedAtWoo, &detail.SyncedAt, &detail.CreatedAt, &detail.UpdatedAt,
-		&rawOrderJSON,
+		&rawOrderJSON, &detail.DeliveryMethod,
 	)
 	if err != nil {
 		return nil, err

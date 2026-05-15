@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ChevronRight, ChevronsUpDown, Globe, LogOut, Menu, Settings2, Star, X } from 'lucide-react'
+import { ChevronRight, ChevronsUpDown, Globe, LogOut, Menu, Settings2, Star, Store, X } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { SearchInput } from '@/components/ui/search-input'
 import { TrackingStatusChip } from '@/components/ui/tracking-status-chip'
@@ -128,8 +128,8 @@ function SiteSwitcherControl({
   const [recentSiteIds, setRecentSiteIds] = useState<string[]>([])
   const [pinnedSiteIds, setPinnedSiteIds] = useState<string[]>([])
   const [highlightedSiteId, setHighlightedSiteId] = useState<string | null>(null)
-  const selectedSite = currentSite || sites[0] || null
-  const selectedSiteId = currentSite?.id || sites[0]?.id || null
+  const selectedSite = currentSite
+  const selectedSiteId = currentSite?.id || null
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -279,27 +279,39 @@ function SiteSwitcherControl({
       <button
         onClick={() => setOpen((value) => !value)}
         className={compact ? 'group mx-auto flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-app-subtle' : 'site-switcher-trigger'}
-        aria-label={selectedSite ? `Switch website from ${selectedSite.domain}` : 'Switch website'}
-        title={compact ? (selectedSite ? selectedSite.domain : 'Switch website') : undefined}
+        aria-label={selectedSite ? `Switch website from ${selectedSite.domain}` : 'Select a website'}
+        title={compact ? (selectedSite ? selectedSite.domain : 'Select a website') : undefined}
       >
         {compact ? (
           <>
-            <div className="app-rail-user h-10 w-10">
-              {(selectedSite?.domain || selectedSite?.name || 'S').slice(0, 1).toUpperCase()}
+            <div className={`app-rail-user h-10 w-10 ${!selectedSite ? 'opacity-40' : ''}`}>
+              {selectedSite ? (selectedSite.domain || selectedSite.name || 'S').slice(0, 1).toUpperCase() : '?'}
             </div>
             <span className="pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-app-strong px-2.5 py-1.5 text-xs font-medium text-white shadow-card group-hover:block">
-              {selectedSite ? selectedSite.domain : loadingSites ? 'Loading websites...' : 'Select website'}
+              {selectedSite ? selectedSite.domain : loadingSites ? 'Loading websites...' : 'Select a website'}
             </span>
           </>
         ) : (
           <>
-            <div className="min-w-0 text-left">
-              <div className="truncate text-[1rem] font-semibold text-app-strong">
-                {selectedSite ? selectedSite.domain : loadingSites ? 'Loading websites...' : 'Select website'}
-              </div>
-              <div className="sr-only">
-                {selectedSite ? selectedSite.name : `${sites.length} connected website${sites.length === 1 ? '' : 's'}`}
-              </div>
+            <Store className={`h-4 w-4 shrink-0 ${selectedSite ? 'text-app-soft' : 'text-app-soft/50'}`} />
+            <div className="min-w-0 flex-1 text-left">
+              {selectedSite ? (
+                <>
+                  <div className="truncate text-xs font-semibold leading-tight text-app-strong">{selectedSite.domain}</div>
+                  <div className="truncate text-[10px] leading-tight text-app-muted">{selectedSite.name}</div>
+                </>
+              ) : (
+                <>
+                  <div className="truncate text-xs font-medium text-app-muted">
+                    {loadingSites ? 'Loading...' : 'Select a website'}
+                  </div>
+                  {!loadingSites && (
+                    <div className="truncate text-[10px] text-app-soft">
+                      {sites.length} website{sites.length === 1 ? '' : 's'} connected
+                    </div>
+                  )}
+                </>
+              )}
             </div>
             <ChevronsUpDown className="h-4 w-4 shrink-0 text-app-soft" />
           </>
@@ -1220,7 +1232,7 @@ function TopNav({
 
   return (
     <header className="sticky top-0 z-20 border-b border-app-line bg-app/95 backdrop-blur">
-      <div className="flex min-h-14 items-center gap-0 px-5 md:px-8">
+      <div className="flex h-12 items-center gap-0 px-3 md:px-5">
         {/* Left: logo + mobile menu + site switcher + inline status */}
         <DemoLogo />
         <button type="button" onClick={onOpenMobileNav} className="icon-button ml-2 xl:hidden">

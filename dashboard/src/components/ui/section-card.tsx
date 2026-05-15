@@ -9,7 +9,7 @@ export function SectionCard({
   description: _description,
   icon: _icon,
 }: {
-  title: string
+  title?: string
   description?: string
   icon?: ReactNode
   action?: ReactNode
@@ -18,11 +18,13 @@ export function SectionCard({
 }) {
   return (
     <div className={`card px-5 py-4 ${className}`.trim()}>
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-app-strong">{title}</h3>
-        {action ?? null}
-      </div>
-      <div className="mt-3">{children}</div>
+      {title || action ? (
+        <div className="flex items-center justify-between">
+          {title ? <h3 className="text-sm font-semibold text-app-strong">{title}</h3> : <span />}
+          {action ?? null}
+        </div>
+      ) : null}
+      <div className={title || action ? 'mt-3' : ''}>{children}</div>
     </div>
   )
 }

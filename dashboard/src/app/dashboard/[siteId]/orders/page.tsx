@@ -3,11 +3,10 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
-import { AlertTriangle, ArrowRight, BadgeDollarSign, ReceiptText, RefreshCw, ShoppingBag, TrendingUp } from 'lucide-react'
+import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
-import { AnalyticsPage, AnalyticsPageContent, MetricGrid } from '@/components/ui/analytics-page-layout'
+import { AnalyticsPage, AnalyticsPageContent } from '@/components/ui/analytics-page-layout'
 import { InlineErrorState } from '@/components/ui/inline-error-state'
-import { MetricCard } from '@/components/ui/metric-card'
 import { PaginationControls } from '@/components/ui/pagination-controls'
 import { SearchInput } from '@/components/ui/search-input'
 import { StatusChip } from '@/components/ui/status-chip'
@@ -56,22 +55,13 @@ function chipTone(value: string): 'neutral' | 'info' | 'good' | 'warn' | 'danger
 
 function formatShortDate(value: string | null | undefined) {
   if (!value) return '—'
-  return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-function avatarColors(seed: string) {
-  const palettes = [
-    'bg-violet-100 text-violet-700',
-    'bg-blue-100 text-blue-700',
-    'bg-emerald-100 text-emerald-700',
-    'bg-amber-100 text-amber-700',
-    'bg-rose-100 text-rose-700',
-    'bg-cyan-100 text-cyan-700',
-    'bg-indigo-100 text-indigo-700',
-    'bg-orange-100 text-orange-700',
-  ]
-  const idx = (seed.charCodeAt(0) || 0) % palettes.length
-  return palettes[idx]
+  const d = new Date(value)
+  return (
+    <>
+      <span>{d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+      <span className="ml-1 text-app-soft">{d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+    </>
+  )
 }
 
 function FilterPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
@@ -150,6 +140,7 @@ export default function OrdersPage() {
   const [error, setError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const [syncState, setSyncState] = useState<WooOrderSyncState | null>(null)
+  const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     ordersApi.syncState(siteId).then((res) => setSyncState(res.data)).catch(() => null)
@@ -194,12 +185,6 @@ export default function OrdersPage() {
   }, [orders.length, page, query, paymentFilter, fulfillmentFilter, dateRange, reloadKey, siteId])
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
-  const totals = useMemo(() => {
-    const revenue = orders.reduce((sum, order) => sum + (order.total_amount || 0), 0)
-    const paidCount = orders.filter((order) => order.payment_status === 'paid').length
-    const avgValue = orders.length > 0 ? revenue / orders.length : 0
-    return { revenue, paidCount, avgValue }
-  }, [orders])
 
   if (loading && orders.length === 0) {
     return <TableLoadingSkeleton rows={6} columns={7} />
@@ -282,37 +267,8 @@ export default function OrdersPage() {
           </div>
         </div>
 
-        {/* Metric row */}
-        <MetricGrid>
-          <MetricCard
-            label="Total Orders"
-            value={totalCount.toLocaleString()}
-            icon={<ShoppingBag className="h-5 w-5" />}
-          />
-          <MetricCard
-            label="Revenue (page)"
-            value={money(totals.revenue, orders[0]?.currency || 'USD')}
-            tone="good"
-            icon={<BadgeDollarSign className="h-5 w-5" />}
-          />
-          <MetricCard
-            label="Paid (page)"
-            value={totals.paidCount.toLocaleString()}
-            icon={<TrendingUp className="h-5 w-5" />}
-          />
-          <MetricCard
-            label="AOV (page)"
-            value={money(totals.avgValue, orders[0]?.currency || 'USD')}
-            icon={<ReceiptText className="h-5 w-5" />}
-          />
-        </MetricGrid>
-
-        {/* Orders list */}
-        <SectionCard
-          title="Orders"
-          action={<StatusChip label={`${orders.length} shown`} tone="neutral" />}
-          className="px-0 py-0 overflow-hidden"
-        >
+        {/* Orders table */}
+        <SectionCard className="px-0 py-0 overflow-hidden">
           {orders.length === 0 ? (
             <div className="px-6 py-10">
               <EmptyState
@@ -322,59 +278,113 @@ export default function OrdersPage() {
               />
             </div>
           ) : (
-            <div className="divide-y divide-app-line">
-              {orders.map((order) => {
-                const customer = order.customer_name || order.customer_email || 'Unknown customer'
-                const avatarClass = avatarColors(customer)
-                const initial = customer.charAt(0).toUpperCase()
-                const isPaid = order.payment_status === 'paid'
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="table-header sticky top-0">
+                  <tr>
+                    <th className="w-10 px-4 py-2.5 text-left">
+                      <input
+                        type="checkbox"
+                        checked={selectedOrders.size === orders.length && orders.length > 0}
+                        onChange={() => {
+                          if (selectedOrders.size === orders.length) {
+                            setSelectedOrders(new Set())
+                          } else {
+                            setSelectedOrders(new Set(orders.map((o) => o.woo_order_id)))
+                          }
+                        }}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                    </th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Order</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Date</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Total</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Payment</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Delivery</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Shipping</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-medium text-app-soft">Customer</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Items</th>
+                    <th className="px-4 py-2.5 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Fulfillment</th>
+                  </tr>
+                </thead>
+                <tbody className="table-body">
+                  {orders.map((order) => {
+                    const customer = order.customer_name || order.customer_email || 'Unknown customer'
+                    const isSelected = selectedOrders.has(order.woo_order_id)
 
-                return (
-                  <div key={order.woo_order_id} className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-slate-50/70">
-                    {/* Avatar */}
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarClass}`}>
-                      {initial}
-                    </div>
-
-                    {/* Order info */}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <Link
-                          href={`/dashboard/${siteId}/orders/${encodeURIComponent(order.woo_order_id)}`}
-                          className="text-sm font-semibold text-app-strong transition hover:text-indigo-600"
-                        >
-                          #{order.woo_order_id}
-                        </Link>
-                        <StatusChip label={order.payment_status || 'unknown'} tone={chipTone(order.payment_status || 'unknown')} />
-                        <StatusChip label={order.fulfillment_status || 'unknown'} tone={chipTone(order.fulfillment_status || 'unknown')} />
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-app-muted">
-                        <span>{customer}</span>
-                        {order.customer_email ? <span className="text-app-soft">{order.customer_email}</span> : null}
-                        <span>{formatShortDate(order.created_at_woo)}</span>
-                        <span>{order.items_count} {order.items_count === 1 ? 'item' : 'items'}</span>
-                      </div>
-                    </div>
-
-                    {/* Amount */}
-                    <div className="shrink-0 text-right">
-                      <div className={`text-base font-bold tabular-nums ${isPaid ? 'text-emerald-600' : 'text-app-strong'}`}>
-                        {money(order.total_amount, order.currency)}
-                      </div>
-                      {order.status ? <div className="mt-0.5 text-xs text-app-soft">{order.status}</div> : null}
-                    </div>
-
-                    {/* Arrow */}
-                    <Link
-                      href={`/dashboard/${siteId}/orders/${encodeURIComponent(order.woo_order_id)}`}
-                      aria-label={`View order #${order.woo_order_id}`}
-                      className="shrink-0 text-app-subtle transition group-hover:text-app-muted"
-                    >
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </div>
-                )
-              })}
+                    return (
+                      <tr key={order.woo_order_id} className={`table-row group cursor-pointer transition-colors hover:bg-slate-50/70 ${isSelected ? 'bg-indigo-50/50' : ''}`}>
+                        <td className="w-10 px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {
+                              const next = new Set(selectedOrders)
+                              if (next.has(order.woo_order_id)) {
+                                next.delete(order.woo_order_id)
+                              } else {
+                                next.add(order.woo_order_id)
+                              }
+                              setSelectedOrders(next)
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <Link
+                            href={`/dashboard/${siteId}/orders/${encodeURIComponent(order.woo_order_id)}`}
+                            className="text-sm font-semibold text-app-strong transition hover:text-indigo-600"
+                          >
+                            #{order.woo_order_id}
+                          </Link>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-app-muted tabular-nums whitespace-nowrap">
+                          {formatShortDate(order.created_at_woo)}
+                        </td>
+                        <td className="px-4 py-3 text-left whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="text-sm tabular-nums text-app-strong">
+                            {money(order.total_amount, order.currency)}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <StatusChip label={order.payment_status || 'unknown'} tone={chipTone(order.payment_status || 'unknown')} />
+                        </td>
+                        <td className="px-4 py-3 text-sm text-app-muted">
+                          <div className="max-w-[130px] truncate" title={order.delivery_method}>
+                            {order.delivery_method || '—'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {(order.shipping_city || order.shipping_country) ? (
+                            <div>
+                              <div className="text-sm text-app-strong">
+                                {[order.shipping_city, order.shipping_postcode].filter(Boolean).join(', ') || '—'}
+                              </div>
+                              <div className="mt-0.5 text-xs text-app-muted">
+                                {[order.shipping_state, order.shipping_country].filter(Boolean).join(' · ')}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-app-soft">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-app-strong">
+                          <div className="max-w-[200px] truncate">{customer}</div>
+                          {order.customer_email ? (
+                            <div className="mt-0.5 text-xs text-app-soft truncate">{order.customer_email}</div>
+                          ) : null}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-app-muted tabular-nums">
+                          {order.items_count}
+                        </td>
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <StatusChip label={order.fulfillment_status || 'unknown'} tone={chipTone(order.fulfillment_status || 'unknown')} />
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </SectionCard>

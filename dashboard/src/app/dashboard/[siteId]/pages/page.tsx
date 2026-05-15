@@ -210,6 +210,7 @@ export default function PagesPage() {
               columns={columns}
               data={filteredPages}
               keyExtractor={(p) => p.path}
+              pageSize={25}
               emptyTitle={pages.length === 0 ? 'No page data yet' : 'No matching paths'}
               emptyBody={
                 pages.length === 0

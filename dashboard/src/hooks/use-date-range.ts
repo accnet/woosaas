@@ -7,7 +7,7 @@ import { useUserSettings } from '@/lib/settings-context'
 
 const STORAGE_KEY = 'woosaas-date-range'
 
-export function useDateRange(defaultRange: PresetDateRange = '30d') {
+export function useDateRange(defaultRange: PresetDateRange = '24h') {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { settings } = useUserSettings()
