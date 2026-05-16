@@ -20,11 +20,13 @@ import {
   Monitor,
   Package,
   PanelLeft,
+  PlugZap,
   ReceiptText,
   RefreshCcw,
   RotateCcw,
   ShoppingCart,
   Settings2,
+  TableProperties,
   Target,
   TrendingUp,
   Users,
@@ -51,6 +53,7 @@ export const settingsNav: NavItem[] = [
   { href: '/dashboard/settings/authentication', label: 'Authentication', icon: LockKeyhole },
   { href: '/dashboard/settings/billing', label: 'Billing Information', icon: CreditCard },
   { href: '/dashboard/settings/invoices', label: 'Invoices', icon: FileText },
+  { href: '/dashboard/settings/export-templates', label: 'Export Templates', icon: TableProperties },
 ]
 
 export const siteAppsNav: NavItem[] = [
@@ -91,6 +94,7 @@ export const siteOperationsNav: NavItem[] = [
   { href: 'bots', label: 'Bots', icon: Bot },
   { href: 'exports', label: 'Exports', icon: Download },
   { href: 'health', label: 'Health', icon: HeartPulse },
+  { href: 'integrations', label: 'Integrations', icon: PlugZap },
 ]
 
 export const siteSetupNav: NavItem[] = [
@@ -252,6 +256,13 @@ export function buildPageMeta(pathname: string) {
     return {
       title: 'Invoices',
       description: 'Review invoice history for your account.',
+    }
+  }
+
+  if (pathname.startsWith('/dashboard/settings/export-templates')) {
+    return {
+      title: 'Export Templates',
+      description: 'Create and manage CSV column templates for order exports.',
     }
   }
 

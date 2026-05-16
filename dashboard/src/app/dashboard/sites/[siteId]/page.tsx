@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { Activity, AlertTriangle, Globe, ReceiptText, Settings, ShieldCheck, Users } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { PlatformIcon } from '@/components/ui/platform-icon'
 import { TrackingStatusChip } from '@/components/ui/tracking-status-chip'
 import { useSiteId } from '@/hooks/use-site-id'
 import { sitesApi } from '@/lib/api'
@@ -49,12 +50,13 @@ export default function WebsiteHomePage() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-app-subtle text-lg font-bold text-app-strong">
-            {site.name.charAt(0).toUpperCase()}
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center">
+            <PlatformIcon platform={site.platform} size={40} />
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-semibold text-app-strong">{site.name}</h1>
+              <PlatformIcon platform={site.platform} size={18} />
               <TrackingStatusChip site={site} />
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-app-muted">
@@ -200,5 +202,4 @@ function QuickLink({ href, icon, label }: { href: string; icon: React.ReactNode;
     </Link>
   )
 }
-
 

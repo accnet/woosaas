@@ -29,6 +29,13 @@ type WooOrderError struct {
 type WooOrderInput struct {
 	WooOrderID        string                 `json:"woo_order_id"`
 	WooCustomerID     string                 `json:"woo_customer_id"`
+	SourcePlatform    string                 `json:"source_platform,omitempty"`
+	ExternalOrderName string                 `json:"external_order_name,omitempty"`
+	CheckoutToken     string                 `json:"checkout_token,omitempty"`
+	CartToken         string                 `json:"cart_token,omitempty"`
+	OrderStatusURL    string                 `json:"order_status_url,omitempty"`
+	PaymentGateway    string                 `json:"payment_gateway,omitempty"`
+	ReferringSite     string                 `json:"referring_site,omitempty"`
 	Status            string                 `json:"status"`
 	PaymentStatus     string                 `json:"payment_status"`
 	FulfillmentStatus string                 `json:"fulfillment_status"`
@@ -54,6 +61,7 @@ type WooOrderInput struct {
 	PaidAtWoo         *string                `json:"paid_at_woo"`
 	CompletedAtWoo    *string                `json:"completed_at_woo"`
 	ModifiedAtWoo     string                 `json:"modified_at_woo"`
+	PurchaseTrackedAt *string                `json:"purchase_tracked_at,omitempty"`
 	DeletedAtWoo      *string                `json:"deleted_at_woo,omitempty"`
 	Items             []WooOrderItemInput    `json:"items"`
 	RawOrder          map[string]interface{} `json:"raw_order"`
@@ -92,6 +100,7 @@ type WooOrderListResponse struct {
 
 type WooOrderListItem struct {
 	WooOrderID        string     `json:"woo_order_id"`
+	SourcePlatform    string     `json:"source_platform"`
 	CreatedAtWoo      *time.Time `json:"created_at_woo"`
 	CustomerName      string     `json:"customer_name"`
 	CustomerEmail     string     `json:"customer_email"`
@@ -148,6 +157,7 @@ type WooOrderDetail struct {
 	ID                string                 `json:"id"`
 	SiteID            string                 `json:"site_id"`
 	WooOrderID        string                 `json:"woo_order_id"`
+	SourcePlatform    string                 `json:"source_platform"`
 	WooCustomerID     string                 `json:"woo_customer_id"`
 	Status            string                 `json:"status"`
 	PaymentStatus     string                 `json:"payment_status"`
@@ -193,17 +203,18 @@ type WooContactListResponse struct {
 }
 
 type WooOrderSyncState struct {
-	SiteID                 string     `json:"site_id"`
-	OrderSyncEnabled       bool       `json:"order_sync_enabled"`
-	ContactSyncEnabled     bool       `json:"contact_sync_enabled"`
-	Status                 string     `json:"status"`
-	LastBackfillModifiedAt *time.Time `json:"last_backfill_modified_at"`
-	LastBackfillOrderID    *string    `json:"last_backfill_order_id"`
-	LastRealtimeSyncedAt   *time.Time `json:"last_realtime_synced_at"`
-	LastSuccessAt          *time.Time `json:"last_success_at"`
-	LastError              *string    `json:"last_error"`
-	LastErrorAt            *time.Time `json:"last_error_at"`
-	BackfillCompletedAt    *time.Time `json:"backfill_completed_at"`
-	CreatedAt              time.Time  `json:"created_at"`
-	UpdatedAt              time.Time  `json:"updated_at"`
+	SiteID                         string     `json:"site_id"`
+	OrderSyncEnabled               bool       `json:"order_sync_enabled"`
+	ContactSyncEnabled             bool       `json:"contact_sync_enabled"`
+	AnalyticsPurchaseBridgeEnabled bool       `json:"analytics_purchase_bridge_enabled"`
+	Status                         string     `json:"status"`
+	LastBackfillModifiedAt         *time.Time `json:"last_backfill_modified_at"`
+	LastBackfillOrderID            *string    `json:"last_backfill_order_id"`
+	LastRealtimeSyncedAt           *time.Time `json:"last_realtime_synced_at"`
+	LastSuccessAt                  *time.Time `json:"last_success_at"`
+	LastError                      *string    `json:"last_error"`
+	LastErrorAt                    *time.Time `json:"last_error_at"`
+	BackfillCompletedAt            *time.Time `json:"backfill_completed_at"`
+	CreatedAt                      time.Time  `json:"created_at"`
+	UpdatedAt                      time.Time  `json:"updated_at"`
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/accnet/woosaas/api/internal/api/handlers"
 	"github.com/accnet/woosaas/api/internal/api/middleware"
 	"github.com/accnet/woosaas/api/internal/auth"
+	"github.com/accnet/woosaas/api/internal/config"
 	"github.com/accnet/woosaas/api/internal/customers"
 	"github.com/accnet/woosaas/api/internal/export"
 	"github.com/accnet/woosaas/api/internal/ingest"
@@ -20,19 +21,22 @@ import (
 )
 
 type Router struct {
-	engine       *gin.Engine
-	repo         *sites.Repository
-	authSvc      *auth.Service
-	mw           *middleware.Middleware
-	redisClient  *redis.Client
-	collector    *ingest.Collector
-	orderSvc     *orders.Service
-	settingsRepo *appsettings.Repository
-	stats        *analytics.Stats
-	bots         *analytics.Bots
-	exports      *export.ExportService
-	customers    *customers.CustomerService
-	onlineUsers  *realtime.OnlineUsers
+	engine          *gin.Engine
+	repo            *sites.Repository
+	authSvc         *auth.Service
+	mw              *middleware.Middleware
+	redisClient     *redis.Client
+	collector       *ingest.Collector
+	orderSvc        *orders.Service
+	settingsRepo    *appsettings.Repository
+	templateRepo    *export.TemplateRepository
+	stats           *analytics.Stats
+	bots            *analytics.Bots
+	exports         *export.ExportService
+	customers       *customers.CustomerService
+	onlineUsers     *realtime.OnlineUsers
+	shopbaseHandler *handlers.ShopBaseHandler
+	shopbaseWebhook *handlers.ShopBaseWebhookHandler
 }
 
 func NewRouter(
@@ -42,6 +46,7 @@ func NewRouter(
 	redisClient *redis.Client,
 	ch driver.Conn,
 	allowedOrigins []string,
+	cfg *config.Config,
 ) *Router {
 	gin.SetMode(gin.ReleaseMode)
 
@@ -56,21 +61,26 @@ func NewRouter(
 	orderQueue := orders.NewQueue(redisClient)
 	orderRepo := orders.NewRepository(pg)
 
+	encKey, _ := handlers.LoadEncryptionKey(cfg.IntegrationEncryptionKey)
+
 	return &Router{
 		engine:  engine,
 		repo:    repo,
 		authSvc: auth.NewService(userRepo, jwtManager),
 		// M3: pass allowed origins for proper CORS validation
-		mw:           middleware.NewMiddleware(jwtManager, redisClient, allowedOrigins),
-		redisClient:  redisClient,
-		collector:    ingest.NewCollector(redisClient),
-		orderSvc:     orders.NewService(orderQueue, orderRepo),
-		settingsRepo: appsettings.NewRepository(pg),
-		stats:        analytics.NewStatsWithCache(ch, redisClient),
-		bots:         analytics.NewBots(ch),
-		exports:      export.NewService(ch),
-		customers:    customers.NewService(ch),
-		onlineUsers:  realtime.NewOnlineUsers(redisClient),
+		mw:              middleware.NewMiddleware(jwtManager, redisClient, allowedOrigins),
+		redisClient:     redisClient,
+		collector:       ingest.NewCollector(redisClient),
+		orderSvc:        orders.NewService(orderQueue, orderRepo),
+		settingsRepo:    appsettings.NewRepository(pg),
+		templateRepo:    export.NewTemplateRepository(pg),
+		stats:           analytics.NewStatsWithCache(ch, redisClient),
+		bots:            analytics.NewBots(ch),
+		exports:         export.NewService(ch),
+		customers:       customers.NewService(ch),
+		onlineUsers:     realtime.NewOnlineUsers(redisClient),
+		shopbaseHandler: handlers.NewShopBaseHandler(repo, encKey, cfg.TrackerBaseURL, cfg.APIBaseURL),
+		shopbaseWebhook: handlers.NewShopBaseWebhookHandler(repo, redisClient, encKey),
 	}
 }
 
@@ -81,12 +91,14 @@ func (r *Router) Setup() *gin.Engine {
 	v1 := r.engine.Group("/api/v1")
 	r.registerCollectRoutes(v1)
 	r.registerWooSyncRoutes(v1)
+	r.registerShopBaseWebhookRoutes(v1)
 
 	authHandler := handlers.NewAuthHandler(r.authSvc)
 	r.registerAuthRoutes(v1, authHandler)
 	r.registerDashboardRoutes(v1, authHandler)
 	r.registerStatsRoutes(v1)
 	r.registerOrdersRoutes(v1)
+	r.registerShopBaseRoutes(v1)
 
 	return r.engine
 }
@@ -114,7 +126,7 @@ func (r *Router) registerWooSyncRoutes(v1 *gin.RouterGroup) {
 	woo.Use(r.mw.APIKeyAuth(r.repo))
 	woo.Use(r.mw.RateLimit())
 	{
-		ordersHandler := handlers.NewOrdersHandler(r.orderSvc, r.repo, r.redisClient)
+		ordersHandler := handlers.NewOrdersHandler(r.orderSvc, r.repo, r.redisClient, r.templateRepo)
 		woo.POST("/sync", ordersHandler.SyncOrders)
 		woo.POST("/backfill-state", ordersHandler.UpdateBackfillState)
 	}
@@ -136,8 +148,8 @@ func (r *Router) registerDashboardRoutes(v1 *gin.RouterGroup, authHandler *handl
 		dashboard.PUT("/me", authHandler.UpdateProfile)
 		dashboard.PUT("/me/password", authHandler.ChangePassword)
 
-		sitesHandler := handlers.NewSitesHandler(r.repo, r.collector)
-		ordersHandler := handlers.NewOrdersHandler(r.orderSvc, r.repo, r.redisClient)
+		sitesHandler := handlers.NewSitesHandler(r.repo, r.collector, r.templateRepo)
+		ordersHandler := handlers.NewOrdersHandler(r.orderSvc, r.repo, r.redisClient, r.templateRepo)
 		settingsHandler := handlers.NewSettingsHandler(r.settingsRepo)
 		dashboard.GET("/settings", settingsHandler.GetUserSettings)
 		dashboard.PUT("/settings", settingsHandler.UpdateUserSettings)
@@ -161,6 +173,26 @@ func (r *Router) registerDashboardRoutes(v1 *gin.RouterGroup, authHandler *handl
 		dashboard.DELETE("/sites/:site_id/members/:member_id", sitesHandler.DeleteSiteMember)
 		dashboard.POST("/sites/:site_id/debug-event", sitesHandler.SendDebugEvent)
 		dashboard.GET("/sites/:site_id/orders/sync-state", ordersHandler.GetSyncState)
+
+		// Export templates (shared across sites)
+		templateHandler := handlers.NewExportTemplatesHandler(r.templateRepo)
+		dashboard.GET("/export/columns", templateHandler.ListColumns)
+		dashboard.GET("/export-templates", templateHandler.List)
+		dashboard.GET("/export-templates/:id", templateHandler.Get)
+		dashboard.POST("/export-templates", templateHandler.Create)
+		dashboard.PUT("/export-templates/:id", templateHandler.Update)
+		dashboard.DELETE("/export-templates/:id", templateHandler.Delete)
+		dashboard.POST("/export-templates/:id/set-default", templateHandler.SetDefault)
+		dashboard.POST("/export-templates/:id/duplicate", templateHandler.Duplicate)
+
+		// Backward-compatible site-scoped aliases.
+		dashboard.GET("/sites/:site_id/export-templates", templateHandler.List)
+		dashboard.GET("/sites/:site_id/export-templates/:id", templateHandler.Get)
+		dashboard.POST("/sites/:site_id/export-templates", templateHandler.Create)
+		dashboard.PUT("/sites/:site_id/export-templates/:id", templateHandler.Update)
+		dashboard.DELETE("/sites/:site_id/export-templates/:id", templateHandler.Delete)
+		dashboard.POST("/sites/:site_id/export-templates/:id/set-default", templateHandler.SetDefault)
+		dashboard.POST("/sites/:site_id/export-templates/:id/duplicate", templateHandler.Duplicate)
 	}
 }
 
@@ -192,15 +224,39 @@ func (r *Router) registerStatsRoutes(v1 *gin.RouterGroup) {
 }
 
 func (r *Router) registerOrdersRoutes(v1 *gin.RouterGroup) {
-	ordersHandler := handlers.NewOrdersHandler(r.orderSvc, r.repo, r.redisClient)
+	ordersHandler := handlers.NewOrdersHandler(r.orderSvc, r.repo, r.redisClient, r.templateRepo)
 	orders := v1.Group("")
 	orders.Use(r.mw.JWTAuth())
 	{
 		orders.GET("/orders", ordersHandler.ListOrders)
+		orders.GET("/orders/export", ordersHandler.ExportOrdersCSV)
 		orders.GET("/orders/retention", ordersHandler.GetRetentionCohort)
 		orders.GET("/orders/refunds", ordersHandler.GetRefundStats)
 		orders.GET("/orders/cross-sell", ordersHandler.GetCrossSell)
 		orders.GET("/orders/:woo_order_id", ordersHandler.GetOrderDetail)
 		orders.GET("/contacts", ordersHandler.ListContacts)
+	}
+}
+
+// registerShopBaseWebhookRoutes registers the public (no JWT) webhook receiver.
+func (r *Router) registerShopBaseWebhookRoutes(v1 *gin.RouterGroup) {
+	v1.POST("/shopbase/webhooks/:site_id", r.shopbaseWebhook.Receive)
+}
+
+// registerShopBaseRoutes registers authenticated ShopBase management endpoints.
+func (r *Router) registerShopBaseRoutes(v1 *gin.RouterGroup) {
+	sb := v1.Group("")
+	sb.Use(r.mw.JWTAuth())
+	{
+		// Site creation & verification
+		sb.POST("/sites/shopbase/verify", r.shopbaseHandler.VerifyStore)
+		sb.POST("/sites/shopbase", r.shopbaseHandler.ConnectSite)
+
+		// Per-site integration management
+		sb.GET("/sites/:site_id/integration", r.shopbaseHandler.GetIntegration)
+		sb.GET("/sites/:site_id/integration/shopbase/sync-state", r.shopbaseHandler.GetSyncState)
+		sb.POST("/sites/:site_id/integration/shopbase/install-script", r.shopbaseHandler.InstallScript)
+		sb.POST("/sites/:site_id/integration/shopbase/register-webhooks", r.shopbaseHandler.RegisterWebhooks)
+		sb.POST("/sites/:site_id/integration/shopbase/backfill", r.shopbaseHandler.StartBackfill)
 	}
 }

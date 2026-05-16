@@ -30,7 +30,6 @@ Mục tiêu v1: cho phép user add website ShopBase vào Woosaas, tự verify st
 - Đăng ký webhook ShopBase
 - Backfill dữ liệu:
   - orders
-  - abandoned checkouts
   - customers
   - products/variants ở mức cần cho line items
 - Realtime sync qua webhook:
@@ -44,11 +43,6 @@ Mục tiêu v1: cho phép user add website ShopBase vào Woosaas, tự verify st
   - refunds/create
   - fulfillments/create
   - fulfillments/update
-  - checkouts/create
-  - checkouts/update
-  - checkouts/delete
-  - carts/create
-  - carts/update
   - products/create
   - products/update
   - products/delete
@@ -67,6 +61,7 @@ Mục tiêu v1: cho phép user add website ShopBase vào Woosaas, tự verify st
 
 - Public ShopBase app listing trên App Store
 - Full OAuth install flow
+- Abandoned checkout sync và UI (V2)
 - Tạo/sửa order ShopBase từ Woosaas
 - Fulfillment management từ Woosaas
 - Product management/editor trong Woosaas
@@ -223,7 +218,7 @@ Tách state riêng để không trộn với `woo_order_sync_state`.
 CREATE TABLE IF NOT EXISTS shopbase_sync_state (
   site_id UUID PRIMARY KEY REFERENCES sites(id) ON DELETE CASCADE,
   order_sync_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-  checkout_sync_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  checkout_sync_enabled BOOLEAN NOT NULL DEFAULT FALSE,
   customer_sync_enabled BOOLEAN NOT NULL DEFAULT TRUE,
   product_sync_enabled BOOLEAN NOT NULL DEFAULT TRUE,
   status VARCHAR(30) NOT NULL DEFAULT 'idle',
@@ -245,16 +240,26 @@ CREATE TABLE IF NOT EXISTS shopbase_sync_state (
 
 Có 2 lựa chọn.
 
-Option A, nhanh cho v1:
+~~Option A, nhanh cho v1:~~ *(không chọn)*
 
 - Tái sử dụng bảng `woo_orders` và `woo_order_items`
-- `woo_order_id` lưu ShopBase order id dạng string
-- Thêm `source_platform`
+- Tốn ít công hơn nhưng làm cho cồng kềnh khi thêm platform mới
+
+Option B — **đã chọn**, sạch hơn cho dài hạn:
+
+- Rename `woo_orders` → `commerce_orders`, `woo_order_items` → `commerce_order_items`
+- Tạo view backward-compatible cho code WooCommerce cũ
+- Thực hiện: Phase 2 sau khi ShopBase V1 hoàn thành, trước khi thêm platform thứ 3
 
 Migration:
 
 ```sql
-ALTER TABLE woo_orders
+-- Rename tables
+ALTER TABLE woo_orders RENAME TO commerce_orders;
+ALTER TABLE woo_order_items RENAME TO commerce_order_items;
+
+-- Add ShopBase fields
+ALTER TABLE commerce_orders
   ADD COLUMN IF NOT EXISTS source_platform VARCHAR(30) NOT NULL DEFAULT 'woocommerce',
   ADD COLUMN IF NOT EXISTS external_order_name VARCHAR(100),
   ADD COLUMN IF NOT EXISTS checkout_token VARCHAR(255),
@@ -263,21 +268,20 @@ ALTER TABLE woo_orders
   ADD COLUMN IF NOT EXISTS payment_gateway TEXT,
   ADD COLUMN IF NOT EXISTS referring_site TEXT;
 
-ALTER TABLE woo_order_items
+ALTER TABLE commerce_order_items
   ADD COLUMN IF NOT EXISTS source_platform VARCHAR(30) NOT NULL DEFAULT 'woocommerce';
+
+-- Backward compat views cho code WooCommerce cũ
+CREATE OR REPLACE VIEW woo_orders AS
+  SELECT * FROM commerce_orders WHERE source_platform = 'woocommerce';
+
+CREATE OR REPLACE VIEW woo_order_items AS
+  SELECT * FROM commerce_order_items WHERE source_platform = 'woocommerce';
 ```
 
-Option B, sạch hơn cho dài hạn:
+### Abandoned Checkouts (V2 — ngoài scope V1)
 
-- Rename logical layer từ `woo_orders` sang `commerce_orders`
-- Tạo view backward-compatible cho dashboard cũ
-- Tốn công hơn, nên để phase sau.
-
-Recommendation v1: dùng Option A để giảm blast radius. Khi support thêm Shopify/BigCommerce thì refactor sang `commerce_orders`.
-
-### Abandoned Checkouts
-
-ShopBase có checkout API/webhook riêng, nên cần bảng mới.
+ShopBase có checkout API/webhook riêng, nên cần bảng mới. Phần này được để dành cho V2.
 
 ```sql
 CREATE TABLE IF NOT EXISTS commerce_checkouts (
@@ -405,7 +409,12 @@ Request examples:
 {
   "shop_domain": "example.onshopbase.com",
   "api_key": "private_app_key",
-  "api_password": "private_app_password"
+  "api_password": "private_app_password",
+  "sync_options": {
+    "orders": true,
+    "customers": true,
+    "products": true
+  }
 }
 ```
 
@@ -623,8 +632,12 @@ Update `/dashboard/sites` add modal/page:
    - primary domain
    - currency
    - timezone
-5. Click `Connect`
-6. Post-connect checklist:
+5. Configure sync options (default: all on):
+   - [ ] Orders
+   - [ ] Customers
+   - [ ] Products
+6. Click `Connect`
+7. Post-connect checklist:
    - Install tracking script
    - Register webhooks
    - Start backfill
@@ -771,7 +784,7 @@ Acceptance:
 ### Phase 6: Orders Sync
 
 - Implement ShopBase order mapper
-- Upsert mapped orders into existing order tables
+- Upsert mapped orders vào `commerce_orders` và `commerce_order_items`
 - Add `source_platform = shopbase`
 - Sync line items
 - Sync derived contacts
@@ -786,7 +799,9 @@ Acceptance:
 - Order detail shows line items, customer, totals, address
 - Re-running backfill does not duplicate orders
 
-### Phase 7: Checkouts And Carts
+### Phase 7 (V2): Checkouts And Carts
+
+> Ngoài scope V1. Thực hiện sau khi V1 ổn định.
 
 - Implement checkout mapper
 - Upsert `commerce_checkouts`
@@ -904,13 +919,16 @@ Manual QA:
 
 ## Open Questions
 
-- Woosaas production tracker URL chính thức là gì?
-- V1 chỉ private app hay cần public OAuth ngay?
-- Có cần migrate table name từ `woo_orders` sang `commerce_orders` trước khi thêm ShopBase không?
+- Woosaas production tracker URL chính thức là gì? *(cần điền trước Phase 4)*
 - ShopBase private app có quyền `write_script_tags` và `write_webhooks` trong tất cả plan không?
 - Có cần sync historical products đầy đủ hay chỉ line items từ orders là đủ cho v1?
-- Abandoned checkout sẽ có UI riêng hay gộp vào existing abandonment page?
-- Có cần cho user chọn sync options khi connect không?
+
+**Đã giải quyết:**
+
+- ~~V1 chỉ private app hay cần public OAuth ngay?~~ → V1 private app only
+- ~~Có cần migrate `woo_orders` → `commerce_orders` không?~~ → Option B, thực hiện Phase 2 sau ShopBase V1
+- ~~Abandoned checkout UI riêng hay gộp?~~ → Bỏ khỏi V1, để V2
+- ~~Cho user chọn sync options khi connect không?~~ → Có, user chọn được (orders/customers/products)
 
 ---
 
@@ -918,15 +936,14 @@ Manual QA:
 
 Làm theo thứ tự ngắn nhất để có giá trị:
 
-1. Add platform/integration schema
+1. Add platform/integration schema + migrate `woo_orders` → `commerce_orders`
 2. Build ShopBase client + verify store
-3. Add ShopBase site flow
+3. Add ShopBase site flow + sync options
 4. Install tracking script
 5. Register webhooks
 6. Sync orders + delivery method
 7. Backfill orders
-8. Add checkouts
-9. Add health/status UI
+8. Add health/status UI
 
 V1 success criteria:
 

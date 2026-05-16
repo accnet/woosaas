@@ -2,6 +2,7 @@ package orders
 
 import (
 	"context"
+	"time"
 
 	"github.com/accnet/woosaas/api/pkg/models"
 )
@@ -23,6 +24,10 @@ func (s *Service) Enqueue(ctx context.Context, siteID string, order models.WooOr
 
 func (s *Service) ListOrders(ctx context.Context, params ListOrdersParams) (*models.WooOrderListResponse, error) {
 	return s.repo.ListOrders(ctx, params)
+}
+
+func (s *Service) FetchOrdersForExport(ctx context.Context, params ExportOrdersParams) ([]*models.WooOrderDetail, int, error) {
+	return s.repo.FetchOrdersForExport(ctx, params)
 }
 
 func (s *Service) GetOrderDetail(ctx context.Context, siteID, wooOrderID string) (*models.WooOrderDetail, error) {
@@ -57,6 +62,18 @@ func (s *Service) UpsertOrderSnapshot(ctx context.Context, siteID string, order 
 	return s.repo.UpsertOrderSnapshot(ctx, siteID, order, contactSyncEnabled)
 }
 
+func (s *Service) MarkOrderDeleted(ctx context.Context, siteID, sourcePlatform, wooOrderID string, deletedAt time.Time) error {
+	return s.repo.MarkOrderDeleted(ctx, siteID, sourcePlatform, wooOrderID, deletedAt)
+}
+
 func (s *Service) MarkSyncError(ctx context.Context, siteID string, contactSyncEnabled bool, syncErr error) error {
 	return s.repo.MarkSyncError(ctx, siteID, contactSyncEnabled, syncErr)
+}
+
+func (s *Service) PrepareAnalyticsPurchaseEvent(ctx context.Context, siteID string, order models.WooOrderInput) (*models.Event, error) {
+	return s.repo.PrepareAnalyticsPurchaseEvent(ctx, siteID, order)
+}
+
+func (s *Service) MarkAnalyticsPurchaseTracked(ctx context.Context, siteID, sourcePlatform, wooOrderID string) error {
+	return s.repo.MarkAnalyticsPurchaseTracked(ctx, siteID, sourcePlatform, wooOrderID)
 }

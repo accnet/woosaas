@@ -12,11 +12,12 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
-	"github.com/redis/go-redis/v9"
-	"github.com/shopspring/decimal"
+	"github.com/accnet/woosaas/api/internal/ingest"
 	"github.com/accnet/woosaas/api/internal/observability"
 	"github.com/accnet/woosaas/api/internal/orders"
 	"github.com/accnet/woosaas/api/pkg/models"
+	"github.com/redis/go-redis/v9"
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -33,17 +34,18 @@ type Config struct {
 }
 
 type Consumer struct {
-	redis  *redis.Client
-	ch     driver.Conn
-	orders *orders.Service
-	config *Config
-	logger *observability.StructuredLogger
-	mu     sync.Mutex
-	stopCh chan struct{}
-	wg     sync.WaitGroup
+	redis     *redis.Client
+	ch        driver.Conn
+	orders    *orders.Service
+	collector *ingest.Collector
+	config    *Config
+	logger    *observability.StructuredLogger
+	mu        sync.Mutex
+	stopCh    chan struct{}
+	wg        sync.WaitGroup
 }
 
-func NewConsumer(redis *redis.Client, ch driver.Conn, orderSvc *orders.Service, logger *observability.StructuredLogger, config *Config) *Consumer {
+func NewConsumer(redis *redis.Client, ch driver.Conn, orderSvc *orders.Service, collector *ingest.Collector, logger *observability.StructuredLogger, config *Config) *Consumer {
 	if config.BatchSize == 0 {
 		config.BatchSize = 1000
 	}
@@ -55,12 +57,13 @@ func NewConsumer(redis *redis.Client, ch driver.Conn, orderSvc *orders.Service, 
 	}
 
 	return &Consumer{
-		redis:  redis,
-		ch:     ch,
-		orders: orderSvc,
-		config: config,
-		logger: logger,
-		stopCh: make(chan struct{}),
+		redis:     redis,
+		ch:        ch,
+		orders:    orderSvc,
+		collector: collector,
+		config:    config,
+		logger:    logger,
+		stopCh:    make(chan struct{}),
 	}
 }
 
@@ -196,8 +199,41 @@ func (c *Consumer) processOrderMessage(ctx context.Context, message redis.XMessa
 		return err
 	}
 
+	if err := c.bridgeAnalyticsPurchase(ctx, item); err != nil {
+		_ = c.orders.MarkSyncError(ctx, item.siteID, item.contactSyncEnabled, err)
+		attempts, retryErr := incrementRetryForStream(ctx, c.redis, orders.OrdersStream, message.ID)
+		if retryErr != nil {
+			return retryErr
+		}
+		if attempts >= c.config.MaxRetries {
+			return moveOrderMessageToDead(ctx, c.redis, message, err, attempts)
+		}
+		return err
+	}
+
 	c.redis.Del(ctx, retryKeyForStream(orders.OrdersStream, message.ID))
 	return c.redis.XAck(ctx, orders.OrdersStream, consumerGroup, message.ID).Err()
+}
+
+func (c *Consumer) bridgeAnalyticsPurchase(ctx context.Context, item queuedOrder) error {
+	event, err := c.orders.PrepareAnalyticsPurchaseEvent(ctx, item.siteID, item.order)
+	if err != nil || event == nil {
+		return err
+	}
+	if err := c.collector.ValidateEvent(event); err != nil {
+		return err
+	}
+	duplicate, err := c.collector.Deduplicate(ctx, item.siteID, event.EventID)
+	if err != nil {
+		return err
+	}
+	if duplicate {
+		return c.orders.MarkAnalyticsPurchaseTracked(ctx, item.siteID, item.order.SourcePlatform, item.order.WooOrderID)
+	}
+	if err := c.collector.CollectEvent(ctx, item.siteID, event, ""); err != nil {
+		return err
+	}
+	return c.orders.MarkAnalyticsPurchaseTracked(ctx, item.siteID, item.order.SourcePlatform, item.order.WooOrderID)
 }
 
 var (

@@ -87,7 +87,7 @@ printf '%s' "$response" | grep -q '"accepted":1'
 for _ in $(seq 1 20); do
   rows="$(
     docker compose exec -T postgres psql -U postgres -d woosaas -Atc \
-      "SELECT COUNT(*) FROM woo_orders WHERE site_id = '${SITE_ID}' AND woo_order_id = '${ORDER_ID}';"
+      "SELECT COUNT(*) FROM commerce_orders WHERE site_id = '${SITE_ID}' AND woo_order_id = '${ORDER_ID}';"
   )"
   if [ "$rows" = "1" ]; then
     echo "Order sync smoke passed: ${ORDER_ID}"

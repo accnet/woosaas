@@ -60,6 +60,7 @@ services:
       HOST: ${HOST:-0.0.0.0}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-development-use-a-longer-secret}
       JWT_EXPIRY: ${JWT_EXPIRY:-24h}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001,http://site1.local}
       POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
       POSTGRES_PORT: "5432"
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -73,6 +74,9 @@ services:
       CLICKHOUSE_DEBUG: ${CLICKHOUSE_DEBUG:-false}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: "6379"
+      INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY:-}
+      TRACKER_BASE_URL: ${TRACKER_BASE_URL:-https://app.woosaas.com}
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:8080}
     ports:
       - "${PORT:-8080}:8080"
     healthcheck:
@@ -112,6 +116,8 @@ services:
       WORKER_BATCH_SIZE: ${WORKER_BATCH_SIZE:-1000}
       WORKER_FLUSH_INTERVAL: ${WORKER_FLUSH_INTERVAL:-2}
       WORKER_MAX_RETRIES: ${WORKER_MAX_RETRIES:-3}
+      INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY:-}
+      TRACKER_BASE_URL: ${TRACKER_BASE_URL:-https://app.woosaas.com}
     depends_on:
       postgres:
         condition: service_healthy

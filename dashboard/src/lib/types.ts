@@ -13,11 +13,82 @@ export interface Site {
   domain: string
   timezone: string
   currency: string
+  platform?: string
+  external_shop_id?: string
+  platform_domain?: string
+  primary_domain?: string
   tracking_status: string
   tracking_last_checked_at: string | null
   tracking_last_event_at: string | null
   created_at: string
   updated_at: string
+}
+
+// --- ShopBase Integration Types ---
+
+export interface ShopMetadata {
+  external_shop_id: string
+  name: string
+  domain: string
+  platform_domain: string
+  primary_domain?: string
+  currency: string
+  timezone: string
+  country?: string
+}
+
+export interface SyncOptions {
+  orders: boolean
+  customers: boolean
+  products: boolean
+}
+
+export interface ShopBaseVerifyResponse {
+  ok: boolean
+  shop: ShopMetadata
+}
+
+export interface ShopBaseSyncState {
+  site_id: string
+  order_sync_enabled: boolean
+  checkout_sync_enabled: boolean
+  customer_sync_enabled: boolean
+  product_sync_enabled: boolean
+  status: string
+  last_order_updated_at: string | null
+  last_webhook_at: string | null
+  last_success_at: string | null
+  last_error: string | null
+  last_error_at: string | null
+  backfill_completed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ShopBaseIntegrationStatus {
+  platform: string
+  status: string
+  shop_domain: string
+  script_tag: {
+    installed: boolean
+    reason?: string
+    script_tag_id?: number
+    src?: string
+  }
+  webhooks?: {
+    registered: number
+    missing: string[]
+  }
+  sync_state: ShopBaseSyncState | null
+}
+
+export interface ShopBaseInstallScriptResponse {
+  installed: boolean
+  already_existed?: boolean
+  script_tag_id?: number
+  src?: string
+  reason?: string
+  fallback_snippet?: string
 }
 
 export interface APIKey {
@@ -364,6 +435,7 @@ export interface CustomerDetailResponse {
 
 export interface OrderListItem {
   woo_order_id: string
+  source_platform: string
   created_at_woo: string | null
   customer_name: string
   customer_email: string
@@ -432,6 +504,7 @@ export interface OrderDetail {
   id: string
   site_id: string
   woo_order_id: string
+  source_platform: string
   woo_customer_id: string
   status: string
   payment_status: string
@@ -626,4 +699,50 @@ export interface ChannelStat {
   revenue: number
   conversion_rate: number
   aov: number
+}
+
+// ── Export Templates ────────────────────────────────────────────────────────
+
+export type TemplateColumnType = 'order_field' | 'custom'
+
+export interface TemplateColumn {
+  type: TemplateColumnType
+  key?: string          // only when type = 'order_field'
+  label: string         // CSV header label (required, fully customisable)
+  default_value?: string // only when type = 'custom'
+}
+
+export interface ExportTemplate {
+  id: string
+  site_id: string
+  name: string
+  description: string
+  columns: TemplateColumn[]
+  is_system: boolean
+  is_default: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateExportTemplateInput {
+  name: string
+  description?: string
+  columns: TemplateColumn[]
+}
+
+export interface UpdateExportTemplateInput {
+  name: string
+  description?: string
+  columns: TemplateColumn[]
+}
+
+export interface ColumnDef {
+  key: string
+  label: string
+  group: string
+}
+
+export interface ColumnGroup {
+  group: string
+  columns: ColumnDef[]
 }

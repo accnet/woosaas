@@ -23,6 +23,10 @@ type Site struct {
 	Domain                string     `json:"domain" db:"domain"`
 	Timezone              string     `json:"timezone" db:"timezone"`
 	Currency              string     `json:"currency" db:"currency"`
+	Platform              string     `json:"platform" db:"platform"`
+	ExternalShopID        string     `json:"external_shop_id,omitempty" db:"external_shop_id"`
+	PlatformDomain        string     `json:"platform_domain,omitempty" db:"platform_domain"`
+	PrimaryDomain         string     `json:"primary_domain,omitempty" db:"primary_domain"`
 	TrackingStatus        string     `json:"tracking_status" db:"tracking_status"`
 	TrackingLastCheckedAt *time.Time `json:"tracking_last_checked_at" db:"tracking_last_checked_at"`
 	TrackingLastEventAt   *time.Time `json:"tracking_last_event_at" db:"tracking_last_event_at"`
@@ -254,6 +258,47 @@ type Invoice struct {
 	HostedURL     string     `json:"hosted_url"`
 	PDFURL        string     `json:"pdf_url"`
 	CreatedAt     time.Time  `json:"created_at"`
+}
+
+// TemplateColumnType distinguishes between data-mapped and static custom columns.
+const (
+	TemplateColumnOrderField = "order_field"
+	TemplateColumnCustom     = "custom"
+)
+
+// TemplateColumn is one column definition inside an ExportTemplate.
+// type="order_field": key maps to a known order field from ColumnRegistry.
+// type="custom": no data mapping; default_value is written to every row (can be empty).
+type TemplateColumn struct {
+	Type         string `json:"type"`                    // "order_field" | "custom"
+	Key          string `json:"key,omitempty"`           // only set when type = "order_field"
+	Label        string `json:"label"`                   // CSV header label (required, fully customisable)
+	DefaultValue string `json:"default_value,omitempty"` // only used when type = "custom"
+}
+
+// ExportTemplate is a named, ordered list of columns used when exporting orders to CSV.
+type ExportTemplate struct {
+	ID          string           `json:"id"`
+	SiteID      string           `json:"site_id"`
+	Name        string           `json:"name"`
+	Description string           `json:"description"`
+	Columns     []TemplateColumn `json:"columns"`
+	IsSystem    bool             `json:"is_system"`
+	IsDefault   bool             `json:"is_default"`
+	CreatedAt   time.Time        `json:"created_at"`
+	UpdatedAt   time.Time        `json:"updated_at"`
+}
+
+type CreateExportTemplateRequest struct {
+	Name        string           `json:"name"`
+	Description string           `json:"description"`
+	Columns     []TemplateColumn `json:"columns"`
+}
+
+type UpdateExportTemplateRequest struct {
+	Name        string           `json:"name"`
+	Description string           `json:"description"`
+	Columns     []TemplateColumn `json:"columns"`
 }
 
 // ErrorResponse for error responses

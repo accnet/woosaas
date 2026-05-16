@@ -5,7 +5,7 @@ import (
 )
 
 // GetRetentionCohort returns monthly cohort repeat-purchase rates (last 12 months).
-// Uses woo_order_contacts.first_seen_at as the cohort date and orders_count to detect repeat buyers.
+// Uses commerce_order_contacts.first_seen_at as the cohort date and orders_count to detect repeat buyers.
 func (r *Repository) GetRetentionCohort(ctx context.Context, siteID string) ([]RetentionCohort, error) {
 	query := `
 		SELECT
@@ -14,7 +14,7 @@ func (r *Repository) GetRetentionCohort(ctx context.Context, siteID string) ([]R
 			SUM(CASE WHEN orders_count > 1 THEN 1 ELSE 0 END) AS returning_customers,
 			ROUND(SUM(CASE WHEN orders_count > 1 THEN 1 ELSE 0 END)::numeric
 			      / NULLIF(COUNT(*), 0) * 100, 1) AS repeat_rate
-		FROM woo_order_contacts
+		FROM commerce_order_contacts
 		WHERE site_id = $1
 		  AND first_seen_at IS NOT NULL
 		  AND first_seen_at >= NOW() - INTERVAL '12 months'
@@ -59,7 +59,7 @@ func (r *Repository) GetRefundStats(ctx context.Context, siteID, from, to string
 			SUM(CASE WHEN payment_status = 'refunded' THEN 1 ELSE 0 END) AS refunded_orders,
 			COALESCE(SUM(CASE WHEN payment_status = 'refunded' THEN total_amount ELSE 0 END), 0) AS refunded_revenue,
 			COALESCE(SUM(total_amount), 0) AS total_revenue
-		FROM woo_orders
+		FROM commerce_orders
 		WHERE site_id = $1
 		  AND created_at_woo >= $2::timestamptz
 		  AND created_at_woo <= $3::timestamptz
@@ -79,7 +79,7 @@ func (r *Repository) GetRefundStats(ctx context.Context, siteID, from, to string
 			COUNT(*) AS total_orders,
 			SUM(CASE WHEN payment_status = 'refunded' THEN 1 ELSE 0 END) AS refunded_orders,
 			COALESCE(SUM(CASE WHEN payment_status = 'refunded' THEN total_amount ELSE 0 END), 0) AS refunded_revenue
-		FROM woo_orders
+		FROM commerce_orders
 		WHERE site_id = $1
 		  AND created_at_woo >= $2::timestamptz
 		  AND created_at_woo <= $3::timestamptz
@@ -108,9 +108,9 @@ func (r *Repository) GetRefundStats(ctx context.Context, siteID, from, to string
 			oi.name AS product_name,
 			COUNT(DISTINCT o.id) AS refund_count,
 			COALESCE(SUM(oi.line_total), 0) AS refunded_amount
-		FROM woo_orders o
-		JOIN woo_order_items oi
-		  ON oi.site_id = o.site_id AND oi.woo_order_id = o.woo_order_id
+		FROM commerce_orders o
+		JOIN commerce_order_items oi
+		  ON oi.site_id = o.site_id AND oi.source_platform = o.source_platform AND oi.woo_order_id = o.woo_order_id
 		WHERE o.site_id = $1
 		  AND o.created_at_woo >= $2::timestamptz
 		  AND o.created_at_woo <= $3::timestamptz
@@ -178,11 +178,11 @@ func (r *Repository) GetCrossSell(ctx context.Context, siteID string, limit int)
 			a.name AS product_a,
 			b.name AS product_b,
 			COUNT(*) AS co_purchase_count
-		FROM woo_order_items a
-		JOIN woo_order_items b
-		  ON a.site_id = b.site_id AND a.woo_order_id = b.woo_order_id AND a.product_id < b.product_id
-		JOIN woo_orders o
-		  ON o.site_id = a.site_id AND o.woo_order_id = a.woo_order_id
+		FROM commerce_order_items a
+		JOIN commerce_order_items b
+		  ON a.site_id = b.site_id AND a.source_platform = b.source_platform AND a.woo_order_id = b.woo_order_id AND a.product_id < b.product_id
+		JOIN commerce_orders o
+		  ON o.site_id = a.site_id AND o.source_platform = a.source_platform AND o.woo_order_id = a.woo_order_id
 		WHERE o.site_id = $1
 		  AND o.payment_status = 'paid'
 		  AND a.name IS NOT NULL AND a.name <> ''

@@ -47,6 +47,8 @@ func (r *Repository) UpsertOrderSnapshot(ctx context.Context, siteID string, inp
 	}
 	defer tx.Rollback(ctx)
 
+	sourcePlatform := normalizeSourcePlatform(input.SourcePlatform)
+
 	modifiedAt, err := parseOptionalTimeValue(input.ModifiedAtWoo)
 	if err != nil || modifiedAt == nil {
 		return fmt.Errorf("invalid modified_at_woo")
@@ -56,9 +58,9 @@ func (r *Repository) UpsertOrderSnapshot(ctx context.Context, siteID string, inp
 	var existingContactID *string
 	err = tx.QueryRow(ctx, `
 		SELECT modified_at_woo, contact_id
-		FROM woo_orders
-		WHERE site_id = $1 AND woo_order_id = $2
-	`, siteID, input.WooOrderID).Scan(&existingModified, &existingContactID)
+		FROM commerce_orders
+		WHERE site_id = $1 AND source_platform = $2 AND woo_order_id = $3
+	`, siteID, sourcePlatform, input.WooOrderID).Scan(&existingModified, &existingContactID)
 	if err != nil && err != pgx.ErrNoRows {
 		return err
 	}
@@ -97,20 +99,24 @@ func (r *Repository) UpsertOrderSnapshot(ctx context.Context, siteID string, inp
 	}
 
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO woo_orders (
+		INSERT INTO commerce_orders (
 			site_id, woo_order_id, woo_customer_id, status, payment_status, fulfillment_status, currency,
 			total_amount, subtotal_amount, discount_amount, shipping_amount, tax_amount, refund_amount, items_count,
 			customer_email, customer_first_name, customer_last_name, customer_phone, billing_company,
 			billing_address_json, shipping_address_json, client_id, session_id, attribution_json, contact_id,
-			created_at_woo, paid_at_woo, completed_at_woo, modified_at_woo, deleted_at_woo, raw_order_json, delivery_method, synced_at, updated_at
+			created_at_woo, paid_at_woo, completed_at_woo, modified_at_woo, deleted_at_woo, raw_order_json, delivery_method,
+			source_platform, external_order_name, checkout_token, cart_token, order_status_url, payment_gateway, referring_site,
+			synced_at, updated_at
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7,
 			$8, $9, $10, $11, $12, $13, $14,
 			$15, $16, $17, $18, $19,
 			$20, $21, $22, $23, $24, $25,
-			$26, $27, $28, $29, $30, $31, $32, NOW(), NOW()
+			$26, $27, $28, $29, $30, $31, $32,
+			$33, $34, $35, $36, $37, $38, $39,
+			NOW(), NOW()
 		)
-		ON CONFLICT (site_id, woo_order_id) DO UPDATE SET
+			ON CONFLICT (site_id, source_platform, woo_order_id) DO UPDATE SET
 			woo_customer_id = EXCLUDED.woo_customer_id,
 			status = EXCLUDED.status,
 			payment_status = EXCLUDED.payment_status,
@@ -141,35 +147,44 @@ func (r *Repository) UpsertOrderSnapshot(ctx context.Context, siteID string, inp
 			deleted_at_woo = EXCLUDED.deleted_at_woo,
 			raw_order_json = EXCLUDED.raw_order_json,
 			delivery_method = EXCLUDED.delivery_method,
+			source_platform = EXCLUDED.source_platform,
+			external_order_name = EXCLUDED.external_order_name,
+			checkout_token = EXCLUDED.checkout_token,
+			cart_token = EXCLUDED.cart_token,
+			order_status_url = EXCLUDED.order_status_url,
+			payment_gateway = EXCLUDED.payment_gateway,
+			referring_site = EXCLUDED.referring_site,
 			synced_at = NOW(),
 			updated_at = NOW()
 	`, siteID, input.WooOrderID, nullIfEmpty(input.WooCustomerID), input.Status, nullIfEmpty(input.PaymentStatus), nullIfEmpty(input.FulfillmentStatus), input.Currency,
 		input.TotalAmount, input.SubtotalAmount, input.DiscountAmount, input.ShippingAmount, input.TaxAmount, input.RefundAmount, normalizedItemsCount(input),
 		nullIfEmpty(normalizeEmail(input.CustomerEmail)), nullIfEmpty(strings.TrimSpace(input.CustomerFirstName)), nullIfEmpty(strings.TrimSpace(input.CustomerLastName)), nullIfEmpty(normalizePhone(input.CustomerPhone)), nullIfEmpty(strings.TrimSpace(input.BillingCompany)),
 		billingJSON, shippingJSON, nullIfEmpty(strings.TrimSpace(input.ClientID)), nullIfEmpty(strings.TrimSpace(input.SessionID)), attributionJSON, contactID,
-		createdAt, paidAt, completedAt, modifiedAt, deletedAt, rawOrderJSON, nullIfEmpty(input.DeliveryMethod)); err != nil {
+		createdAt, paidAt, completedAt, modifiedAt, deletedAt, rawOrderJSON, nullIfEmpty(input.DeliveryMethod),
+		sourcePlatform, nullIfEmpty(input.ExternalOrderName), nullIfEmpty(input.CheckoutToken), nullIfEmpty(input.CartToken),
+		nullIfEmpty(input.OrderStatusURL), nullIfEmpty(input.PaymentGateway), nullIfEmpty(input.ReferringSite)); err != nil {
 		return err
 	}
 
-	if _, err := tx.Exec(ctx, `DELETE FROM woo_order_items WHERE site_id = $1 AND woo_order_id = $2`, siteID, input.WooOrderID); err != nil {
+	if _, err := tx.Exec(ctx, `DELETE FROM commerce_order_items WHERE site_id = $1 AND source_platform = $2 AND woo_order_id = $3`, siteID, sourcePlatform, input.WooOrderID); err != nil {
 		return err
 	}
 	for _, item := range input.Items {
 		rawItemJSON := marshalJSON(item)
 		variantAttrsJSON := marshalJSONMap(item.VariantAttributes)
 		if _, err := tx.Exec(ctx, `
-			INSERT INTO woo_order_items (
+			INSERT INTO commerce_order_items (
 				site_id, woo_order_id, line_item_id, product_id, variation_id, sku, name, quantity,
 				unit_price, line_subtotal, line_total, line_tax, raw_item_json,
-				external_variant_id, variant_attributes_json, updated_at
+				external_variant_id, variant_attributes_json, source_platform, updated_at
 			) VALUES (
 				$1, $2, $3, $4, $5, $6, $7, $8,
 				$9, $10, $11, $12, $13,
-				$14, $15, NOW()
+				$14, $15, $16, NOW()
 			)
 		`, siteID, input.WooOrderID, item.LineItemID, nullIfEmpty(item.ProductID), nullIfEmpty(item.VariationID), nullIfEmpty(item.SKU), nullIfEmpty(item.Name), item.Quantity,
 			item.UnitPrice, item.LineSubtotal, item.LineTotal, item.LineTax, rawItemJSON,
-			nullIfEmpty(item.ExternalVariantID), variantAttrsJSON); err != nil {
+			nullIfEmpty(item.ExternalVariantID), variantAttrsJSON, sourcePlatform); err != nil {
 			return err
 		}
 	}
@@ -189,7 +204,7 @@ func (r *Repository) UpsertOrderSnapshot(ctx context.Context, siteID string, inp
 
 func (r *Repository) MarkSyncError(ctx context.Context, siteID string, contactSyncEnabled bool, syncErr error) error {
 	_, err := r.db.Exec(ctx, `
-		INSERT INTO woo_order_sync_state (
+		INSERT INTO commerce_order_sync_state (
 			site_id, contact_sync_enabled, status, last_error, last_error_at, updated_at
 		) VALUES ($1, $2, 'error', $3, NOW(), NOW())
 		ON CONFLICT (site_id) DO UPDATE SET
@@ -202,6 +217,92 @@ func (r *Repository) MarkSyncError(ctx context.Context, siteID string, contactSy
 	return err
 }
 
+func (r *Repository) PrepareAnalyticsPurchaseEvent(ctx context.Context, siteID string, input models.WooOrderInput) (*models.Event, error) {
+	if !shouldPrepareAnalyticsPurchase(input) {
+		return nil, nil
+	}
+
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	bridgeEnabled := true
+	if err := tx.QueryRow(ctx, `
+		SELECT analytics_purchase_bridge_enabled
+		FROM commerce_order_sync_state
+		WHERE site_id = $1
+	`, siteID).Scan(&bridgeEnabled); err != nil && err != pgx.ErrNoRows {
+		return nil, err
+	}
+	if !bridgeEnabled {
+		return nil, tx.Commit(ctx)
+	}
+
+	sourcePlatform := normalizeSourcePlatform(input.SourcePlatform)
+	var eventID *string
+	var trackedAt *time.Time
+	err = tx.QueryRow(ctx, `
+		SELECT analytics_purchase_event_id, analytics_purchase_tracked_at
+		FROM commerce_orders
+		WHERE site_id = $1 AND source_platform = $2 AND woo_order_id = $3
+		FOR UPDATE
+	`, siteID, sourcePlatform, input.WooOrderID).Scan(&eventID, &trackedAt)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if trackedAt != nil {
+		return nil, tx.Commit(ctx)
+	}
+	resolvedEventID := ""
+	if eventID != nil {
+		resolvedEventID = strings.TrimSpace(*eventID)
+	}
+	if resolvedEventID == "" {
+		resolvedEventID = analyticsPurchaseEventID(siteID, sourcePlatform, input.WooOrderID)
+		if _, err := tx.Exec(ctx, `
+			UPDATE commerce_orders
+			SET analytics_purchase_event_id = $4,
+				updated_at = NOW()
+			WHERE site_id = $1 AND source_platform = $2 AND woo_order_id = $3
+		`, siteID, sourcePlatform, input.WooOrderID, resolvedEventID); err != nil {
+			return nil, err
+		}
+	}
+
+	event := buildAnalyticsPurchaseEvent(siteID, input, resolvedEventID)
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return &event, nil
+}
+
+func (r *Repository) MarkAnalyticsPurchaseTracked(ctx context.Context, siteID, sourcePlatform, wooOrderID string) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE commerce_orders
+		SET analytics_purchase_tracked_at = COALESCE(analytics_purchase_tracked_at, NOW()),
+			updated_at = NOW()
+		WHERE site_id = $1 AND source_platform = $2 AND woo_order_id = $3
+	`, siteID, normalizeSourcePlatform(sourcePlatform), wooOrderID)
+	return err
+}
+
+func (r *Repository) MarkOrderDeleted(ctx context.Context, siteID, sourcePlatform, wooOrderID string, deletedAt time.Time) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE commerce_orders
+		SET status = 'deleted',
+			deleted_at_woo = $4,
+			modified_at_woo = GREATEST(modified_at_woo, $4),
+			updated_at = NOW()
+		WHERE site_id = $1 AND source_platform = $2 AND woo_order_id = $3
+	`, siteID, normalizeSourcePlatform(sourcePlatform), wooOrderID, deletedAt)
+	return err
+}
+
 func (r *Repository) ListOrders(ctx context.Context, params ListOrdersParams) (*models.WooOrderListResponse, error) {
 	page := maxInt(params.Page, 1)
 	pageSize := maxInt(params.PageSize, 1)
@@ -210,7 +311,7 @@ func (r *Repository) ListOrders(ctx context.Context, params ListOrdersParams) (*
 	}
 
 	where, args := buildOrderListWhere(params)
-	countSQL := `SELECT COUNT(*) FROM woo_orders WHERE ` + where
+	countSQL := `SELECT COUNT(*) FROM commerce_orders WHERE ` + where
 	var total int
 	if err := r.db.QueryRow(ctx, countSQL, args...).Scan(&total); err != nil {
 		return nil, err
@@ -218,7 +319,7 @@ func (r *Repository) ListOrders(ctx context.Context, params ListOrdersParams) (*
 
 	args = append(args, pageSize, (page-1)*pageSize)
 	sql := `
-		SELECT woo_order_id, created_at_woo,
+		SELECT woo_order_id, COALESCE(source_platform, 'woocommerce'), created_at_woo,
 			COALESCE(NULLIF(TRIM(CONCAT(COALESCE(customer_first_name, ''), ' ', COALESCE(customer_last_name, ''))), ''), customer_email, 'Unknown') AS customer_name,
 			COALESCE(customer_email, ''), COALESCE(payment_status, ''), COALESCE(fulfillment_status, ''),
 			COALESCE(total_amount::float8, 0), COALESCE(currency, ''), COALESCE(items_count, 0), COALESCE(status, ''), contact_id::text,
@@ -227,7 +328,7 @@ func (r *Repository) ListOrders(ctx context.Context, params ListOrdersParams) (*
 			COALESCE(shipping_address_json->>'postcode', ''),
 			COALESCE(shipping_address_json->>'state', ''),
 			COALESCE(shipping_address_json->>'country', '')
-		FROM woo_orders
+		FROM commerce_orders
 		WHERE ` + where + `
 		ORDER BY created_at_woo DESC NULLS LAST, woo_order_id DESC
 		LIMIT $` + fmt.Sprint(len(args)-1) + ` OFFSET $` + fmt.Sprint(len(args))
@@ -243,6 +344,7 @@ func (r *Repository) ListOrders(ctx context.Context, params ListOrdersParams) (*
 		var item models.WooOrderListItem
 		if err := rows.Scan(
 			&item.WooOrderID,
+			&item.SourcePlatform,
 			&item.CreatedAtWoo,
 			&item.CustomerName,
 			&item.CustomerEmail,
@@ -276,7 +378,7 @@ func (r *Repository) GetOrderDetail(ctx context.Context, siteID, wooOrderID stri
 	var detail models.WooOrderDetail
 	var billingJSON, shippingJSON, attributionJSON, rawOrderJSON []byte
 	err := r.db.QueryRow(ctx, `
-		SELECT id, site_id, woo_order_id, COALESCE(woo_customer_id, ''), status, COALESCE(payment_status, ''),
+		SELECT id, site_id, woo_order_id, COALESCE(source_platform, 'woocommerce'), COALESCE(woo_customer_id, ''), status, COALESCE(payment_status, ''),
 			COALESCE(fulfillment_status, ''), currency, total_amount::float8, subtotal_amount::float8,
 			discount_amount::float8, shipping_amount::float8, tax_amount::float8, refund_amount::float8,
 			items_count, COALESCE(customer_email, ''), COALESCE(customer_first_name, ''), COALESCE(customer_last_name, ''),
@@ -284,10 +386,10 @@ func (r *Repository) GetOrderDetail(ctx context.Context, siteID, wooOrderID stri
 			COALESCE(client_id, ''), COALESCE(session_id, ''), attribution_json, contact_id::text,
 			created_at_woo, paid_at_woo, completed_at_woo, modified_at_woo, deleted_at_woo, synced_at, created_at, updated_at,
 			raw_order_json, COALESCE(delivery_method, '')
-		FROM woo_orders
+		FROM commerce_orders
 		WHERE site_id = $1 AND woo_order_id = $2
 	`, siteID, wooOrderID).Scan(
-		&detail.ID, &detail.SiteID, &detail.WooOrderID, &detail.WooCustomerID, &detail.Status, &detail.PaymentStatus,
+		&detail.ID, &detail.SiteID, &detail.WooOrderID, &detail.SourcePlatform, &detail.WooCustomerID, &detail.Status, &detail.PaymentStatus,
 		&detail.FulfillmentStatus, &detail.Currency, &detail.TotalAmount, &detail.SubtotalAmount,
 		&detail.DiscountAmount, &detail.ShippingAmount, &detail.TaxAmount, &detail.RefundAmount,
 		&detail.ItemsCount, &detail.CustomerEmail, &detail.CustomerFirstName, &detail.CustomerLastName,
@@ -308,10 +410,10 @@ func (r *Repository) GetOrderDetail(ctx context.Context, siteID, wooOrderID stri
 		SELECT line_item_id, COALESCE(product_id, ''), COALESCE(variation_id, ''), COALESCE(sku, ''), COALESCE(name, ''),
 			quantity, unit_price::float8, line_subtotal::float8, line_total::float8, line_tax::float8,
 			COALESCE(external_variant_id, ''), variant_attributes_json, raw_item_json
-		FROM woo_order_items
-		WHERE site_id = $1 AND woo_order_id = $2
+		FROM commerce_order_items
+		WHERE site_id = $1 AND source_platform = $3 AND woo_order_id = $2
 		ORDER BY created_at ASC, line_item_id ASC
-	`, siteID, wooOrderID)
+	`, siteID, wooOrderID, detail.SourcePlatform)
 	if err != nil {
 		return nil, err
 	}
@@ -372,7 +474,7 @@ func (r *Repository) ListContacts(ctx context.Context, params ListContactsParams
 	}
 
 	var total int
-	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM woo_order_contacts WHERE `+where, args...).Scan(&total); err != nil {
+	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM commerce_order_contacts WHERE `+where, args...).Scan(&total); err != nil {
 		return nil, err
 	}
 
@@ -381,7 +483,7 @@ func (r *Repository) ListContacts(ctx context.Context, params ListContactsParams
 		SELECT id::text, COALESCE(email, ''), COALESCE(phone, ''), COALESCE(full_name, ''), COALESCE(company, ''),
 			orders_count, total_spent::float8, first_seen_at, last_seen_at, COALESCE(first_name, ''), COALESCE(last_name, ''),
 			COALESCE(woo_customer_id, ''), billing_address_json, shipping_address_json
-		FROM woo_order_contacts
+		FROM commerce_order_contacts
 		WHERE ` + where + `
 		ORDER BY last_seen_at DESC NULLS LAST, created_at DESC
 		LIMIT $` + fmt.Sprint(len(args)-1) + ` OFFSET $` + fmt.Sprint(len(args))
@@ -417,15 +519,16 @@ func (r *Repository) ListContacts(ctx context.Context, params ListContactsParams
 func (r *Repository) GetSyncState(ctx context.Context, siteID string) (*models.WooOrderSyncState, error) {
 	var state models.WooOrderSyncState
 	err := r.db.QueryRow(ctx, `
-		SELECT site_id::text, order_sync_enabled, contact_sync_enabled, status,
+		SELECT site_id::text, order_sync_enabled, contact_sync_enabled, analytics_purchase_bridge_enabled, status,
 			last_backfill_modified_at, last_backfill_order_id, last_realtime_synced_at, last_success_at,
 			last_error, last_error_at, backfill_completed_at, created_at, updated_at
-		FROM woo_order_sync_state
+		FROM commerce_order_sync_state
 		WHERE site_id = $1
 	`, siteID).Scan(
 		&state.SiteID,
 		&state.OrderSyncEnabled,
 		&state.ContactSyncEnabled,
+		&state.AnalyticsPurchaseBridgeEnabled,
 		&state.Status,
 		&state.LastBackfillModifiedAt,
 		&state.LastBackfillOrderID,
@@ -454,7 +557,7 @@ func (r *Repository) UpdateBackfillState(ctx context.Context, siteID string, req
 	}
 
 	_, err = r.db.Exec(ctx, `
-		INSERT INTO woo_order_sync_state (
+		INSERT INTO commerce_order_sync_state (
 			site_id, status, last_backfill_modified_at, last_backfill_order_id,
 			backfill_completed_at, updated_at
 		) VALUES (
@@ -466,16 +569,16 @@ func (r *Repository) UpdateBackfillState(ctx context.Context, siteID string, req
 			status = EXCLUDED.status,
 			last_backfill_modified_at = CASE
 				WHEN EXCLUDED.status = 'idle' THEN NULL
-				ELSE COALESCE(EXCLUDED.last_backfill_modified_at, woo_order_sync_state.last_backfill_modified_at)
+				ELSE COALESCE(EXCLUDED.last_backfill_modified_at, commerce_order_sync_state.last_backfill_modified_at)
 			END,
 			last_backfill_order_id = CASE
 				WHEN EXCLUDED.status = 'idle' THEN NULL
-				ELSE COALESCE(EXCLUDED.last_backfill_order_id, woo_order_sync_state.last_backfill_order_id)
+				ELSE COALESCE(EXCLUDED.last_backfill_order_id, commerce_order_sync_state.last_backfill_order_id)
 			END,
 			backfill_completed_at = CASE
 				WHEN EXCLUDED.status = 'done' THEN COALESCE(EXCLUDED.backfill_completed_at, NOW())
 				WHEN EXCLUDED.status = 'idle' THEN NULL
-				ELSE woo_order_sync_state.backfill_completed_at
+				ELSE commerce_order_sync_state.backfill_completed_at
 			END,
 			updated_at = NOW()
 	`, siteID, req.Status, lastModified, req.LastBackfillOrderID, completedAt)
@@ -489,7 +592,7 @@ func (r *Repository) getContactByID(ctx context.Context, siteID, id string) (*mo
 		SELECT id::text, COALESCE(email, ''), COALESCE(phone, ''), COALESCE(full_name, ''), COALESCE(company, ''),
 			orders_count, total_spent::float8, first_seen_at, last_seen_at, COALESCE(first_name, ''), COALESCE(last_name, ''),
 			COALESCE(woo_customer_id, ''), billing_address_json, shipping_address_json
-		FROM woo_order_contacts
+		FROM commerce_order_contacts
 		WHERE site_id = $1 AND id = $2
 	`, siteID, id).Scan(&contact.ID, &contact.Email, &contact.Phone, &contact.FullName, &contact.Company,
 		&contact.OrdersCount, &contact.TotalSpent, &contact.FirstSeenAt, &contact.LastSeenAt, &contact.FirstName, &contact.LastName,
@@ -512,7 +615,7 @@ func (r *Repository) upsertDerivedContact(ctx context.Context, tx pgx.Tx, siteID
 	err := tx.QueryRow(ctx, `
 		SELECT id::text, COALESCE(email, ''), COALESCE(phone, ''), COALESCE(first_name, ''), COALESCE(last_name, ''),
 			COALESCE(full_name, ''), COALESCE(company, ''), COALESCE(woo_customer_id, ''), billing_address_json, shipping_address_json
-		FROM woo_order_contacts
+		FROM commerce_order_contacts
 		WHERE site_id = $1 AND (
 			($2 <> '' AND email = $2) OR
 			($2 = '' AND $3 <> '' AND phone = $3)
@@ -540,7 +643,7 @@ func (r *Repository) upsertDerivedContact(ctx context.Context, tx pgx.Tx, siteID
 	if err == pgx.ErrNoRows {
 		id := uuid.New().String()
 		if _, err := tx.Exec(ctx, `
-			INSERT INTO woo_order_contacts (
+			INSERT INTO commerce_order_contacts (
 				id, site_id, woo_customer_id, email, phone, first_name, last_name, full_name, company,
 				billing_address_json, shipping_address_json, first_order_id, last_order_id, first_seen_at, last_seen_at,
 				created_at, updated_at
@@ -558,7 +661,7 @@ func (r *Repository) upsertDerivedContact(ctx context.Context, tx pgx.Tx, siteID
 	mergedBilling := chooseJSON(existingBillingJSON, billingJSON)
 	mergedShipping := chooseJSON(existingShippingJSON, shippingJSON)
 	if _, err := tx.Exec(ctx, `
-		UPDATE woo_order_contacts
+		UPDATE commerce_order_contacts
 		SET woo_customer_id = COALESCE(NULLIF(woo_customer_id, ''), $3),
 			email = COALESCE(NULLIF(email, ''), $4),
 			phone = COALESCE(NULLIF(phone, ''), $5),
@@ -590,10 +693,10 @@ func (r *Repository) recomputeContactAggregates(ctx context.Context, tx pgx.Tx, 
 				MAX(created_at_woo) AS last_seen_at,
 				(ARRAY_AGG(woo_order_id ORDER BY created_at_woo ASC NULLS LAST, woo_order_id ASC))[1] AS first_order_id,
 				(ARRAY_AGG(woo_order_id ORDER BY created_at_woo DESC NULLS LAST, woo_order_id DESC))[1] AS last_order_id
-			FROM woo_orders
+			FROM commerce_orders
 			WHERE site_id = $1 AND contact_id = $2
 		)
-		UPDATE woo_order_contacts c
+		UPDATE commerce_order_contacts c
 		SET orders_count = a.orders_count,
 			total_spent = a.total_spent,
 			first_seen_at = a.first_seen_at,
@@ -609,13 +712,14 @@ func (r *Repository) recomputeContactAggregates(ctx context.Context, tx pgx.Tx, 
 
 func (r *Repository) markSyncSuccess(ctx context.Context, tx pgx.Tx, siteID string, contactSyncEnabled bool) error {
 	_, err := tx.Exec(ctx, `
-		INSERT INTO woo_order_sync_state (
-			site_id, order_sync_enabled, contact_sync_enabled, status,
+		INSERT INTO commerce_order_sync_state (
+			site_id, order_sync_enabled, contact_sync_enabled, analytics_purchase_bridge_enabled, status,
 			last_realtime_synced_at, last_success_at, last_error, updated_at
-		) VALUES ($1, TRUE, $2, 'ok', NOW(), NOW(), NULL, NOW())
+		) VALUES ($1, TRUE, $2, TRUE, 'ok', NOW(), NOW(), NULL, NOW())
 		ON CONFLICT (site_id) DO UPDATE SET
 			order_sync_enabled = TRUE,
 			contact_sync_enabled = EXCLUDED.contact_sync_enabled,
+			analytics_purchase_bridge_enabled = commerce_order_sync_state.analytics_purchase_bridge_enabled,
 			status = 'ok',
 			last_realtime_synced_at = NOW(),
 			last_success_at = NOW(),
@@ -761,4 +865,12 @@ func normalizedItemsCount(input models.WooOrderInput) int {
 		return input.ItemsCount
 	}
 	return len(input.Items)
+}
+
+func normalizeSourcePlatform(platform string) string {
+	platform = strings.TrimSpace(strings.ToLower(platform))
+	if platform == "" {
+		return "woocommerce"
+	}
+	return platform
 }

@@ -1,18 +1,19 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
-import { Activity, Globe, Plus, Star } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Activity, AlertCircle, CheckCircle2, Globe, Loader2, Plus, ShoppingBag, Star, X } from 'lucide-react'
 import { FilterPills } from '@/components/ui/filter-pills'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { PlatformIcon } from '@/components/ui/platform-icon'
 import { SearchInput } from '@/components/ui/search-input'
 import { StatusChip } from '@/components/ui/status-chip'
 import { TrackingStatusChip } from '@/components/ui/tracking-status-chip'
-import { settingsApi, sitesApi } from '@/lib/api'
+import { settingsApi, shopbaseApi, sitesApi } from '@/lib/api'
 import { formatRelativeTimeLabel } from '@/lib/dashboard-metadata'
 import { getWebsiteAppStatuses } from '@/lib/site-apps'
 import { getSiteTrackingRank, getSiteTrackingState, type SiteTrackingLabel } from '@/lib/tracking-status'
-import type { CreateSiteInput, Site } from '@/lib/types'
+import type { CreateSiteInput, ShopMetadata, Site, SyncOptions } from '@/lib/types'
 
 const RECENT_SITES_KEY = 'woosaas-recent-sites'
 const PINNED_SITES_KEY = 'woosaas-pinned-sites'
@@ -24,16 +25,43 @@ const FILTER_OPTIONS: Array<{ label: string; value: 'All' | SiteTrackingLabel }>
   { label: 'Pending', value: 'Pending' },
 ]
 
+type Platform = 'woocommerce' | 'shopbase'
+
+interface ShopBaseFormState {
+  shopDomain: string
+  apiKey: string
+  apiPassword: string
+  syncOrders: boolean
+  syncCustomers: boolean
+  syncProducts: boolean
+  step: 'form' | 'verified' | 'connecting'
+  verified: ShopMetadata | null
+  error: string | null
+}
+
 export default function SitesPage() {
   const [sites, setSites] = useState<Site[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [platform, setPlatform] = useState<Platform>('woocommerce')
   const [form, setForm] = useState<CreateSiteInput>({ name: '', domain: '' })
   const [siteDefaults, setSiteDefaults] = useState<Pick<CreateSiteInput, 'timezone' | 'currency'>>({})
   const [statusFilter, setStatusFilter] = useState<'All' | SiteTrackingLabel>('All')
   const [query, setQuery] = useState('')
   const [recentSiteIds, setRecentSiteIds] = useState<string[]>([])
   const [pinnedSiteIds, setPinnedSiteIds] = useState<string[]>([])
+
+  const [sbForm, setSbForm] = useState<ShopBaseFormState>({
+    shopDomain: '',
+    apiKey: '',
+    apiPassword: '',
+    syncOrders: true,
+    syncCustomers: true,
+    syncProducts: true,
+    step: 'form',
+    verified: null,
+    error: null,
+  })
 
   const loadSites = async () => {
     try {
@@ -55,6 +83,45 @@ export default function SitesPage() {
       await loadSites()
     } catch (err) {
       console.error('Failed to create website', err)
+    }
+  }
+
+  const handleShopBaseVerify = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSbForm((f) => ({ ...f, error: null }))
+    try {
+      const res = await shopbaseApi.verify({
+        shop_domain: sbForm.shopDomain,
+        api_key: sbForm.apiKey,
+        api_password: sbForm.apiPassword,
+      })
+      if (res.data.ok) {
+        setSbForm((f) => ({ ...f, step: 'verified', verified: res.data.shop }))
+      }
+    } catch {
+      setSbForm((f) => ({ ...f, error: 'Could not connect. Check your credentials.' }))
+    }
+  }
+
+  const handleShopBaseConnect = async () => {
+    setSbForm((f) => ({ ...f, step: 'connecting', error: null }))
+    try {
+      const syncOptions: SyncOptions = {
+        orders: sbForm.syncOrders,
+        customers: sbForm.syncCustomers,
+        products: sbForm.syncProducts,
+      }
+      await shopbaseApi.connect({
+        shop_domain: sbForm.shopDomain,
+        api_key: sbForm.apiKey,
+        api_password: sbForm.apiPassword,
+        sync_options: syncOptions,
+      })
+      setShowForm(false)
+      setSbForm({ shopDomain: '', apiKey: '', apiPassword: '', syncOrders: true, syncCustomers: true, syncProducts: true, step: 'form', verified: null, error: null })
+      await loadSites()
+    } catch {
+      setSbForm((f) => ({ ...f, step: 'verified', error: 'Connection failed. Please try again.' }))
     }
   }
 
@@ -153,47 +220,29 @@ export default function SitesPage() {
             {sites.length} total · {statusCounts.Active} live · {statusCounts.Verified} verified · {statusCounts.Pending} pending
           </p>
         </div>
-        <button onClick={() => setShowForm((v) => !v)} className="btn-primary">
+<button onClick={() => setShowForm(true)} className="btn-primary">
           <Plus className="mr-1.5 h-4 w-4" />
-          {showForm ? 'Cancel' : 'Add Website'}
+          Add Website
         </button>
       </div>
 
-      {/* Inline create form */}
+      {/* Modal */}
       {showForm && (
-        <form onSubmit={handleCreate} className="card px-6 py-5">
-          <h3 className="mb-4 text-sm font-semibold text-app-strong">New Website</h3>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-app-strong">Name</label>
-              <input
-                type="text"
-                placeholder="My Storefront"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="input"
-                required
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-app-strong">Domain</label>
-              <input
-                type="url"
-                placeholder="https://example.com"
-                value={form.domain}
-                onChange={(e) => setForm({ ...form, domain: e.target.value })}
-                className="input"
-                required
-              />
-            </div>
-          </div>
-          <div className="mt-4 flex justify-end">
-            <button type="submit" className="btn-primary">
-              <Plus className="mr-1.5 h-4 w-4" />
-              Create
-            </button>
-          </div>
-        </form>
+        <AddWebsiteModal
+          platform={platform}
+          setPlatform={setPlatform}
+          form={form}
+          setForm={setForm}
+          sbForm={sbForm}
+          setSbForm={setSbForm}
+          onClose={() => {
+            setShowForm(false)
+            setSbForm({ shopDomain: '', apiKey: '', apiPassword: '', syncOrders: true, syncCustomers: true, syncProducts: true, step: 'form', verified: null, error: null })
+          }}
+          onWooSubmit={handleCreate}
+          onShopBaseVerify={handleShopBaseVerify}
+          onShopBaseConnect={handleShopBaseConnect}
+        />
       )}
 
       {sites.length === 0 ? (
@@ -278,19 +327,26 @@ function SiteCard({ site, pinned, onTogglePinned }: { site: Site; pinned: boolea
   const trackingState = getSiteTrackingState(site)
   const lastSignal = site.tracking_last_event_at || site.tracking_last_checked_at || site.created_at
   const apps = getWebsiteAppStatuses(site)
+  const isShopBase = site.platform === 'shopbase'
 
   return (
     <div className="flex flex-col rounded-xl border border-app-line bg-white p-5 transition hover:border-slate-300 hover:shadow-sm">
       {/* Header row */}
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-app-subtle text-sm font-bold text-app-strong">
-          {site.name.charAt(0).toUpperCase()}
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center">
+          <PlatformIcon platform={site.platform} size={32} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold text-app-strong">{site.name}</div>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <div className="truncate text-sm font-semibold text-app-strong">{site.name}</div>
+            <PlatformIcon platform={site.platform} size={16} />
+          </div>
           <div className="truncate text-xs text-app-muted">{site.domain}</div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
+          {isShopBase && (
+            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">ShopBase</span>
+          )}
           <button
             type="button"
             onClick={onTogglePinned}
@@ -327,6 +383,257 @@ function SiteCard({ site, pinned, onTogglePinned }: { site: Site; pinned: boolea
         <Link href={`/dashboard/${site.id}/orders`} className="btn-secondary text-xs">
           Orders
         </Link>
+      </div>
+    </div>
+  )
+}
+
+// ---------- AddWebsiteModal ----------
+
+function AddWebsiteModal({
+  platform,
+  setPlatform,
+  form,
+  setForm,
+  sbForm,
+  setSbForm,
+  onClose,
+  onWooSubmit,
+  onShopBaseVerify,
+  onShopBaseConnect,
+}: {
+  platform: Platform
+  setPlatform: (p: Platform) => void
+  form: CreateSiteInput
+  setForm: React.Dispatch<React.SetStateAction<CreateSiteInput>>
+  sbForm: ShopBaseFormState
+  setSbForm: React.Dispatch<React.SetStateAction<ShopBaseFormState>>
+  onClose: () => void
+  onWooSubmit: (e: React.FormEvent<HTMLFormElement>) => void
+  onShopBaseVerify: (e: React.FormEvent) => void
+  onShopBaseConnect: () => void
+}) {
+  const overlayRef = useRef<HTMLDivElement>(null)
+
+  // Close on Escape key
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  // Lock body scroll while open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
+
+  const isBusy = sbForm.step === 'connecting'
+
+  return (
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(15,23,42,0.45)' }}
+      onMouseDown={(e) => { if (e.target === overlayRef.current) onClose() }}
+    >
+      <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+        {/* Modal header */}
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <h2 className="text-base font-semibold text-app-strong">Add Website</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-app-muted hover:bg-slate-100 hover:text-app-strong"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Modal body */}
+        <div className="px-6 py-5 space-y-5">
+          {/* Platform selector */}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setPlatform('woocommerce')}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-xl border py-3 text-sm font-medium transition ${
+                platform === 'woocommerce'
+                  ? 'border-violet-500 bg-violet-50 text-violet-700'
+                  : 'border-app-line bg-white text-app-muted hover:border-slate-300'
+              }`}
+            >
+              <Globe className="h-4 w-4" />
+              WooCommerce
+            </button>
+            <button
+              type="button"
+              onClick={() => setPlatform('shopbase')}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-xl border py-3 text-sm font-medium transition ${
+                platform === 'shopbase'
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : 'border-app-line bg-white text-app-muted hover:border-slate-300'
+              }`}
+            >
+              <ShoppingBag className="h-4 w-4" />
+              ShopBase
+            </button>
+          </div>
+
+          {/* WooCommerce form */}
+          {platform === 'woocommerce' && (
+            <form onSubmit={onWooSubmit} className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-app-strong">Name</label>
+                <input
+                  type="text"
+                  placeholder="My Storefront"
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  className="input"
+                  required
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-app-strong">Domain</label>
+                <input
+                  type="url"
+                  placeholder="https://example.com"
+                  value={form.domain}
+                  onChange={(e) => setForm((f) => ({ ...f, domain: e.target.value }))}
+                  className="input"
+                  required
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-1">
+                <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+                <button type="submit" className="btn-primary">
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  Create
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* ShopBase form — step: credentials */}
+          {platform === 'shopbase' && sbForm.step === 'form' && (
+            <form onSubmit={onShopBaseVerify} className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-app-strong">Shop Domain</label>
+                <input
+                  type="text"
+                  placeholder="myshop.onshopbase.com"
+                  value={sbForm.shopDomain}
+                  onChange={(e) => setSbForm((f) => ({ ...f, shopDomain: e.target.value }))}
+                  className="input"
+                  required
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-app-strong">API Key</label>
+                <input
+                  type="text"
+                  placeholder="API Key"
+                  value={sbForm.apiKey}
+                  onChange={(e) => setSbForm((f) => ({ ...f, apiKey: e.target.value }))}
+                  className="input"
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-app-strong">API Password</label>
+                <input
+                  type="password"
+                  placeholder="API Password"
+                  value={sbForm.apiPassword}
+                  onChange={(e) => setSbForm((f) => ({ ...f, apiPassword: e.target.value }))}
+                  className="input"
+                  required
+                />
+              </div>
+              {sbForm.error && (
+                <div className="flex items-center gap-2 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  {sbForm.error}
+                </div>
+              )}
+              <div className="flex justify-end gap-3 pt-1">
+                <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+                <button type="submit" className="btn-primary">Verify Credentials</button>
+              </div>
+            </form>
+          )}
+
+          {/* ShopBase form — step: verified / sync options */}
+          {platform === 'shopbase' && sbForm.step === 'verified' && sbForm.verified && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
+                <div>
+                  <p className="text-sm font-medium text-green-800">{sbForm.verified.name}</p>
+                  <p className="text-xs text-green-700">{sbForm.verified.domain} · {sbForm.verified.currency} · {sbForm.verified.timezone}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-2.5 text-sm font-medium text-app-strong">Sync Options</p>
+                <div className="flex flex-wrap gap-4">
+                  {(['orders', 'customers', 'products'] as const).map((key) => {
+                    const checked = key === 'orders' ? sbForm.syncOrders : key === 'customers' ? sbForm.syncCustomers : sbForm.syncProducts
+                    return (
+                      <label key={key} className="flex cursor-pointer items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) =>
+                            setSbForm((f) => ({
+                              ...f,
+                              [`sync${key.charAt(0).toUpperCase() + key.slice(1)}`]: e.target.checked,
+                            }))
+                          }
+                          className="rounded"
+                        />
+                        <span className="text-sm capitalize text-app-strong">{key}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {sbForm.error && (
+                <div className="flex items-center gap-2 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  {sbForm.error}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-1">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setSbForm((f) => ({ ...f, step: 'form', verified: null, error: null }))}
+                >
+                  Back
+                </button>
+                <button type="button" className="btn-primary" onClick={onShopBaseConnect}>
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  Connect Store
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ShopBase — connecting spinner */}
+          {platform === 'shopbase' && isBusy && (
+            <div className="flex items-center justify-center gap-3 py-8 text-sm text-app-muted">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Connecting…
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

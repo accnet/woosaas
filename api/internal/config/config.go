@@ -47,6 +47,11 @@ type Config struct {
 
 	// Security
 	IPHashSalt string
+
+	// ShopBase / integrations
+	IntegrationEncryptionKey string // 32-byte key, base64-encoded
+	TrackerBaseURL           string // e.g. https://app.woosaas.com
+	APIBaseURL               string // public API URL for webhook callbacks
 }
 
 func Load() *Config {
@@ -86,6 +91,10 @@ func Load() *Config {
 		WorkerMaxRetries:    getEnvInt("WORKER_MAX_RETRIES", 3),
 
 		IPHashSalt: getEnv("IP_HASH_SALT", "woosaas-salt-default"),
+
+		IntegrationEncryptionKey: getEnv("INTEGRATION_ENCRYPTION_KEY", ""),
+		TrackerBaseURL:           getEnv("TRACKER_BASE_URL", "https://app.woosaas.com"),
+		APIBaseURL:               getEnv("API_BASE_URL", "http://localhost:8080"),
 	}
 }
 

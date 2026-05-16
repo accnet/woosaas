@@ -8,10 +8,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/accnet/woosaas/api/internal/api/handlers"
 	"github.com/accnet/woosaas/api/internal/config"
 	"github.com/accnet/woosaas/api/internal/database"
+	"github.com/accnet/woosaas/api/internal/ingest"
 	"github.com/accnet/woosaas/api/internal/observability"
 	"github.com/accnet/woosaas/api/internal/orders"
+	"github.com/accnet/woosaas/api/internal/sites"
 	"github.com/accnet/woosaas/api/internal/worker"
 )
 
@@ -43,11 +46,21 @@ func main() {
 
 	// Initialize worker
 	orderSvc := orders.NewService(orders.NewQueue(redis), orders.NewRepository(pg))
-	w := worker.NewConsumer(redis, ch, orderSvc, logger, &worker.Config{
+	collector := ingest.NewCollector(redis)
+	siteRepo := sites.NewRepository(pg)
+
+	encKey, err := handlers.LoadEncryptionKey(cfg.IntegrationEncryptionKey)
+	if err != nil {
+		log.Fatalf("Invalid INTEGRATION_ENCRYPTION_KEY: %v", err)
+	}
+
+	w := worker.NewConsumer(redis, ch, orderSvc, collector, logger, &worker.Config{
 		BatchSize:     cfg.WorkerBatchSize,
 		FlushInterval: cfg.WorkerFlushInterval,
 		MaxRetries:    cfg.WorkerMaxRetries,
 	})
+
+	sbConsumer := worker.NewShopBaseConsumer(redis, siteRepo, orderSvc, encKey)
 
 	// Start worker
 	ctx, cancel := context.WithCancel(context.Background())
@@ -56,6 +69,11 @@ func main() {
 	log.Println("Starting event worker...")
 	if err := w.Start(ctx); err != nil {
 		log.Fatalf("Worker error: %v", err)
+	}
+
+	log.Println("Starting ShopBase consumer...")
+	if err := sbConsumer.Start(ctx); err != nil {
+		log.Fatalf("ShopBase consumer error: %v", err)
 	}
 
 	// Also start realtime cleanup ticker
@@ -81,5 +99,6 @@ func main() {
 
 	log.Println("Shutting down worker...")
 	cancel()
+	sbConsumer.Stop()
 	log.Println("Worker stopped")
 }

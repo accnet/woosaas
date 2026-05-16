@@ -10,6 +10,8 @@ import type {
   CampaignStats,
   ChangePasswordInput,
   ChannelStat,
+  ColumnGroup,
+  CreateExportTemplateInput,
   CreateSiteMemberInput,
   CreateSiteInput,
   CrossSellPair,
@@ -17,6 +19,7 @@ import type {
   CustomerListResponse,
   DeviceStats,
   EventResponse,
+  ExportTemplate,
   FunnelStats,
   GeoStat,
   HeatmapCell,
@@ -25,6 +28,11 @@ import type {
   OrderListResponse,
   RefundStats,
   RetentionCohort,
+  ShopBaseInstallScriptResponse,
+  ShopBaseIntegrationStatus,
+  ShopBaseVerifyResponse,
+  SyncOptions,
+  UpdateExportTemplateInput,
   WooContactListResponse,
   WooOrderSyncState,
   OverviewStats,
@@ -132,6 +140,24 @@ export const sitesApi = {
     api.post<EventResponse>(`/api/v1/sites/${id}/debug-event`, {
       event_name: eventName,
     }),
+}
+
+// ShopBase Integration API
+export const shopbaseApi = {
+  verify: (data: { shop_domain: string; api_key: string; api_password: string }) =>
+    api.post<ShopBaseVerifyResponse>('/api/v1/sites/shopbase/verify', data),
+  connect: (data: { shop_domain: string; api_key: string; api_password: string; sync_options: SyncOptions }) =>
+    api.post<Site>('/api/v1/sites/shopbase', data),
+  getIntegration: (siteId: string) =>
+    api.get<ShopBaseIntegrationStatus>(`/api/v1/sites/${siteId}/integration`),
+  getSyncState: (siteId: string) =>
+    api.get(`/api/v1/sites/${siteId}/integration/shopbase/sync-state`),
+  installScript: (siteId: string) =>
+    api.post<ShopBaseInstallScriptResponse>(`/api/v1/sites/${siteId}/integration/shopbase/install-script`),
+  registerWebhooks: (siteId: string) =>
+    api.post(`/api/v1/sites/${siteId}/integration/shopbase/register-webhooks`),
+  startBackfill: (siteId: string) =>
+    api.post(`/api/v1/sites/${siteId}/integration/shopbase/backfill`),
 }
 
 import type { AxiosRequestConfig } from 'axios'
@@ -274,4 +300,66 @@ export function getApiErrorMessage(error: unknown, fallback: string) {
   }
 
   return fallback
+}
+
+export const exportTemplatesApi = {
+  listColumns: () =>
+    api.get<ColumnGroup[]>('/api/v1/export/columns'),
+  list: () =>
+    api.get<ExportTemplate[]>('/api/v1/export-templates'),
+  get: (id: string) =>
+    api.get<ExportTemplate>(`/api/v1/export-templates/${id}`),
+  create: (data: CreateExportTemplateInput) =>
+    api.post<ExportTemplate>('/api/v1/export-templates', data),
+  update: (id: string, data: UpdateExportTemplateInput) =>
+    api.put<ExportTemplate>(`/api/v1/export-templates/${id}`, data),
+  delete: (id: string) =>
+    api.delete(`/api/v1/export-templates/${id}`),
+  setDefault: (id: string) =>
+    api.post<ExportTemplate>(`/api/v1/export-templates/${id}/set-default`),
+  duplicate: (id: string) =>
+    api.post<ExportTemplate>(`/api/v1/export-templates/${id}/duplicate`),
+}
+
+interface ExportOrdersParams {
+  siteId: string
+  templateId?: string
+  ids?: string[]       // selected order IDs; omit to export all matching filters
+  q?: string
+  paymentStatus?: string
+  fulfillmentStatus?: string
+  dateFrom?: string
+  dateTo?: string
+}
+
+/** Download CSV via fetch (keeps Authorization header, avoids window.open auth issue) */
+export async function exportOrdersCSV(params: ExportOrdersParams): Promise<void> {
+  const token = getStoredToken()
+  const query = new URLSearchParams({ site_id: params.siteId })
+  if (params.templateId) query.set('template_id', params.templateId)
+  if (params.ids?.length) query.set('ids', params.ids.join(','))
+  if (params.q) query.set('q', params.q)
+  if (params.paymentStatus) query.set('payment_status', params.paymentStatus)
+  if (params.fulfillmentStatus) query.set('fulfillment_status', params.fulfillmentStatus)
+  if (params.dateFrom) query.set('date_from', params.dateFrom)
+  if (params.dateTo) query.set('date_to', params.dateTo)
+
+  const resp = await fetch(`${API_URL}/api/v1/orders/export?${query}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({})) as { error?: string }
+    throw new Error(body.error || `Export failed (${resp.status})`)
+  }
+
+  const blob = await resp.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  const today = new Date().toISOString().slice(0, 10)
+  a.href = url
+  a.download = `orders-${today}.csv`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
 }

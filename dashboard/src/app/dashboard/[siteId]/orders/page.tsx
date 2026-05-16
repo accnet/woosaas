@@ -3,9 +3,10 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
-import { AlertTriangle, RefreshCw } from 'lucide-react'
+import { AlertTriangle, Download, ReceiptText, RefreshCw } from 'lucide-react'
 import { AnalyticsPageHeader, DateRangeSelect } from '@/components/ui/analytics-page-header'
 import { AnalyticsPage, AnalyticsPageContent } from '@/components/ui/analytics-page-layout'
+import { ExportModal } from '@/components/ui/export-modal'
 import { InlineErrorState } from '@/components/ui/inline-error-state'
 import { PaginationControls } from '@/components/ui/pagination-controls'
 import { SearchInput } from '@/components/ui/search-input'
@@ -141,6 +142,7 @@ export default function OrdersPage() {
   const [reloadKey, setReloadKey] = useState(0)
   const [syncState, setSyncState] = useState<WooOrderSyncState | null>(null)
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set())
+  const [exportOpen, setExportOpen] = useState(false)
 
   useEffect(() => {
     ordersApi.syncState(siteId).then((res) => setSyncState(res.data)).catch(() => null)
@@ -216,6 +218,15 @@ export default function OrdersPage() {
             <button type="button" className="btn-secondary gap-2" onClick={() => setReloadKey((value) => value + 1)}>
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`.trim()} />
               Refresh
+            </button>
+            <button
+              type="button"
+              className="btn-primary gap-2"
+              onClick={() => setExportOpen(true)}
+              title={selectedOrders.size > 0 ? `Export ${selectedOrders.size} selected` : 'Export orders'}
+            >
+              <Download className="h-4 w-4" />
+              {selectedOrders.size > 0 ? `Export (${selectedOrders.size})` : 'Export'}
             </button>
           </div>
         }
@@ -396,6 +407,22 @@ export default function OrdersPage() {
           onNext={() => setPage((value) => Math.min(totalPages, value + 1))}
         />
       </AnalyticsPageContent>
+
+      {exportOpen && (
+        <ExportModal
+          siteId={siteId}
+          selectedIds={Array.from(selectedOrders)}
+          filters={{
+            q: query || undefined,
+            paymentStatus: paymentFilter || undefined,
+            fulfillmentStatus: fulfillmentFilter || undefined,
+            dateFrom: getPresetDateRange(dateRange).from,
+            dateTo: getPresetDateRange(dateRange).to,
+          }}
+          previewOrders={orders}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
     </AnalyticsPage>
   )
 }

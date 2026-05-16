@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/accnet/woosaas/api/internal/export"
 	"github.com/accnet/woosaas/api/internal/ingest"
 	"github.com/accnet/woosaas/api/internal/sites"
 	"github.com/accnet/woosaas/api/internal/teams"
@@ -13,12 +14,13 @@ import (
 )
 
 type SitesHandler struct {
-	repo      sites.SiteRepository
-	collector *ingest.Collector
+	repo         sites.SiteRepository
+	collector    *ingest.Collector
+	templateRepo *export.TemplateRepository
 }
 
-func NewSitesHandler(repo sites.SiteRepository, collector *ingest.Collector) *SitesHandler {
-	return &SitesHandler{repo: repo, collector: collector}
+func NewSitesHandler(repo sites.SiteRepository, collector *ingest.Collector, templateRepo *export.TemplateRepository) *SitesHandler {
+	return &SitesHandler{repo: repo, collector: collector, templateRepo: templateRepo}
 }
 
 // CreateSite creates a new site
@@ -48,6 +50,11 @@ func (h *SitesHandler) CreateSite(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create site"})
 		return
+	}
+
+	// Ensure shared export templates exist (best-effort, non-blocking)
+	if h.templateRepo != nil {
+		_ = h.templateRepo.SeedSystemTemplates(c.Request.Context())
 	}
 
 	c.JSON(http.StatusCreated, site)

@@ -68,7 +68,7 @@ func TestUpsertOrderSnapshotDerivesContactsByEmailAndPhone(t *testing.T) {
 	var emailSpent float64
 	if err := pool.QueryRow(ctx, `
 		SELECT COUNT(*), COALESCE(MAX(orders_count), 0), COALESCE(MAX(total_spent)::float8, 0)
-		FROM woo_order_contacts
+		FROM commerce_order_contacts
 		WHERE site_id = $1 AND email = $2
 	`, siteID, email).Scan(&emailContacts, &emailOrders, &emailSpent); err != nil {
 		t.Fatalf("query email contact error = %v", err)
@@ -81,7 +81,7 @@ func TestUpsertOrderSnapshotDerivesContactsByEmailAndPhone(t *testing.T) {
 	var phoneSpent float64
 	if err := pool.QueryRow(ctx, `
 		SELECT COUNT(*), COALESCE(MAX(orders_count), 0), COALESCE(MAX(total_spent)::float8, 0)
-		FROM woo_order_contacts
+		FROM commerce_order_contacts
 		WHERE site_id = $1 AND phone = '+15550000999'
 	`, siteID).Scan(&phoneContacts, &phoneOrders, &phoneSpent); err != nil {
 		t.Fatalf("query phone contact error = %v", err)

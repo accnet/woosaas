@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	exportrepo "github.com/accnet/woosaas/api/internal/export"
 	"github.com/accnet/woosaas/api/internal/orders"
 	"github.com/accnet/woosaas/api/internal/sites"
 	"github.com/accnet/woosaas/api/pkg/models"
@@ -17,16 +18,18 @@ import (
 const maxWooOrderBatchSize = 100
 
 type OrdersHandler struct {
-	svc   *orders.Service
-	sites sites.SiteRepository
-	redis *redis.Client
+	svc          *orders.Service
+	sites        sites.SiteRepository
+	redis        *redis.Client
+	templateRepo *exportrepo.TemplateRepository
 }
 
-func NewOrdersHandler(svc *orders.Service, sitesRepo sites.SiteRepository, redisClient *redis.Client) *OrdersHandler {
+func NewOrdersHandler(svc *orders.Service, sitesRepo sites.SiteRepository, redisClient *redis.Client, templateRepo *exportrepo.TemplateRepository) *OrdersHandler {
 	return &OrdersHandler{
-		svc:   svc,
-		sites: sitesRepo,
-		redis: redisClient,
+		svc:          svc,
+		sites:        sitesRepo,
+		redis:        redisClient,
+		templateRepo: templateRepo,
 	}
 }
 

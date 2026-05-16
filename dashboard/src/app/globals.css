@@ -104,6 +104,14 @@
     background: #f8fafc;
   }
 
+  .bg-surface-1 {
+    @apply bg-white dark:bg-surface-900;
+  }
+
+  .bg-surface-2 {
+    @apply bg-surface-50 dark:bg-surface-800;
+  }
+
   .border-app-line {
     border-color: #dbe3ee;
   }

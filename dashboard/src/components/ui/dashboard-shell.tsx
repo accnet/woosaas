@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ChevronRight, ChevronsUpDown, Globe, LogOut, Menu, Settings2, Star, Store, X } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
+import { PlatformIcon } from '@/components/ui/platform-icon'
 import { SearchInput } from '@/components/ui/search-input'
 import { TrackingStatusChip } from '@/components/ui/tracking-status-chip'
 import { sitesApi } from '@/lib/api'
@@ -51,7 +52,10 @@ function SiteSwitcherOption({
     >
       <div className="min-w-0 flex-1 text-left">
         <div className="site-switcher-row-top">
-          <span className="truncate text-sm font-medium text-app-strong">{site.domain}</span>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-sm font-medium text-app-strong">{site.domain}</span>
+            <PlatformIcon platform={site.platform} size={16} />
+          </span>
           <button
             type="button"
             aria-label={pinned ? 'Unpin website' : 'Pin website'}
@@ -90,7 +94,10 @@ function SiteDirectoryRow({
     <Link href={`/dashboard/sites/${site.id}`} className="site-list-row" onClick={onNavigate}>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-3">
-          <div className="truncate text-sm font-medium text-app-strong">{site.name}</div>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <div className="truncate text-sm font-medium text-app-strong">{site.name}</div>
+            <PlatformIcon platform={site.platform} size={16} />
+          </div>
           <div className="flex shrink-0 items-center gap-2">
             {pinned && <Star className="h-4 w-4 fill-current text-amber-500" />}
             <TrackingStatusChip site={site} />
@@ -297,7 +304,10 @@ function SiteSwitcherControl({
             <div className="min-w-0 flex-1 text-left">
               {selectedSite ? (
                 <>
-                  <div className="truncate text-xs font-semibold leading-tight text-app-strong">{selectedSite.domain}</div>
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <div className="truncate text-xs font-semibold leading-tight text-app-strong">{selectedSite.domain}</div>
+                    <PlatformIcon platform={selectedSite.platform} size={14} />
+                  </div>
                   <div className="truncate text-[10px] leading-tight text-app-muted">{selectedSite.name}</div>
                 </>
               ) : (
