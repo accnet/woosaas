@@ -27,6 +27,20 @@ const ORDER_DATE_RANGE_OPTIONS: Array<{ value: OrdersDateRange; label: string }>
   ...DATE_RANGE_OPTIONS,
 ]
 
+const STATUS_FILTERS = [
+  { label: 'All', value: '' },
+  { label: 'Processing', value: 'processing' },
+  { label: 'Fulfilled', value: 'fulfilled' },
+  { label: 'In transit', value: 'in_transit' },
+  { label: 'Out for delivery', value: 'out_for_delivery' },
+  { label: 'Delivered', value: 'delivered' },
+  { label: 'Exception', value: 'exception' },
+  { label: 'Failed delivery', value: 'failed_delivery' },
+  { label: 'Returned', value: 'returned' },
+  { label: 'Cancelled', value: 'cancelled' },
+  { label: 'Refunded', value: 'refunded' },
+]
+
 const PAYMENT_FILTERS = [
   { label: 'All', value: '' },
   { label: 'Paid', value: 'paid' },
@@ -60,6 +74,17 @@ function chipTone(value: string): 'neutral' | 'info' | 'good' | 'warn' | 'danger
   return 'neutral'
 }
 
+function lifecycleTone(value: string): 'neutral' | 'info' | 'good' | 'warn' | 'danger' {
+  const normalized = value.toLowerCase()
+  if (normalized === 'delivered') return 'good'
+  if (normalized === 'in_transit' || normalized === 'out_for_delivery') return 'info'
+  if (normalized === 'processing') return 'warn'
+  if (normalized === 'fulfilled') return 'neutral'
+  if (normalized === 'exception') return 'warn'
+  if (normalized === 'failed_delivery' || normalized === 'cancelled' || normalized === 'refunded' || normalized === 'returned' || normalized === 'deleted') return 'danger'
+  return 'neutral'
+}
+
 function formatStatusLabel(value: string) {
   return value
     .replaceAll('_', ' ')
@@ -68,6 +93,26 @@ function formatStatusLabel(value: string) {
     .split(/\s+/)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ') || 'Unknown'
+}
+
+function getPaymentBadge(value: string) {
+  const normalized = value.toLowerCase().trim()
+  switch (normalized) {
+    case 'paid':
+      return { label: 'Paid', tone: 'neutral' as const }
+    case 'refunded':
+    case 'partially_refunded':
+    case 'voided':
+      return { label: 'Refunded', tone: 'danger' as const }
+    case 'failed':
+      return { label: 'Failed', tone: 'danger' as const }
+    case 'cancelled':
+      return { label: 'Cancelled', tone: 'danger' as const }
+    case 'pending':
+    case 'unpaid':
+    default:
+      return { label: 'Unpaid', tone: 'warn' as const }
+  }
 }
 
 function formatShortDate(value: string | null | undefined) {
@@ -149,6 +194,7 @@ export default function OrdersPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
   const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [paymentFilter, setPaymentFilter] = useState('')
   const [fulfillmentFilter, setFulfillmentFilter] = useState('')
   const [dateRange, setDateRange] = useState<OrdersDateRange>('all')
@@ -180,6 +226,7 @@ export default function OrdersPage() {
         const range = dateRange === 'all' ? null : getPresetDateRange(dateRange)
         const response = await ordersApi.list(siteId, page, PAGE_SIZE, {
           q: query || undefined,
+          status: statusFilter || undefined,
           payment_status: paymentFilter || undefined,
           fulfillment_status: fulfillmentFilter || undefined,
           date_from: range?.from,
@@ -200,7 +247,7 @@ export default function OrdersPage() {
 
     void loadData()
     return () => controller.abort()
-  }, [orders.length, page, query, paymentFilter, fulfillmentFilter, dateRange, reloadKey, siteId])
+  }, [orders.length, page, query, statusFilter, paymentFilter, fulfillmentFilter, dateRange, reloadKey, siteId])
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
@@ -213,7 +260,7 @@ export default function OrdersPage() {
       <AnalyticsPageHeader
         title="Orders"
         controls={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto md:flex-wrap md:items-center">
             <DateRangeSelect
               value={dateRange}
               onChange={(v) => {
@@ -230,14 +277,15 @@ export default function OrdersPage() {
                 setQuery(value)
               }}
               placeholder="Search order, customer, email…"
+              className="col-span-2 md:col-span-1 md:min-w-[280px]"
             />
-            <button type="button" className="btn-secondary gap-2" onClick={() => setReloadKey((value) => value + 1)}>
+            <button type="button" className="btn-secondary w-full gap-2 md:w-auto" onClick={() => setReloadKey((value) => value + 1)}>
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`.trim()} />
               Refresh
             </button>
             <button
               type="button"
-              className="btn-primary gap-2"
+              className="btn-primary w-full gap-2 md:w-auto"
               onClick={() => setExportOpen(true)}
               title={selectedOrders.size > 0 ? `Export ${selectedOrders.size} selected` : 'Export orders'}
             >
@@ -258,22 +306,43 @@ export default function OrdersPage() {
         ) : null}
 
         {/* Filter bar */}
-        <div className="rounded-xl border border-app-line bg-white px-4 py-1.5 shadow-sm">
-          <div className="flex flex-wrap gap-x-6 gap-y-3">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-xs font-semibold uppercase tracking-wider text-app-soft">Payment</span>
-              <div className="flex flex-wrap gap-1">
-                {PAYMENT_FILTERS.map((f) => (
-                  <FilterPill
-                    key={f.value}
-                    label={f.label}
-                    active={paymentFilter === f.value}
-                    onClick={() => { setPage(1); setPaymentFilter(f.value) }}
-                  />
+        <div className="rounded-xl border border-app-line bg-white px-2 py-2.5 shadow-sm md:px-4 md:py-1.5">
+          <div className="flex flex-col gap-2.5 md:flex-row md:flex-wrap md:gap-x-6 md:gap-y-3">
+            <div className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-2 md:flex md:items-center">
+              <span className="text-xs font-semibold uppercase tracking-wider text-app-soft">Status</span>
+              <select
+                value={statusFilter}
+                onChange={(event) => {
+                  setPage(1)
+                  setStatusFilter(event.target.value)
+                }}
+                className="select w-full min-w-0 md:min-w-[180px]"
+              >
+                {STATUS_FILTERS.map((filter) => (
+                  <option key={filter.value || 'all'} value={filter.value}>
+                    {filter.label}
+                  </option>
                 ))}
-              </div>
+              </select>
             </div>
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-2 md:flex md:items-center">
+              <span className="text-xs font-semibold uppercase tracking-wider text-app-soft">Payment</span>
+              <select
+                value={paymentFilter}
+                onChange={(event) => {
+                  setPage(1)
+                  setPaymentFilter(event.target.value)
+                }}
+                className="select w-full min-w-0 md:min-w-[160px]"
+              >
+                {PAYMENT_FILTERS.map((filter) => (
+                  <option key={filter.value || 'all'} value={filter.value}>
+                    {filter.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-[64px_minmax(0,1fr)] items-start gap-2 md:flex md:flex-wrap md:items-center md:gap-1.5">
               <span className="text-xs font-semibold uppercase tracking-wider text-app-soft">Fulfillment</span>
               <div className="flex flex-wrap gap-1">
                 {FULFILLMENT_FILTERS.map((f) => (
@@ -286,7 +355,7 @@ export default function OrdersPage() {
                 ))}
               </div>
             </div>
-            <div className="ml-auto flex items-center">
+            <div className="flex items-center justify-end md:ml-auto">
               <span className="text-xs text-app-muted">{totalCount.toLocaleString()} orders</span>
             </div>
           </div>
@@ -323,19 +392,21 @@ export default function OrdersPage() {
                     </th>
                     <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Order</th>
                     <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Date</th>
-                    <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Total</th>
                     <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Payment</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Total</th>
                     <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Delivery</th>
                     <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Shipping</th>
                     <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft">Customer</th>
                     <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Items</th>
                     <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Fulfillment</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Status</th>
                   </tr>
                 </thead>
                 <tbody className="table-body">
                   {orders.map((order) => {
                     const customer = order.customer_name || order.customer_email || 'Unknown customer'
                     const isSelected = selectedOrders.has(order.woo_order_id)
+                    const paymentBadge = getPaymentBadge(order.payment_status || '')
 
                     return (
                       <tr key={order.woo_order_id} className={`table-row group cursor-pointer transition-colors hover:bg-slate-50/70 ${isSelected ? 'bg-indigo-50/50' : ''}`}>
@@ -366,13 +437,15 @@ export default function OrdersPage() {
                         <td className="px-4 py-3 text-sm text-app-muted tabular-nums whitespace-nowrap">
                           {formatShortDate(order.created_at_woo)}
                         </td>
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <div title={formatStatusLabel(order.payment_status || 'unknown')}>
+                            <StatusChip label={paymentBadge.label} tone={paymentBadge.tone} />
+                          </div>
+                        </td>
                         <td className="px-4 py-3 text-left whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <div className="text-sm tabular-nums text-app-strong">
                             {money(order.total_amount, order.currency)}
                           </div>
-                        </td>
-                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                          <StatusChip label={formatStatusLabel(order.payment_status || 'unknown')} tone={chipTone(order.payment_status || 'unknown')} />
                         </td>
                         <td className="px-4 py-3 text-sm text-app-muted">
                           <div className="max-w-[130px] truncate" title={order.delivery_method}>
@@ -410,6 +483,9 @@ export default function OrdersPage() {
                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <StatusChip label={formatStatusLabel(order.fulfillment_status || 'unknown')} tone={chipTone(order.fulfillment_status || 'unknown')} />
                         </td>
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <StatusChip label={formatStatusLabel(order.status || 'unknown')} tone={lifecycleTone(order.status || 'unknown')} />
+                        </td>
                       </tr>
                     )
                   })}
@@ -435,6 +511,7 @@ export default function OrdersPage() {
           selectedIds={Array.from(selectedOrders)}
           filters={{
             q: query || undefined,
+            status: statusFilter || undefined,
             paymentStatus: paymentFilter || undefined,
             fulfillmentStatus: fulfillmentFilter || undefined,
             dateFrom: dateRange === 'all' ? undefined : getPresetDateRange(dateRange).from,

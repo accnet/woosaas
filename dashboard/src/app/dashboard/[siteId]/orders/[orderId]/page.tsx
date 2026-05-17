@@ -1,23 +1,27 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import axios from 'axios'
 import {
   ArrowLeft,
   Boxes,
+  Ellipsis,
+  CheckCheck,
   ChevronDown,
   Clock3,
   Copy,
   ExternalLink,
   MapPin,
   Package2,
+  PackageCheck,
   Plus,
   ReceiptText,
   RefreshCw,
   Trash2,
   Truck,
+  BadgeCheck,
   UserRound,
   X,
 } from 'lucide-react'
@@ -108,6 +112,12 @@ function chipTone(value: string): 'neutral' | 'info' | 'good' | 'warn' | 'danger
   if (normalized === 'pending' || normalized === 'processing' || normalized === 'unfulfilled' || normalized === 'in_transit' || normalized === 'out_for_delivery') return 'warn'
   if (normalized === 'cancelled' || normalized === 'failed' || normalized === 'refunded' || normalized === 'unpaid' || normalized === 'error' || normalized === 'exception') return 'danger'
   return 'neutral'
+}
+
+function paymentSummaryTone(value: string): 'neutral' | 'info' | 'good' | 'warn' | 'danger' {
+  const normalized = value.toLowerCase()
+  if (normalized === 'paid') return 'good'
+  return chipTone(value)
 }
 
 function formatStatusLabel(value: string) {
@@ -223,6 +233,126 @@ type ActivityItem = {
   timestamp: string
 }
 
+type ProgressStepState = 'done' | 'current' | 'pending'
+
+type OrderProgressStep = {
+  key: string
+  label: string
+  state: ProgressStepState
+  timestamp: string | null
+}
+
+const ORDER_PROGRESS_STEPS = [
+  { key: 'processing', label: 'Processing' },
+  { key: 'fulfilled', label: 'Fulfilled' },
+  { key: 'in_transit', label: 'In transit' },
+  { key: 'out_for_delivery', label: 'Out for delivery' },
+  { key: 'delivered', label: 'Delivered' },
+] as const
+
+function lifecycleTone(value: string): 'neutral' | 'info' | 'good' | 'warn' | 'danger' {
+  const normalized = value.toLowerCase()
+  if (normalized === 'delivered') return 'good'
+  if (normalized === 'in_transit' || normalized === 'out_for_delivery') return 'info'
+  if (normalized === 'processing') return 'warn'
+  if (normalized === 'fulfilled') return 'neutral'
+  if (normalized === 'exception') return 'warn'
+  if (normalized === 'failed_delivery' || normalized === 'returned' || normalized === 'cancelled' || normalized === 'refunded' || normalized === 'deleted') return 'danger'
+  return 'neutral'
+}
+
+function ProgressStepIcon({ stepKey, state }: { stepKey: string; state: ProgressStepState }) {
+  const className = `h-4 w-4 ${
+    state === 'done'
+      ? 'text-emerald-700'
+      : state === 'current'
+        ? 'text-indigo-700'
+        : 'text-slate-500'
+  }`
+
+  switch (stepKey) {
+    case 'processing':
+      return <Clock3 className={className} />
+    case 'fulfilled':
+      return <PackageCheck className={className} />
+    case 'in_transit':
+      return <Truck className={className} />
+    case 'out_for_delivery':
+      return <Package2 className={className} />
+    case 'delivered':
+      return <BadgeCheck className={className} />
+    default:
+      return <CheckCheck className={className} />
+  }
+}
+
+function normalizeLifecycleStatus(value: string) {
+  const normalized = value.replaceAll('-', '_').trim().toLowerCase()
+  if (normalized === 'completed') return 'delivered'
+  if (normalized === 'shipped') return 'fulfilled'
+  return normalized
+}
+
+function getProgressTimestamp(status: string, order: OrderDetail, trackings: ShipmentTracking[]) {
+  const latestTracking = trackings
+    .filter((tracking) => normalizeLifecycleStatus(tracking.status) === status)
+    .sort((a, b) => new Date(b.last_checkpoint_at || b.updated_at).getTime() - new Date(a.last_checkpoint_at || a.updated_at).getTime())[0]
+
+  switch (status) {
+    case 'processing':
+      return order.paid_at_woo || order.created_at_woo || order.created_at
+    case 'fulfilled':
+      return latestTracking?.created_at || order.completed_at_woo || null
+    case 'in_transit':
+    case 'out_for_delivery':
+    case 'delivered':
+      return latestTracking?.last_checkpoint_at || latestTracking?.updated_at || null
+    default:
+      return null
+  }
+}
+
+function buildOrderProgress(order: OrderDetail, trackings: ShipmentTracking[]) {
+  const currentStatus = normalizeLifecycleStatus(order.status || 'processing')
+  const latestTracking = [...trackings].sort(
+    (a, b) => new Date(b.last_checkpoint_at || b.updated_at).getTime() - new Date(a.last_checkpoint_at || a.updated_at).getTime(),
+  )[0] || null
+
+  let currentIndex = ORDER_PROGRESS_STEPS.findIndex((step) => step.key === currentStatus)
+  if (currentIndex === -1) {
+    const trackingIndex = latestTracking
+      ? ORDER_PROGRESS_STEPS.findIndex((step) => step.key === normalizeLifecycleStatus(latestTracking.status))
+      : -1
+    if (trackingIndex >= 0) {
+      currentIndex = trackingIndex
+    } else {
+      currentIndex = normalizeLifecycleStatus(order.fulfillment_status) === 'fulfilled' ? 1 : 0
+    }
+  }
+
+  const steps: OrderProgressStep[] = ORDER_PROGRESS_STEPS.map((step, index) => {
+    let state: ProgressStepState = 'pending'
+    if (currentIndex >= 0) {
+      state = index < currentIndex ? 'done' : index === currentIndex ? 'current' : 'pending'
+    } else {
+      state = step.key === 'processing' ? 'done' : 'pending'
+    }
+    return {
+      key: step.key,
+      label: step.label,
+      state,
+      timestamp: getProgressTimestamp(step.key, order, trackings),
+    }
+  })
+
+  return {
+    currentStatus,
+    steps,
+    latestTracking,
+    isException: ['exception', 'failed_delivery', 'returned', 'cancelled', 'refunded', 'deleted'].includes(currentStatus),
+  }
+}
+
 export default function OrderDetailPage() {
   const siteId = useSiteId()
   const params = useParams<{ orderId: string }>()
@@ -236,6 +366,7 @@ export default function OrderDetailPage() {
   const [trackingModalOpen, setTrackingModalOpen] = useState(false)
   const [trackingSaving, setTrackingSaving] = useState(false)
   const [trackingActionId, setTrackingActionId] = useState<string | null>(null)
+  const [trackingMenuId, setTrackingMenuId] = useState<string | null>(null)
   const [trackingError, setTrackingError] = useState<string | null>(null)
   const [trackingForm, setTrackingForm] = useState<AddShipmentTrackingInput>({
     tracking_number: '',
@@ -283,6 +414,9 @@ export default function OrderDetailPage() {
       if (target && actionsRef.current && !actionsRef.current.contains(target)) {
         setActionsOpen(false)
       }
+      if (target instanceof Element && !target.closest('[data-tracking-menu-root]')) {
+        setTrackingMenuId(null)
+      }
     }
 
     document.addEventListener('mousedown', handlePointerDown)
@@ -316,6 +450,7 @@ export default function OrderDetailPage() {
   }, [order])
 
   const customerAvatarUrl = useMemo(() => (order ? extractCustomerAvatarUrl(order.raw_order || {}) : ''), [order])
+  const progress = useMemo(() => (order ? buildOrderProgress(order, trackings) : null), [order, trackings])
 
   const handleCopy = async (value: string) => {
     if (!value) return
@@ -401,14 +536,19 @@ export default function OrderDetailPage() {
                   Order #{order.woo_order_id}
                 </h1>
                 <StatusChip
+                  label={formatStatusLabel(order.status || 'unknown')}
+                  tone={lifecycleTone(order.status || 'unknown')}
+                  className="px-2.5 py-1 text-xs"
+                />
+                <StatusChip
                   label={formatStatusLabel(order.payment_status || 'unknown')}
                   tone={chipTone(order.payment_status || 'unknown')}
-                  className="px-2.5 py-1 text-xs uppercase tracking-[0.08em]"
+                  className="px-2.5 py-1 text-xs"
                 />
                 <StatusChip
                   label={formatStatusLabel(order.fulfillment_status || 'unknown')}
                   tone={chipTone(order.fulfillment_status || 'unknown')}
-                  className="px-2.5 py-1 text-xs uppercase tracking-[0.08em]"
+                  className="px-2.5 py-1 text-xs"
                 />
               </div>
               <div className="mt-1.5 text-sm text-app-muted">
@@ -463,11 +603,89 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
+          {progress ? (
+            <SectionCard title="Order Progress">
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusChip
+                    label={formatStatusLabel(progress.currentStatus || 'unknown')}
+                    tone={lifecycleTone(progress.currentStatus || 'unknown')}
+                  />
+                  {progress.latestTracking ? (
+                    <span className="text-sm text-app-muted">
+                      Latest tracking update: {formatTimestamp(progress.latestTracking.last_checkpoint_at || progress.latestTracking.updated_at)}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-app-muted">No carrier checkpoint yet.</span>
+                  )}
+                </div>
+
+                {progress.isException ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    This order is currently in an exception state. Review the latest tracking note and shipment status before taking action.
+                  </div>
+                ) : null}
+
+                <div className="hidden xl:grid xl:grid-cols-5 xl:gap-3">
+                  {progress.steps.map((step, index) => (
+                    <div key={`rail-${step.key}`} className="relative h-6">
+                      {index < progress.steps.length - 1 ? (
+                        <span className="absolute left-[calc(50%+0.875rem)] right-[-0.75rem] top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-slate-200">
+                          <span
+                            className={`block h-full rounded-full ${
+                              step.state === 'done'
+                                ? 'w-full bg-emerald-300'
+                                : step.state === 'current'
+                                  ? 'w-1/2 bg-indigo-300'
+                                  : 'w-0 bg-transparent'
+                            }`}
+                          />
+                        </span>
+                      ) : null}
+                      <span
+                        className={`absolute left-1/2 top-1/2 inline-flex h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 ${
+                          step.state === 'done'
+                            ? 'border-emerald-300 bg-emerald-300'
+                            : step.state === 'current'
+                              ? 'border-indigo-300 bg-indigo-300'
+                              : 'border-slate-300 bg-white'
+                        }`}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid gap-3 xl:grid-cols-5">
+                  {progress.steps.map((step) => (
+                    <div key={step.key} className="rounded-xl border border-app-line bg-slate-50/70 px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${
+                            step.state === 'done'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : step.state === 'current'
+                                ? 'bg-indigo-100 text-indigo-700'
+                                : 'bg-slate-200 text-slate-500'
+                          }`}
+                        >
+                          <ProgressStepIcon stepKey={step.key} state={step.state} />
+                        </span>
+                        <span className="text-sm font-semibold text-app-strong">{step.label}</span>
+                      </div>
+                      <div className="mt-2 text-xs text-app-muted">
+                        {step.timestamp ? formatTimestamp(step.timestamp) : step.state === 'pending' ? 'Pending' : 'Not recorded'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </SectionCard>
+          ) : null}
+
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.8fr)]">
             <div className="space-y-5">
               <SectionCard
                 title={`Items (${order.items.length})`}
-                action={<StatusChip label={order.status || 'unknown'} tone={chipTone(order.status || 'unknown')} />}
                 className="px-0 py-0"
               >
                 {order.items.length === 0 ? (
@@ -550,20 +768,20 @@ export default function OrderDetailPage() {
                             {isExpanded && hasMeta ? (
                               <div className="border-t border-slate-100 bg-slate-50/70 px-5 py-3">
                                 <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
-                                  {publicMeta.map((m) => (
-                                    <>
-                                      <span key={`k-${m.key}`} className="text-xs font-medium text-app-muted">{m.key}</span>
-                                      <span key={`v-${m.key}`} className="truncate text-xs text-app-strong">{String(m.value ?? '')}</span>
-                                    </>
+                                  {publicMeta.map((m, index) => (
+                                    <Fragment key={`public-${item.line_item_id}-${m.key}-${index}`}>
+                                      <span className="text-xs font-medium text-app-muted">{m.key}</span>
+                                      <span className="truncate text-xs text-app-strong">{String(m.value ?? '')}</span>
+                                    </Fragment>
                                   ))}
                                   {privateMeta.length > 0 ? (
                                     <>
                                       <span className="col-span-2 mt-1 text-[10px] font-semibold uppercase tracking-wider text-app-soft">Private</span>
-                                      {privateMeta.map((m) => (
-                                        <>
-                                          <span key={`k-${m.key}`} className="font-mono text-xs text-app-soft">{m.key}</span>
-                                          <span key={`v-${m.key}`} className="truncate text-xs text-app-muted">{String(m.value ?? '')}</span>
-                                        </>
+                                      {privateMeta.map((m, index) => (
+                                        <Fragment key={`private-${item.line_item_id}-${m.key}-${index}`}>
+                                          <span className="font-mono text-xs text-app-soft">{m.key}</span>
+                                          <span className="truncate text-xs text-app-muted">{String(m.value ?? '')}</span>
+                                        </Fragment>
                                       ))}
                                     </>
                                   ) : null}
@@ -607,51 +825,103 @@ export default function OrderDetailPage() {
                 {trackings.length === 0 ? (
                   <EmptyState icon={<Truck className="h-8 w-8" />} body="No tracking numbers have been added for this order." className="py-8" />
                 ) : (
-                  <div className="divide-y divide-slate-100">
+                  <div className="space-y-3">
                     {trackings.map((tracking) => (
-                      <div key={tracking.id} className="py-3 first:pt-0 last:pb-0">
-                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div key={tracking.id} className="rounded-2xl border border-app-line bg-slate-50/60 p-4">
+                        <div className="flex flex-col gap-4">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               <StatusChip label={tracking.carrier_name || tracking.carrier_slug || 'Carrier'} tone="neutral" />
-                              <StatusChip label={tracking.status.replaceAll('_', ' ')} tone={chipTone(tracking.status)} />
-                              <StatusChip label={`WC ${tracking.wc_push_status || 'pending'}`} tone={chipTone(tracking.wc_push_status || 'pending')} />
+                              <StatusChip label={formatStatusLabel(tracking.status || 'unknown')} tone={chipTone(tracking.status)} />
+                              <StatusChip label={`Woo ${formatStatusLabel(tracking.wc_push_status || 'pending')}`} tone={chipTone(tracking.wc_push_status || 'pending')} />
                             </div>
-                            <div className="mt-2 text-sm font-semibold text-app-strong">
-                              {tracking.tracking_url ? (
-                                <a href={tracking.tracking_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700">
-                                  {tracking.tracking_number}
-                                  <ExternalLink className="h-3.5 w-3.5" />
-                                </a>
-                              ) : (
-                                tracking.tracking_number
-                              )}
+                            <div className="mt-3 flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex flex-wrap items-center gap-2">
+                                {tracking.tracking_url ? (
+                                  <a
+                                    href={tracking.tracking_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 text-base font-semibold text-indigo-600 hover:text-indigo-700"
+                                  >
+                                    {tracking.tracking_number}
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                  </a>
+                                ) : (
+                                  <span className="text-base font-semibold text-app-strong">{tracking.tracking_number}</span>
+                                )}
+                                {tracking.provider ? (
+                                  <span className="text-xs text-app-soft">via {formatStatusLabel(tracking.provider)}</span>
+                                ) : null}
+                              </div>
+                              <div className="relative shrink-0" data-tracking-menu-root>
+                                <button
+                                  type="button"
+                                  className="btn-secondary h-10 w-10 p-0"
+                                  aria-label="Tracking actions"
+                                  onClick={() => setTrackingMenuId((current) => (current === tracking.id ? null : tracking.id))}
+                                >
+                                  <Ellipsis className="h-4 w-4" />
+                                </button>
+                                {trackingMenuId === tracking.id ? (
+                                  <div className="absolute right-0 top-[calc(100%+0.5rem)] z-20 min-w-[180px] rounded-2xl border border-app-line bg-white p-2 shadow-card">
+                                    <button
+                                      type="button"
+                                      className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm text-app-strong transition hover:bg-slate-50"
+                                      disabled={trackingActionId === tracking.id}
+                                      onClick={() => {
+                                        setTrackingMenuId(null)
+                                        void handleRefreshTracking(tracking.id)
+                                      }}
+                                    >
+                                      Sync
+                                      <RefreshCw className={`h-4 w-4 ${trackingActionId === tracking.id ? 'animate-spin' : ''}`} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm text-red-600 transition hover:bg-slate-50 hover:text-red-700"
+                                      disabled={trackingActionId === tracking.id}
+                                      onClick={() => {
+                                        setTrackingMenuId(null)
+                                        void handleDeleteTracking(tracking.id)
+                                      }}
+                                    >
+                                      Delete
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                ) : null}
+                              </div>
                             </div>
-                            <div className="mt-1 text-xs text-app-muted">
-                              Last checkpoint: {formatTimestamp(tracking.last_checkpoint_at)} · Added: {formatTimestamp(tracking.created_at)}
+                            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 border-t border-app-line pt-3 text-sm">
+                              <div className="min-w-[180px]">
+                                <span className="text-app-soft">Last checkpoint:</span>{' '}
+                                <span className="text-app-strong">{formatTimestamp(tracking.last_checkpoint_at)}</span>
+                              </div>
+                              <div className="min-w-[180px]">
+                                <span className="text-app-soft">Added:</span>{' '}
+                                <span className="text-app-strong">{formatTimestamp(tracking.created_at)}</span>
+                              </div>
+                              <div className="min-w-[180px]">
+                                <span className="text-app-soft">Source:</span>{' '}
+                                <span className="text-app-strong">
+                                  {tracking.carrier_name || tracking.carrier_slug || 'Carrier'}
+                                  {tracking.provider_tracking_id ? (
+                                    <span className="ml-1 text-app-muted">#{tracking.provider_tracking_id}</span>
+                                  ) : null}
+                                </span>
+                              </div>
                             </div>
-                            {tracking.sync_error ? <div className="mt-2 text-xs text-red-600">Provider sync: {tracking.sync_error}</div> : null}
-                            {tracking.wc_push_error ? <div className="mt-1 text-xs text-red-600">Woo sync: {tracking.wc_push_error}</div> : null}
-                          </div>
-                          <div className="flex shrink-0 items-center gap-2">
-                            <button
-                              type="button"
-                              className="btn-secondary gap-2"
-                              disabled={trackingActionId === tracking.id}
-                              onClick={() => handleRefreshTracking(tracking.id)}
-                            >
-                              <RefreshCw className={`h-4 w-4 ${trackingActionId === tracking.id ? 'animate-spin' : ''}`} />
-                              Sync
-                            </button>
-                            <button
-                              type="button"
-                              className="btn-secondary gap-2 text-red-600 hover:text-red-700"
-                              disabled={trackingActionId === tracking.id}
-                              onClick={() => handleDeleteTracking(tracking.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              Delete
-                            </button>
+                            {tracking.sync_error ? (
+                              <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                                Provider sync: {tracking.sync_error}
+                              </div>
+                            ) : null}
+                            {tracking.wc_push_error ? (
+                              <div className="mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                                Woo sync: {tracking.wc_push_error}
+                              </div>
+                            ) : null}
                           </div>
                         </div>
                       </div>
@@ -665,8 +935,8 @@ export default function OrderDetailPage() {
                 action={
                   <StatusChip
                     label={formatStatusLabel(order.payment_status || 'unknown')}
-                    tone={chipTone(order.payment_status || 'unknown')}
-                    className="px-3 py-1.5 text-xs uppercase tracking-[0.08em]"
+                    tone={paymentSummaryTone(order.payment_status || 'unknown')}
+                    className="px-3 py-1.5 text-xs"
                   />
                 }
               >
@@ -682,11 +952,6 @@ export default function OrderDetailPage() {
                       <span className={amount < 0 ? 'text-emerald-600' : ''}>{money(Math.abs(amount), order.currency)}{amount < 0 ? ' off' : ''}</span>
                     </div>
                   ))}
-                  {/* Total */}
-                  <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm font-bold text-app-strong">
-                    <span>Total</span>
-                    <span>{money(order.total_amount, order.currency)}</span>
-                  </div>
                   {/* Amount due */}
                   {order.refund_amount > 0 ? (
                     <div className="flex items-center justify-between text-sm">
@@ -695,10 +960,13 @@ export default function OrderDetailPage() {
                     </div>
                   ) : null}
                   <div className="border-t border-app-line pt-3">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <div className="text-sm font-semibold text-app-strong">
-                          Amount due: {money(amountDue, order.currency)}
+                    <div className="flex items-end justify-between gap-4">
+                      <div className="text-sm font-semibold text-app-strong">
+                        Amount due
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-bold tabular-nums text-app-strong">
+                          {money(amountDue, order.currency)}
                         </div>
                       </div>
                     </div>
@@ -783,7 +1051,7 @@ export default function OrderDetailPage() {
                   <div className="border-t border-app-line pt-3">
                     <div className="text-sm font-medium text-app-muted">Delivery method</div>
                     <div className="mt-1.5 text-sm text-app-strong">
-                      {order.fulfillment_status === 'fulfilled' ? 'Fulfilled shipment' : 'Standard'}
+                      {order.delivery_method || '—'}
                     </div>
                   </div>
 

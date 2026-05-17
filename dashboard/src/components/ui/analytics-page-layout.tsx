@@ -23,7 +23,7 @@ export function AnalyticsPageContent({
   children: ReactNode
   className?: string
 }) {
-  return <div className={`space-y-4 px-5 md:px-6 ${className}`.trim()}>{children}</div>
+  return <div className={`space-y-3 px-0 md:space-y-4 md:px-6 ${className}`.trim()}>{children}</div>
 }
 
 export function MetricGrid({

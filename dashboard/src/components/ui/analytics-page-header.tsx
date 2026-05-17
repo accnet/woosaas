@@ -11,9 +11,9 @@ export function AnalyticsPageHeader({
   controls?: ReactNode
 }) {
   return (
-    <div className="flex items-center justify-between px-5 py-3 md:px-6">
+    <div className="flex flex-col gap-2 px-0 py-2 md:flex-row md:items-center md:justify-between md:px-6 md:py-3">
       <h1 className="text-xl font-semibold text-app-strong">{title}</h1>
-      {controls ? <div className="flex flex-wrap items-center gap-2">{controls}</div> : null}
+      {controls ? <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">{controls}</div> : null}
     </div>
   )
 }
@@ -36,11 +36,11 @@ export function DateRangeSelect({
   const hint = `${format(fromDate, fromFormat)} – ${format(toDate, 'MMM d, yyyy')}`
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex w-full items-center gap-3 sm:w-auto">
       <span className="hidden text-xs text-app-soft sm:block tabular-nums">
         {hint}
       </span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="select min-w-[140px]">
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="select w-full min-w-0 sm:min-w-[140px]">
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}

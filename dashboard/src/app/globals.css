@@ -121,11 +121,11 @@
   }
 
   .text-app-muted {
-    color: #5e6b84;
+    color: #667287;
   }
 
   .text-app-soft {
-    color: #8a95a8;
+    color: #778399;
   }
 
   .bg-app-subtle {
@@ -463,17 +463,17 @@
   }
 
   .app-rail-logo {
-    @apply flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold text-white;
+    @apply flex h-9 w-9 items-center justify-center rounded-lg text-sm font-semibold text-white;
     background: #0f6cde;
     box-shadow: 0 6px 14px rgba(15, 108, 222, 0.14);
   }
 
   .app-rail-item {
-    @apply inline-flex h-10 w-10 items-center justify-center rounded-lg transition;
+    @apply flex h-9 w-9 items-center justify-center rounded-xl transition;
   }
 
   .app-rail-link {
-    @apply flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left font-semibold transition;
+    @apply flex h-9 w-full items-center gap-3 rounded-xl px-3 text-left font-semibold transition;
   }
 
   .app-rail-item-idle {

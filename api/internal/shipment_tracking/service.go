@@ -55,7 +55,7 @@ func (s *Service) Add(ctx context.Context, siteID, wooOrderID string, req AddTra
 		return nil, err
 	}
 
-	_ = s.repo.MarkOrderFulfilled(ctx, siteID, SourcePlatformWooCommerce, wooOrderID)
+	_ = s.repo.ApplyTrackingStatusToOrder(ctx, siteID, SourcePlatformWooCommerce, wooOrderID, tracking.Status)
 	s.pushToWoo(ctx, tracking)
 	refreshed, err := s.repo.Get(ctx, siteID, tracking.ID)
 	if err != nil {
@@ -69,6 +69,7 @@ func (s *Service) Refresh(ctx context.Context, siteID, trackingID string) (*Ship
 	if err != nil {
 		return nil, err
 	}
+	_ = s.repo.ApplyTrackingStatusToOrder(ctx, tracking.SiteID, tracking.SourcePlatform, tracking.WooOrderID, tracking.Status)
 	s.pushToWoo(ctx, tracking)
 	refreshed, err := s.repo.Get(ctx, siteID, trackingID)
 	if err != nil {

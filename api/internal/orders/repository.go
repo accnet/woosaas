@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/accnet/woosaas/api/internal/order_status"
 	"github.com/accnet/woosaas/api/pkg/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -55,12 +56,14 @@ func (r *Repository) UpsertOrderSnapshot(ctx context.Context, siteID string, inp
 	}
 
 	var existingModified *time.Time
+	var existingStatus *string
+	var existingFulfillmentStatus *string
 	var existingContactID *string
 	err = tx.QueryRow(ctx, `
-		SELECT modified_at_woo, contact_id
+		SELECT modified_at_woo, status, fulfillment_status, contact_id
 		FROM commerce_orders
 		WHERE site_id = $1 AND source_platform = $2 AND woo_order_id = $3
-	`, siteID, sourcePlatform, input.WooOrderID).Scan(&existingModified, &existingContactID)
+	`, siteID, sourcePlatform, input.WooOrderID).Scan(&existingModified, &existingStatus, &existingFulfillmentStatus, &existingContactID)
 	if err != nil && err != pgx.ErrNoRows {
 		return err
 	}
@@ -89,6 +92,16 @@ func (r *Repository) UpsertOrderSnapshot(ctx context.Context, siteID string, inp
 	shippingJSON := marshalJSONMap(input.ShippingAddress)
 	attributionJSON := marshalJSONMap(input.Attribution)
 	rawOrderJSON := marshalJSONMap(input.RawOrder)
+
+	input.Status = order_status.FromOrderInput(input)
+	if existingStatus != nil {
+		input.Status = order_status.Merge(*existingStatus, input.Status)
+	}
+	if order_status.ImpliesFulfilled(input.Status) {
+		input.FulfillmentStatus = "fulfilled"
+	} else if strings.TrimSpace(input.FulfillmentStatus) == "" && existingFulfillmentStatus != nil {
+		input.FulfillmentStatus = strings.TrimSpace(*existingFulfillmentStatus)
+	}
 
 	var contactID *string
 	if contactSyncEnabled {

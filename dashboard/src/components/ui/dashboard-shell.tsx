@@ -18,6 +18,23 @@ import { useKeyboardNav } from '@/hooks/use-keyboard-nav'
 const RECENT_SITES_KEY = 'woosaas-recent-sites'
 const PINNED_SITES_KEY = 'woosaas-pinned-sites'
 const APP_RAIL_EXPANDED_KEY = 'woosaas-app-rail-expanded'
+const SELECT_SITE_REQUIRED_EVENT = 'woosaas:select-site-required'
+
+function notifySelectSiteRequired() {
+  if (typeof window === 'undefined') {
+    return
+  }
+  window.dispatchEvent(new CustomEvent(SELECT_SITE_REQUIRED_EVENT))
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+function getUserAvatarSeed(user: { name?: string | null; email?: string | null } | null) {
+  return user?.email?.trim() || user?.name?.trim() || 'user'
+}
+
+function getUserAvatarUrl(user: { name?: string | null; email?: string | null } | null) {
+  return `https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(getUserAvatarSeed(user))}`
+}
 
 function SiteSwitcherOption({
   site,
@@ -135,6 +152,7 @@ function SiteSwitcherControl({
   const [recentSiteIds, setRecentSiteIds] = useState<string[]>([])
   const [pinnedSiteIds, setPinnedSiteIds] = useState<string[]>([])
   const [highlightedSiteId, setHighlightedSiteId] = useState<string | null>(null)
+  const [needsAttention, setNeedsAttention] = useState(false)
   const selectedSite = currentSite
   const selectedSiteId = currentSite?.id || null
 
@@ -183,6 +201,26 @@ function SiteSwitcherControl({
       document.removeEventListener('touchstart', handlePointerDown)
     }
   }, [open])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    let timeoutId: number | undefined
+    const handleAttention = () => {
+      setNeedsAttention(true)
+      setOpen(false)
+      window.clearTimeout(timeoutId)
+      timeoutId = window.setTimeout(() => setNeedsAttention(false), 1800)
+    }
+
+    window.addEventListener(SELECT_SITE_REQUIRED_EVENT, handleAttention)
+    return () => {
+      window.removeEventListener(SELECT_SITE_REQUIRED_EVENT, handleAttention)
+      window.clearTimeout(timeoutId)
+    }
+  }, [])
 
   const filteredSites = sites.filter((site) => {
     const haystack = `${site.name} ${site.domain}`.toLowerCase()
@@ -285,7 +323,13 @@ function SiteSwitcherControl({
     <div ref={switcherRef} className="relative w-full">
       <button
         onClick={() => setOpen((value) => !value)}
-        className={compact ? 'group mx-auto flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-app-subtle' : 'site-switcher-trigger'}
+        className={
+          compact
+            ? `group mx-auto flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-app-subtle ${
+                needsAttention ? 'animate-pulse ring-2 ring-[#cfe0f7] bg-[#edf4ff]' : ''
+              }`
+            : `${needsAttention ? 'animate-pulse ring-2 ring-[#cfe0f7] bg-[#edf4ff]' : ''} site-switcher-trigger`
+        }
         aria-label={selectedSite ? `Switch website from ${selectedSite.domain}` : 'Select a website'}
         title={compact ? (selectedSite ? selectedSite.domain : 'Select a website') : undefined}
       >
@@ -436,6 +480,7 @@ function UserMenu({
   logout: () => void
 }) {
   const [open, setOpen] = useState(false)
+  const [avatarBroken, setAvatarBroken] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -481,7 +526,16 @@ function UserMenu({
         title={user?.email || user?.name || 'Account'}
       >
         <div className="app-rail-user h-9 w-9 rounded-full text-sm shadow-none">
-          {(user?.name || 'U').slice(0, 1).toUpperCase()}
+          {!avatarBroken ? (
+            <img
+              src={getUserAvatarUrl(user)}
+              alt={user?.name || user?.email || 'User avatar'}
+              className="h-full w-full rounded-full object-cover"
+              onError={() => setAvatarBroken(true)}
+            />
+          ) : (
+            (user?.name || 'U').slice(0, 1).toUpperCase()
+          )}
         </div>
         <span className="sr-only">{user?.email || user?.name || 'Account'}</span>
       </button>
@@ -680,7 +734,7 @@ function AppRail({
   return (
     <aside
       className={`relative hidden shrink-0 border-r border-app-line bg-app-panel transition-[width] duration-200 xl:flex xl:flex-col ${
-        expanded ? 'w-[220px]' : 'w-[72px]'
+        expanded ? 'w-[220px]' : 'w-[64px]'
       }`}
     >
       <button
@@ -692,11 +746,11 @@ function AppRail({
         <ChevronRight className={`h-4 w-4 ${expanded ? 'rotate-180' : ''}`} />
       </button>
 
-      <div className="flex-1 overflow-y-auto px-3 py-5">
+      <div className={`flex-1 overflow-y-auto py-5 ${expanded ? 'px-3' : 'px-2'}`}>
         {expanded ? (
           <div className="pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-app-soft">Apps</div>
         ) : null}
-        <nav className="space-y-2">
+        <nav className={expanded ? 'space-y-2' : 'flex flex-col items-center gap-1.5'}>
           {siteAppsNav.map((item) => {
             const Icon = item.icon
             const href = getAppHref(item.href, currentSiteId)
@@ -736,6 +790,12 @@ function AppRail({
                 key={`site-app-${item.label}-${href}`}
                 href={href}
                 className={className}
+                onClick={(event) => {
+                  if (!currentSiteId) {
+                    event.preventDefault()
+                    notifySelectSiteRequired()
+                  }
+                }}
               >
                 <Icon className="h-5 w-5" />
                 {expanded ? (
@@ -781,6 +841,8 @@ function MobileNavDrawer({
   if (!open) {
     return null
   }
+
+  const userAvatarUrl = getUserAvatarUrl(user)
 
   const isMobileAppActive = (itemHref: string, href: string) => {
     if (itemHref === '/dashboard') {
@@ -878,7 +940,15 @@ function MobileNavDrawer({
                       key={`mobile-site-app-${item.label}-${href}`}
                       href={href}
                       className={className}
-                      onClick={onClose}
+                      onClick={(event) => {
+                        if (!currentSiteId) {
+                          event.preventDefault()
+                          onClose()
+                          notifySelectSiteRequired()
+                          return
+                        }
+                        onClose()
+                      }}
                     >
                       <Icon className="h-4 w-4" />
                       <span>{item.label}</span>
@@ -929,7 +999,11 @@ function MobileNavDrawer({
         <div className="border-t border-app-line px-4 py-4">
           <div className="mb-3 flex items-center gap-3 rounded-lg border border-app-line bg-slate-50 px-3 py-3">
             <div className="app-rail-user h-10 w-10 shrink-0">
-              {(user?.name || 'U').slice(0, 1).toUpperCase()}
+              <img
+                src={userAvatarUrl}
+                alt={user?.name || user?.email || 'User avatar'}
+                className="h-full w-full rounded-lg object-cover"
+              />
             </div>
             <div className="min-w-0">
               <div className="truncate text-sm font-medium text-app-strong">{user?.name || 'Admin'}</div>

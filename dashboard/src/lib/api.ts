@@ -265,6 +265,7 @@ export const statsApi = {
 export const ordersApi = {
   list: (siteId: string, page = 1, pageSize = 25, params?: {
     q?: string
+    status?: string
     payment_status?: string
     fulfillment_status?: string
     date_from?: string
@@ -337,6 +338,7 @@ interface ExportOrdersParams {
   templateId?: string
   ids?: string[]       // selected order IDs; omit to export all matching filters
   q?: string
+  status?: string
   paymentStatus?: string
   fulfillmentStatus?: string
   dateFrom?: string
@@ -350,6 +352,7 @@ export async function exportOrdersCSV(params: ExportOrdersParams): Promise<void>
   if (params.templateId) query.set('template_id', params.templateId)
   if (params.ids?.length) query.set('ids', params.ids.join(','))
   if (params.q) query.set('q', params.q)
+  if (params.status) query.set('status', params.status)
   if (params.paymentStatus) query.set('payment_status', params.paymentStatus)
   if (params.fulfillmentStatus) query.set('fulfillment_status', params.fulfillmentStatus)
   if (params.dateFrom) query.set('date_from', params.dateFrom)

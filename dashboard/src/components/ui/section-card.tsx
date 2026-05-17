@@ -17,7 +17,7 @@ export function SectionCard({
   className?: string
 }) {
   return (
-    <div className={`card px-5 py-4 ${className}`.trim()}>
+    <div className={`card px-3 py-3 md:px-5 md:py-4 ${className}`.trim()}>
       {title || action ? (
         <div className="flex items-center justify-between">
           {title ? <h3 className="text-sm font-semibold text-app-strong">{title}</h3> : <span />}

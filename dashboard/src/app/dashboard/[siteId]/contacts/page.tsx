@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import { ArrowDown, ArrowUp, ArrowUpDown, BadgeDollarSign, Crown, RefreshCw, Repeat2, Users } from 'lucide-react'
@@ -225,7 +226,7 @@ export default function ContactsPage() {
           <MetricCard label="Total Revenue" value={money(totals.totalRevenue)} tone="good" icon={<BadgeDollarSign className="h-5 w-5" />} />
         </MetricGrid>
 
-        {/* Contact cards */}
+        {/* Contacts table */}
         <SectionCard
           title="WooCommerce Contacts"
           action={<StatusChip label={`${displayedContacts.length} shown`} tone="neutral" />}
@@ -240,63 +241,96 @@ export default function ContactsPage() {
               />
             </div>
           ) : (
-            <div className="divide-y divide-app-line">
-              {displayedContacts.map((contact) => {
-                const displayName = contact.full_name || contact.email || '?'
-                const avatarClass = avatarColors(displayName)
-                const initial = displayName.charAt(0).toUpperCase()
-                const isVip = contact.total_spent > 500
-                const isRepeat = contact.orders_count > 1
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="table-header sticky top-0">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft">Contact</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Email</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Phone</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Company</th>
+                    <th className="px-4 py-3 text-right text-[11px] font-medium text-app-soft w-px whitespace-nowrap">
+                      <button type="button" className="inline-flex items-center justify-end transition hover:text-app-strong" onClick={() => toggleSort('orders_count')}>
+                        Orders
+                        <SortIcon column="orders_count" />
+                      </button>
+                    </th>
+                    <th className="px-4 py-3 text-right text-[11px] font-medium text-app-soft w-px whitespace-nowrap">
+                      <button type="button" className="inline-flex items-center justify-end transition hover:text-app-strong" onClick={() => toggleSort('total_spent')}>
+                        Revenue
+                        <SortIcon column="total_spent" />
+                      </button>
+                    </th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">
+                      <button type="button" className="inline-flex items-center transition hover:text-app-strong" onClick={() => toggleSort('last_seen_at')}>
+                        Last Order
+                        <SortIcon column="last_seen_at" />
+                      </button>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="table-body">
+                  {displayedContacts.map((contact) => {
+                    const displayName = contact.full_name || contact.email || '?'
+                    const avatarClass = avatarColors(displayName)
+                    const initial = displayName.charAt(0).toUpperCase()
+                    const isVip = contact.total_spent > 500
+                    const isRepeat = contact.orders_count > 1
 
-                return (
-                  <div key={contact.id} className="flex items-center gap-4 px-5 py-2.5 transition-colors hover:bg-slate-50/70">
-                    {/* Avatar */}
-                    <div className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold ${avatarClass}`}>
-                      {initial}
-                      {isVip ? (
-                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400">
-                          <Crown className="h-2.5 w-2.5 text-white" />
-                        </span>
-                      ) : null}
-                    </div>
-
-                    {/* Name + email + badges */}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold text-app-strong">{contact.full_name || 'Unknown'}</span>
-                        {isVip ? <StatusChip label="VIP" tone="warn" /> : null}
-                        {isRepeat && !isVip ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                            <Repeat2 className="h-3 w-3" />
-                            Repeat
+                    return (
+                      <tr key={contact.id} className="table-row transition-colors hover:bg-slate-50/70">
+                        <td className="px-4 py-3">
+                          <Link href={`/dashboard/${siteId}/contacts/${contact.id}`} className="flex items-center gap-3">
+                            <div className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${avatarClass}`}>
+                              {initial}
+                              {isVip ? (
+                                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400">
+                                  <Crown className="h-2.5 w-2.5 text-white" />
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="truncate text-sm font-semibold text-app-strong">{contact.full_name || 'Unknown'}</span>
+                                {isVip ? <StatusChip label="VIP" tone="warn" /> : null}
+                                {isRepeat && !isVip ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                                    <Repeat2 className="h-3 w-3" />
+                                    Repeat
+                                  </span>
+                                ) : null}
+                              </div>
+                              <div className="mt-0.5 text-xs text-app-soft">
+                                First seen {formatDate(contact.first_seen_at)}
+                              </div>
+                            </div>
+                          </Link>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-app-strong whitespace-nowrap">
+                          {contact.email || '—'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-app-muted whitespace-nowrap">
+                          {contact.phone || '—'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-app-muted whitespace-nowrap">
+                          {contact.company || '—'}
+                        </td>
+                        <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-app-strong whitespace-nowrap">
+                          {contact.orders_count}
+                        </td>
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                          <span className={`text-sm font-bold tabular-nums ${isVip ? 'text-amber-600' : 'text-emerald-600'}`}>
+                            {money(contact.total_spent)}
                           </span>
-                        ) : null}
-                      </div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0 text-xs text-app-muted">
-                        {contact.email ? <span>{contact.email}</span> : null}
-                        {contact.phone ? <span>{contact.phone}</span> : null}
-                        {contact.company ? <span className="text-app-soft">{contact.company}</span> : null}
-                      </div>
-                    </div>
-
-                    {/* Stats */}
-                    <div className="hidden shrink-0 text-right sm:block">
-                      <div className="text-xs text-app-muted">Orders</div>
-                      <div className="mt-0.5 text-sm font-semibold text-app-strong">{contact.orders_count}</div>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <div className="text-xs text-app-muted">Revenue</div>
-                      <div className={`mt-0.5 text-base font-bold tabular-nums ${isVip ? 'text-amber-600' : 'text-emerald-600'}`}>
-                        {money(contact.total_spent)}
-                      </div>
-                    </div>
-                    <div className="hidden shrink-0 text-right lg:block">
-                      <div className="text-xs text-app-muted">Last order</div>
-                      <div className="mt-0.5 text-xs text-app-strong">{formatDate(contact.last_seen_at)}</div>
-                    </div>
-                  </div>
-                )
-              })}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-app-muted whitespace-nowrap">
+                          {formatDate(contact.last_seen_at)}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </SectionCard>

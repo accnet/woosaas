@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/accnet/woosaas/api/internal/order_status"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -82,12 +83,19 @@ func (r *Repository) Delete(ctx context.Context, siteID, trackingID string) erro
 	return err
 }
 
-func (r *Repository) MarkOrderFulfilled(ctx context.Context, siteID, sourcePlatform, wooOrderID string) error {
+func (r *Repository) ApplyTrackingStatusToOrder(ctx context.Context, siteID, sourcePlatform, wooOrderID, trackingStatus string) error {
+	lifecycleStatus := order_status.FromTrackingStatus(trackingStatus)
 	_, err := r.db.Exec(ctx, `
 		UPDATE commerce_orders
-		SET fulfillment_status = $4, updated_at = NOW()
+		SET fulfillment_status = CASE
+				WHEN $4 IN ('fulfilled', 'in_transit', 'out_for_delivery', 'delivered', 'exception', 'failed_delivery', 'returned')
+					THEN 'fulfilled'
+				ELSE fulfillment_status
+			END,
+			status = $4,
+			updated_at = NOW()
 		WHERE site_id = $1 AND source_platform = $2 AND woo_order_id = $3
-	`, siteID, sourcePlatform, wooOrderID, StatusFulfilled)
+	`, siteID, sourcePlatform, wooOrderID, lifecycleStatus)
 	return err
 }
 

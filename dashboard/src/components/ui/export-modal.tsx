@@ -22,6 +22,7 @@ interface ExportModalProps {
   selectedIds: string[]
   filters: {
     q?: string
+    status?: string
     paymentStatus?: string
     fulfillmentStatus?: string
     dateFrom?: string
