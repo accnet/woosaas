@@ -5,8 +5,15 @@ import "time"
 const (
 	SourcePlatformWooCommerce = "woocommerce"
 	ProviderManual            = "manual"
+	ProviderTrackingMore      = "trackingmore"
 	StatusPending             = "pending"
 	StatusFulfilled           = "fulfilled"
+	StatusInTransit           = "in_transit"
+	StatusOutForDelivery      = "out_for_delivery"
+	StatusDelivered           = "delivered"
+	StatusException           = "exception"
+	StatusFailedDelivery      = "failed_delivery"
+	StatusReturned            = "returned"
 	WCPushStatusOK            = "ok"
 	WCPushStatusError         = "error"
 )
@@ -41,6 +48,30 @@ type AddTrackingRequest struct {
 	TrackingURL    string `json:"tracking_url,omitempty"`
 }
 
+type BatchTrackingItem struct {
+	WooOrderID     string `json:"woo_order_id"`
+	TrackingNumber string `json:"tracking_number"`
+	CarrierSlug    string `json:"carrier_slug"`
+	CarrierName    string `json:"carrier_name,omitempty"`
+	TrackingURL    string `json:"tracking_url,omitempty"`
+}
+
+type AddTrackingBatchRequest struct {
+	Trackings []BatchTrackingItem `json:"trackings"`
+}
+
+type AddTrackingBatchResponse struct {
+	Created []ShipmentTracking `json:"created"`
+	Errors  []BatchError       `json:"errors"`
+}
+
+type BatchError struct {
+	Index          int    `json:"index"`
+	WooOrderID     string `json:"woo_order_id,omitempty"`
+	TrackingNumber string `json:"tracking_number,omitempty"`
+	Error          string `json:"error"`
+}
+
 type UpdateWCPushConfigRequest struct {
 	PushURL   string `json:"push_url"`
 	PushToken string `json:"push_token"`
@@ -56,4 +87,24 @@ type CreateTrackingInput struct {
 	TrackingURL    *string
 	Provider       string
 	Status         string
+}
+
+type ProviderConfig struct {
+	ID                     string
+	Enabled                bool
+	BaseURL                string
+	APIKeyEncrypted        string
+	WebhookSecretEncrypted string
+}
+
+type ProviderStatusUpdate struct {
+	Provider           string
+	ProviderTrackingID string
+	TrackingNumber     string
+	CarrierSlug        string
+	Status             string
+	StatusRaw          string
+	TrackingURL        string
+	LastCheckpointAt   *time.Time
+	RawPayload         []byte
 }

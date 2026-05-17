@@ -66,10 +66,10 @@ CREATE TABLE IF NOT EXISTS tracking_verifications (
 CREATE INDEX IF NOT EXISTS idx_tracking_verifications_site_id ON tracking_verifications(site_id);
 
 INSERT INTO users (email, password_hash, name)
-VALUES ('admin@woosaas.com', '$2y$10$cXRdPN.0RfD1QKWXDe9gc.fRpaWSVb7NMh9WRk/ZyfNvJy8D7TdMe', 'Admin')
+VALUES ('john@woosaas.com', '$2y$10$cXRdPN.0RfD1QKWXDe9gc.fRpaWSVb7NMh9WRk/ZyfNvJy8D7TdMe', 'John')
 ON CONFLICT (email) DO NOTHING;
 
 UPDATE users
 SET password_hash = '$2y$10$cXRdPN.0RfD1QKWXDe9gc.fRpaWSVb7NMh9WRk/ZyfNvJy8D7TdMe'
-WHERE email = 'admin@woosaas.com'
+WHERE email = 'john@woosaas.com'
     AND password_hash = '$2a$10$N9qo8uLOickgx2ZMRZoMye6IU8k/4rQvR7Q7R7R7R7R7R7R7R7R7';

@@ -49,6 +49,10 @@ func (h *SitesHandler) CreateSite(c *gin.Context) {
 
 	site, err := h.repo.CreateSite(c.Request.Context(), userID, req.Name, domain, timezone, currency)
 	if err != nil {
+		if err.Error() == "site limit reached" {
+			c.JSON(http.StatusPaymentRequired, gin.H{"error": "Site limit exceeded"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create site"})
 		return
 	}
@@ -281,9 +285,8 @@ func (h *SitesHandler) GetSiteMembers(c *gin.Context) {
 	}
 
 	role, err := h.repo.GetUserSiteRole(c.Request.Context(), userID, siteID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to resolve site role"})
-		return
+	if err != nil || role == "" {
+		role = c.GetString("member_role")
 	}
 
 	c.JSON(http.StatusOK, models.SiteMembersResponse{
@@ -395,8 +398,29 @@ func (h *SitesHandler) SendDebugEvent(c *gin.Context) {
 }
 
 func (h *SitesHandler) requireSitePermission(c *gin.Context, userID, siteID, permission string) bool {
-	allowed, err := h.repo.UserHasSitePermission(c.Request.Context(), userID, siteID, permission)
-	return err == nil && allowed
+	hasAccess, err := h.repo.UserHasAccessToSite(c.Request.Context(), userID, siteID)
+	if err != nil || !hasAccess {
+		return false
+	}
+	role := c.GetString("member_role")
+	if role == "" {
+		allowed, err := h.repo.UserHasSitePermission(c.Request.Context(), userID, siteID, permission)
+		return err == nil && allowed
+	}
+	switch role {
+	case "owner":
+		return true
+	case "admin":
+		return permission != "billing:write"
+	case "member":
+		return permission == "site:read" || permission == "site:write" || permission == "api_keys:read"
+	case "billing":
+		return permission == "billing:read" || permission == "billing:write" || permission == "site:read"
+	case "viewer":
+		return permission == "site:read" || permission == "api_keys:read" || permission == "users:read"
+	default:
+		return false
+	}
 }
 
 func isSupportedDebugEvent(eventName string) bool {

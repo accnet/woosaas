@@ -1,23 +1,28 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/accnet/woosaas/api/internal/billing"
 	"github.com/accnet/woosaas/api/internal/ingest"
 	"github.com/accnet/woosaas/api/internal/sites"
 	"github.com/accnet/woosaas/api/pkg/models"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
 
 type CollectHandler struct {
 	collector *ingest.Collector
 	repo      sites.SiteRepository
+	redis     *redis.Client
+	billing   *billing.BillingService
 }
 
-func NewCollectHandler(collector *ingest.Collector, repo sites.SiteRepository) *CollectHandler {
-	return &CollectHandler{collector: collector, repo: repo}
+func NewCollectHandler(collector *ingest.Collector, repo sites.SiteRepository, redisClient *redis.Client, billingSvc *billing.BillingService) *CollectHandler {
+	return &CollectHandler{collector: collector, repo: repo, redis: redisClient, billing: billingSvc}
 }
 
 // CollectEvent handles single event ingestion
@@ -25,6 +30,9 @@ func (h *CollectHandler) CollectEvent(c *gin.Context) {
 	siteID := c.GetString("site_id")
 	if siteID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Site ID not found"})
+		return
+	}
+	if !h.checkEventQuota(c, 1) {
 		return
 	}
 
@@ -86,6 +94,9 @@ func (h *CollectHandler) CollectBatch(c *gin.Context) {
 	}
 	if len(req.Events) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "events is required"})
+		return
+	}
+	if !h.checkEventQuota(c, len(req.Events)) {
 		return
 	}
 
@@ -159,6 +170,49 @@ func (h *CollectHandler) CollectBatch(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"events": responses,
 	})
+}
+
+func (h *CollectHandler) checkEventQuota(c *gin.Context, count int) bool {
+	if h.billing == nil || h.redis == nil {
+		return true
+	}
+	siteValue, ok := c.Get("site")
+	if !ok {
+		return true
+	}
+	site, ok := siteValue.(*models.Site)
+	if !ok || site.UserID == "" {
+		return true
+	}
+	if err := h.billing.CheckSubscriptionAccess(c.Request.Context(), site.UserID); err != nil {
+		c.JSON(http.StatusPaymentRequired, gin.H{"error": "Subscription inactive"})
+		return false
+	}
+	plan, err := h.billing.GetPlanForUser(c.Request.Context(), site.UserID)
+	if err != nil {
+		return true
+	}
+	if plan.EventLimit <= 0 {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": "Event quota exceeded"})
+		return false
+	}
+	now := time.Now().UTC()
+	period := now.Format("2006-01")
+	key := fmt.Sprintf("quota:events:%s:%s", site.UserID, period)
+	used, err := h.redis.IncrBy(c.Request.Context(), key, int64(count)).Result()
+	if err != nil {
+		return true
+	}
+	if used == int64(count) {
+		nextMonth := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.UTC)
+		h.redis.Expire(c.Request.Context(), key, time.Until(nextMonth))
+	}
+	if used > plan.EventLimit {
+		_, _ = h.redis.DecrBy(c.Request.Context(), key, int64(count)).Result()
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": "Event quota exceeded"})
+		return false
+	}
+	return true
 }
 
 // Verify handles API key verification

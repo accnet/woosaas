@@ -9,7 +9,7 @@ import { SearchInput } from '@/components/ui/search-input'
 import { TrackingStatusChip } from '@/components/ui/tracking-status-chip'
 import { sitesApi } from '@/lib/api'
 import { formatRelativeTimeLabel } from '@/lib/dashboard-metadata'
-import { appNav, buildAnalyticsHref, getAppHref, getCurrentSiteId, isAnalyticsRoute, isSettingsRoute, resolveSiteRoute, settingsNav, settingsRootNav, siteAcquisitionNav, siteAnalyticsNav, siteAppsNav, siteCommerceNav, siteOperationsNav } from '@/lib/navigation'
+import { appNav, buildAnalyticsHref, getAppHref, getCurrentSiteId, isAnalyticsRoute, isSettingsRoute, resolveSiteRoute, settingsNavGroups, settingsRootNav, siteAcquisitionNav, siteAnalyticsNav, siteAppsNav, siteCommerceNav, siteOperationsNav } from '@/lib/navigation'
 import { getSiteTrackingState } from '@/lib/tracking-status'
 import type { Site } from '@/lib/types'
 import { useAuthStore } from '@/store/auth'
@@ -1046,7 +1046,7 @@ function SiteSidebar({
       {showSettingsSidebar ? (
         <div className="border-b border-app-line px-5 py-4">
           <div className="text-lg font-semibold text-app-strong">Setting</div>
-          <div className="mt-1 text-sm text-app-muted">User settings, authentication, billing, and invoices.</div>
+          <div className="mt-1 text-sm text-app-muted">User settings, teams, authentication, billing, and invoices.</div>
         </div>
       ) : null}
 
@@ -1089,13 +1089,16 @@ function SiteSidebarContent({
   if (isSettingsRoute(pathname)) {
     return (
       <div className={compact ? 'space-y-4' : 'space-y-5'}>
-        <SidebarGroup
-          title="Settings"
-          items={settingsNav}
-          pathname={pathname}
-          buildHref={(itemHref) => itemHref}
-          onNavigate={onNavigate}
-        />
+        {settingsNavGroups.map((group) => (
+          <SidebarGroup
+            key={group.title}
+            title={group.title}
+            items={group.items}
+            pathname={pathname}
+            buildHref={(itemHref) => itemHref}
+            onNavigate={onNavigate}
+          />
+        ))}
       </div>
     )
   }

@@ -8,8 +8,11 @@ import (
 )
 
 type JWTClaims struct {
-	UserID string `json:"user_id"`
-	Email  string `json:"email"`
+	UserID    string `json:"user_id"`
+	MemberID  string `json:"member_id"`
+	Email     string `json:"email"`
+	Role      string `json:"role"`
+	TokenType string `json:"token_type"`
 	jwt.RegisteredClaims
 }
 
@@ -26,18 +29,44 @@ func NewJWTManager(secret string, expiration time.Duration) *JWTManager {
 }
 
 func (m *JWTManager) GenerateToken(userID, email string) (string, error) {
+	return m.GenerateTenantToken(userID, userID, email, "owner")
+}
+
+func (m *JWTManager) GenerateTenantToken(userID, memberID, email, role string) (string, error) {
 	claims := JWTClaims{
-		UserID: userID,
-		Email:  email,
+		UserID:    userID,
+		MemberID:  memberID,
+		Email:     email,
+		Role:      role,
+		TokenType: "tenant",
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(m.expiration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			Issuer:    "woosaas",
-			Subject:   userID,
+			Subject:   memberID,
 		},
 	}
 
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(m.secret)
+}
+
+func (m *JWTManager) GeneratePlatformAdminToken(adminID, email, role string) (string, error) {
+	claims := JWTClaims{
+		UserID:    adminID,
+		MemberID:  adminID,
+		Email:     email,
+		Role:      role,
+		TokenType: "platform_admin",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(m.expiration)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+			Issuer:    "woosaas-admin",
+			Subject:   adminID,
+		},
+	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(m.secret)
 }

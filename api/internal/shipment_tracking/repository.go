@@ -62,6 +62,79 @@ func (r *Repository) Create(ctx context.Context, input CreateTrackingInput) (*Sh
 	return &t, nil
 }
 
+func (r *Repository) GetProviderConfig(ctx context.Context, providerID string) (*ProviderConfig, error) {
+	var cfg ProviderConfig
+	err := r.db.QueryRow(ctx, `
+		SELECT id, enabled, COALESCE(base_url, ''), COALESCE(api_key_encrypted, ''), COALESCE(webhook_secret_encrypted, '')
+		FROM tracking_providers
+		WHERE id = $1
+	`, providerID).Scan(&cfg.ID, &cfg.Enabled, &cfg.BaseURL, &cfg.APIKeyEncrypted, &cfg.WebhookSecretEncrypted)
+	if err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+func (r *Repository) MarkProviderRegistered(ctx context.Context, trackingID, providerTrackingID, statusRaw, trackingURL string) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE shipment_trackings
+		SET provider = $2,
+			provider_tracking_id = NULLIF($3, ''),
+			status_raw = NULLIF($4, ''),
+			tracking_url = COALESCE(NULLIF($5, ''), tracking_url),
+			last_synced_at = NOW(),
+			sync_error = NULL,
+			updated_at = NOW()
+		WHERE id = $1
+	`, trackingID, ProviderTrackingMore, providerTrackingID, statusRaw, trackingURL)
+	return err
+}
+
+func (r *Repository) MarkSyncError(ctx context.Context, trackingID string, syncErr error) error {
+	msg := ""
+	if syncErr != nil {
+		msg = syncErr.Error()
+	}
+	_, err := r.db.Exec(ctx, `
+		UPDATE shipment_trackings
+		SET sync_error = $2, last_synced_at = NOW(), updated_at = NOW()
+		WHERE id = $1
+	`, trackingID, msg)
+	return err
+}
+
+func (r *Repository) UpdateFromProvider(ctx context.Context, update ProviderStatusUpdate) (*ShipmentTracking, error) {
+	var t ShipmentTracking
+	err := r.db.QueryRow(ctx, `
+		UPDATE shipment_trackings
+		SET provider_tracking_id = COALESCE(NULLIF($2, ''), provider_tracking_id),
+			status = COALESCE(NULLIF($3, ''), status),
+			status_raw = COALESCE(NULLIF($4, ''), status_raw),
+			tracking_url = COALESCE(NULLIF($5, ''), tracking_url),
+			last_checkpoint_at = COALESCE($6, last_checkpoint_at),
+			last_synced_at = NOW(),
+			sync_error = NULL,
+			updated_at = NOW()
+		WHERE provider = $1
+		  AND (
+			(NULLIF($2, '') IS NOT NULL AND provider_tracking_id = $2)
+			OR (
+				tracking_number = $7
+				AND (NULLIF($8, '') IS NULL OR carrier_slug = $8)
+			)
+		  )
+		RETURNING id::text, site_id::text, source_platform, woo_order_id, tracking_number,
+			carrier_slug, carrier_name, provider, provider_tracking_id, status, status_raw,
+			tracking_url, last_checkpoint_at, last_synced_at, sync_error, wc_push_status,
+			wc_push_error, wc_pushed_at, created_at, updated_at
+	`, update.Provider, update.ProviderTrackingID, update.Status, update.StatusRaw, update.TrackingURL,
+		update.LastCheckpointAt, update.TrackingNumber, update.CarrierSlug).Scan(scanTrackingDest(&t)...)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
 func (r *Repository) Get(ctx context.Context, siteID, trackingID string) (*ShipmentTracking, error) {
 	var t ShipmentTracking
 	err := r.db.QueryRow(ctx, `

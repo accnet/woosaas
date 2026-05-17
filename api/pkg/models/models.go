@@ -7,12 +7,28 @@ import (
 
 // User represents a dashboard user
 type User struct {
-	ID           string    `json:"id" db:"id"`
-	Email        string    `json:"email" db:"email"`
-	PasswordHash string    `json:"-" db:"password_hash"`
-	Name         string    `json:"name" db:"name"`
-	CreatedAt    time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+	ID           string     `json:"id" db:"id"`
+	Email        string     `json:"email" db:"email"`
+	PasswordHash string     `json:"-" db:"password_hash"`
+	Name         string     `json:"name" db:"name"`
+	Status       string     `json:"status,omitempty" db:"status"`
+	DeletedAt    *time.Time `json:"deleted_at,omitempty" db:"deleted_at"`
+	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at" db:"updated_at"`
+}
+
+// UserMember represents a human login attached to a tenant account.
+type UserMember struct {
+	ID           string     `json:"id" db:"id"`
+	UserID       string     `json:"user_id" db:"user_id"`
+	Email        string     `json:"email" db:"email"`
+	PasswordHash string     `json:"-" db:"password_hash"`
+	FullName     string     `json:"full_name" db:"full_name"`
+	Role         string     `json:"role" db:"role"`
+	Status       string     `json:"status" db:"status"`
+	LastLoginAt  *time.Time `json:"last_login_at,omitempty" db:"last_login_at"`
+	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // Site represents a tracked website
@@ -32,6 +48,7 @@ type Site struct {
 	TrackingLastEventAt   *time.Time `json:"tracking_last_event_at" db:"tracking_last_event_at"`
 	WCPushURL             string     `json:"wc_push_url,omitempty" db:"wc_push_url"`
 	WCPushTokenEncrypted  string     `json:"-" db:"wc_push_token_encrypted"`
+	DeletedAt             *time.Time `json:"deleted_at,omitempty" db:"deleted_at"`
 	CreatedAt             time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt             time.Time  `json:"updated_at" db:"updated_at"`
 }
@@ -176,8 +193,10 @@ type ChangePasswordRequest struct {
 
 // AuthResponse for auth responses
 type AuthResponse struct {
-	Token string `json:"token"`
-	User  User   `json:"user"`
+	Token   string     `json:"token"`
+	User    User       `json:"user"`
+	Account User       `json:"account"`
+	Member  UserMember `json:"member"`
 }
 
 // CreateSiteRequest for creating a new site

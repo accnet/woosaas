@@ -56,15 +56,6 @@ func (r *Repository) CreateShopBaseSite(
 	}
 
 	_, err = tx.Exec(ctx, `
-		INSERT INTO site_members (site_id, user_id, role)
-		VALUES ($1, $2, 'owner')
-		ON CONFLICT (site_id, user_id) DO NOTHING
-	`, siteID, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = tx.Exec(ctx, `
 		INSERT INTO site_integrations (
 			site_id, platform, auth_type, shop_domain,
 			api_key_encrypted, api_password_encrypted, webhook_secret_encrypted,

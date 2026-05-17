@@ -39,6 +39,11 @@ export type NavItem = {
   status?: 'comingSoon'
 }
 
+export type NavGroup = {
+  title: string
+  items: NavItem[]
+}
+
 export const appNav: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/sites', label: 'Websites', icon: Globe },
@@ -48,13 +53,36 @@ export const settingsRootNav: NavItem[] = [
   { href: '/dashboard/settings/general', label: 'Setting', icon: Settings2 },
 ]
 
-export const settingsNav: NavItem[] = [
-  { href: '/dashboard/settings/general', label: 'General', icon: Settings2 },
-  { href: '/dashboard/settings/authentication', label: 'Authentication', icon: LockKeyhole },
-  { href: '/dashboard/settings/billing', label: 'Billing Information', icon: CreditCard },
-  { href: '/dashboard/settings/invoices', label: 'Invoices', icon: FileText },
-  { href: '/dashboard/settings/export-templates', label: 'Export Templates', icon: TableProperties },
+export const settingsNavGroups: NavGroup[] = [
+  {
+    title: 'Account',
+    items: [
+      { href: '/dashboard/settings/general', label: 'General', icon: Settings2 },
+      { href: '/dashboard/settings/authentication', label: 'Authentication', icon: LockKeyhole },
+    ],
+  },
+  {
+    title: 'Workspace',
+    items: [
+      { href: '/dashboard/teams', label: 'Teams', icon: Users },
+    ],
+  },
+  {
+    title: 'Billing',
+    items: [
+      { href: '/dashboard/settings/billing', label: 'Billing Information', icon: CreditCard },
+      { href: '/dashboard/settings/invoices', label: 'Invoices', icon: FileText },
+    ],
+  },
+  {
+    title: 'Commerce',
+    items: [
+      { href: '/dashboard/settings/export-templates', label: 'Export Templates', icon: TableProperties },
+    ],
+  },
 ]
+
+export const settingsNav: NavItem[] = settingsNavGroups.flatMap((group) => group.items)
 
 export const siteAppsNav: NavItem[] = [
   { href: '/dashboard/sites/[siteId]', label: 'Home', icon: House },
@@ -142,7 +170,7 @@ export function isAnalyticsRoute(pathname: string) {
 }
 
 export function isSettingsRoute(pathname: string) {
-  return pathname === '/dashboard/settings' || pathname.startsWith('/dashboard/settings/')
+  return pathname === '/dashboard/settings' || pathname.startsWith('/dashboard/settings/') || pathname === '/dashboard/teams'
 }
 
 export function getCurrentSiteApp(pathname: string) {

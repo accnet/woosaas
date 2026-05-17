@@ -36,11 +36,11 @@ export function DateRangeSelect({
   const hint = `${format(fromDate, fromFormat)} – ${format(toDate, 'MMM d, yyyy')}`
 
   return (
-    <div className="flex w-full items-center gap-3 sm:w-auto">
+    <div className="flex w-auto shrink-0 items-center gap-3">
       <span className="hidden text-xs text-app-soft sm:block tabular-nums">
         {hint}
       </span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="select w-full min-w-0 sm:min-w-[140px]">
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="select w-auto min-w-[140px]">
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}

@@ -25,7 +25,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	user, token, err := h.svc.Register(c.Request.Context(), req.Email, req.Password, req.Name)
+	user, member, token, err := h.svc.Register(c.Request.Context(), req.Email, req.Password, req.Name)
 	if err != nil {
 		if err.Error() == "email already registered" {
 			c.JSON(http.StatusConflict, gin.H{"error": "Email already registered"})
@@ -36,8 +36,10 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, models.AuthResponse{
-		Token: token,
-		User:  *user,
+		Token:   token,
+		User:    *user,
+		Account: *user,
+		Member:  *member,
 	})
 }
 
@@ -49,21 +51,36 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	user, token, err := h.svc.Login(c.Request.Context(), req.Email, req.Password)
+	user, member, token, err := h.svc.Login(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
 
 	c.JSON(http.StatusOK, models.AuthResponse{
-		Token: token,
-		User:  *user,
+		Token:   token,
+		User:    *user,
+		Account: *user,
+		Member:  *member,
 	})
 }
 
 // Me returns the current user
 func (h *AuthHandler) Me(c *gin.Context) {
 	userID := c.GetString("user_id")
+	memberID := c.GetString("member_id")
+
+	if memberID != "" {
+		member, account, err := h.svc.GetMember(c.Request.Context(), memberID)
+		if err == nil {
+			c.JSON(http.StatusOK, gin.H{
+				"user":    account,
+				"account": account,
+				"member":  member,
+			})
+			return
+		}
+	}
 
 	user, err := h.svc.GetUser(c.Request.Context(), userID)
 	if err != nil {
@@ -76,6 +93,7 @@ func (h *AuthHandler) Me(c *gin.Context) {
 
 func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 	userID := c.GetString("user_id")
+	memberID := c.GetString("member_id")
 
 	var req models.UpdateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -89,6 +107,16 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
+	if memberID != "" {
+		member, err := h.svc.UpdateMemberProfile(c.Request.Context(), memberID, name)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"member": member})
+		return
+	}
+
 	user, err := h.svc.UpdateProfile(c.Request.Context(), userID, name)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
@@ -99,7 +127,10 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 }
 
 func (h *AuthHandler) ChangePassword(c *gin.Context) {
-	userID := c.GetString("user_id")
+	memberID := c.GetString("member_id")
+	if memberID == "" {
+		memberID = c.GetString("user_id")
+	}
 
 	var req models.ChangePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -112,7 +143,7 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.ChangePassword(c.Request.Context(), userID, req.CurrentPassword, req.NewPassword); err != nil {
+	if err := h.svc.ChangePassword(c.Request.Context(), memberID, req.CurrentPassword, req.NewPassword); err != nil {
 		if err.Error() == "current password is incorrect" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Current password is incorrect"})
 			return

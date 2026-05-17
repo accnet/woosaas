@@ -260,7 +260,7 @@ export default function OrdersPage() {
       <AnalyticsPageHeader
         title="Orders"
         controls={
-          <div className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto md:flex-wrap md:items-center">
+          <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
             <DateRangeSelect
               value={dateRange}
               onChange={(v) => {
@@ -277,15 +277,15 @@ export default function OrdersPage() {
                 setQuery(value)
               }}
               placeholder="Search order, customer, email…"
-              className="col-span-2 md:col-span-1 md:min-w-[280px]"
+              className="min-w-[220px] flex-1 md:min-w-[280px]"
             />
-            <button type="button" className="btn-secondary w-full gap-2 md:w-auto" onClick={() => setReloadKey((value) => value + 1)}>
+            <button type="button" className="btn-secondary shrink-0 gap-2" onClick={() => setReloadKey((value) => value + 1)}>
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`.trim()} />
               Refresh
             </button>
             <button
               type="button"
-              className="btn-primary w-full gap-2 md:w-auto"
+              className="btn-primary shrink-0 gap-2"
               onClick={() => setExportOpen(true)}
               title={selectedOrders.size > 0 ? `Export ${selectedOrders.size} selected` : 'Export orders'}
             >

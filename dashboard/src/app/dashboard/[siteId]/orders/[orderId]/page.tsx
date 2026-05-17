@@ -293,10 +293,28 @@ function normalizeLifecycleStatus(value: string) {
   return normalized
 }
 
+function hasProviderTrackingUpdate(tracking: ShipmentTracking) {
+  return Boolean(
+    tracking.last_synced_at ||
+      tracking.last_checkpoint_at ||
+      tracking.provider_tracking_id ||
+      tracking.status_raw ||
+      (tracking.provider && tracking.provider.toLowerCase() !== 'manual'),
+  )
+}
+
+function getTrackingTime(tracking: ShipmentTracking) {
+  return new Date(tracking.last_checkpoint_at || tracking.last_synced_at || tracking.updated_at || tracking.created_at).getTime()
+}
+
 function getProgressTimestamp(status: string, order: OrderDetail, trackings: ShipmentTracking[]) {
+  const providerTrackings = trackings.filter(hasProviderTrackingUpdate)
   const latestTracking = trackings
     .filter((tracking) => normalizeLifecycleStatus(tracking.status) === status)
-    .sort((a, b) => new Date(b.last_checkpoint_at || b.updated_at).getTime() - new Date(a.last_checkpoint_at || a.updated_at).getTime())[0]
+    .sort((a, b) => getTrackingTime(b) - getTrackingTime(a))[0]
+  const latestProviderTracking = providerTrackings
+    .filter((tracking) => normalizeLifecycleStatus(tracking.status) === status)
+    .sort((a, b) => getTrackingTime(b) - getTrackingTime(a))[0]
 
   switch (status) {
     case 'processing':
@@ -306,22 +324,24 @@ function getProgressTimestamp(status: string, order: OrderDetail, trackings: Shi
     case 'in_transit':
     case 'out_for_delivery':
     case 'delivered':
-      return latestTracking?.last_checkpoint_at || latestTracking?.updated_at || null
+      return latestProviderTracking?.last_checkpoint_at || latestProviderTracking?.last_synced_at || null
     default:
       return null
   }
 }
 
 function buildOrderProgress(order: OrderDetail, trackings: ShipmentTracking[]) {
-  const currentStatus = normalizeLifecycleStatus(order.status || 'processing')
-  const latestTracking = [...trackings].sort(
-    (a, b) => new Date(b.last_checkpoint_at || b.updated_at).getTime() - new Date(a.last_checkpoint_at || a.updated_at).getTime(),
-  )[0] || null
+  const providerTrackings = trackings.filter(hasProviderTrackingUpdate)
+  const latestTracking = [...trackings].sort((a, b) => getTrackingTime(b) - getTrackingTime(a))[0] || null
+  const latestProviderTracking = [...providerTrackings].sort((a, b) => getTrackingTime(b) - getTrackingTime(a))[0] || null
+  const currentStatus = trackings.length > 0
+    ? normalizeLifecycleStatus(latestProviderTracking?.status || 'fulfilled')
+    : normalizeLifecycleStatus(order.status || 'processing')
 
   let currentIndex = ORDER_PROGRESS_STEPS.findIndex((step) => step.key === currentStatus)
   if (currentIndex === -1) {
-    const trackingIndex = latestTracking
-      ? ORDER_PROGRESS_STEPS.findIndex((step) => step.key === normalizeLifecycleStatus(latestTracking.status))
+    const trackingIndex = latestProviderTracking
+      ? ORDER_PROGRESS_STEPS.findIndex((step) => step.key === normalizeLifecycleStatus(latestProviderTracking.status))
       : -1
     if (trackingIndex >= 0) {
       currentIndex = trackingIndex
@@ -626,11 +646,11 @@ export default function OrderDetailPage() {
                   </div>
                 ) : null}
 
-                <div className="hidden xl:grid xl:grid-cols-5 xl:gap-3">
+                <div className="grid gap-3 xl:grid-cols-5">
                   {progress.steps.map((step, index) => (
-                    <div key={`rail-${step.key}`} className="relative h-6">
+                    <div key={step.key} className="relative rounded-lg border border-app-line bg-slate-50/70 px-3 py-2.5 text-center">
                       {index < progress.steps.length - 1 ? (
-                        <span className="absolute left-[calc(50%+0.875rem)] right-[-0.75rem] top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-slate-200">
+                        <span className="absolute left-full top-6 z-0 hidden h-0.5 w-3 -translate-y-1/2 rounded-full bg-slate-200 xl:block">
                           <span
                             className={`block h-full rounded-full ${
                               step.state === 'done'
@@ -642,25 +662,9 @@ export default function OrderDetailPage() {
                           />
                         </span>
                       ) : null}
-                      <span
-                        className={`absolute left-1/2 top-1/2 inline-flex h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 ${
-                          step.state === 'done'
-                            ? 'border-emerald-300 bg-emerald-300'
-                            : step.state === 'current'
-                              ? 'border-indigo-300 bg-indigo-300'
-                              : 'border-slate-300 bg-white'
-                        }`}
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                <div className="grid gap-3 xl:grid-cols-5">
-                  {progress.steps.map((step) => (
-                    <div key={step.key} className="rounded-xl border border-app-line bg-slate-50/70 px-4 py-3">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center gap-2">
                         <span
-                          className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${
+                          className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
                             step.state === 'done'
                               ? 'bg-emerald-100 text-emerald-700'
                               : step.state === 'current'
@@ -670,9 +674,9 @@ export default function OrderDetailPage() {
                         >
                           <ProgressStepIcon stepKey={step.key} state={step.state} />
                         </span>
-                        <span className="text-sm font-semibold text-app-strong">{step.label}</span>
+                        <span className="text-sm font-semibold leading-tight text-app-strong">{step.label}</span>
                       </div>
-                      <div className="mt-2 text-xs text-app-muted">
+                      <div className="mt-1.5 text-xs text-app-muted">
                         {step.timestamp ? formatTimestamp(step.timestamp) : step.state === 'pending' ? 'Pending' : 'Not recorded'}
                       </div>
                     </div>

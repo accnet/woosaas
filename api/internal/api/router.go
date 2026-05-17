@@ -6,6 +6,7 @@ import (
 	"github.com/accnet/woosaas/api/internal/api/handlers"
 	"github.com/accnet/woosaas/api/internal/api/middleware"
 	"github.com/accnet/woosaas/api/internal/auth"
+	"github.com/accnet/woosaas/api/internal/billing"
 	"github.com/accnet/woosaas/api/internal/config"
 	"github.com/accnet/woosaas/api/internal/customers"
 	"github.com/accnet/woosaas/api/internal/export"
@@ -24,8 +25,10 @@ import (
 
 type Router struct {
 	engine           *gin.Engine
+	pg               *pgxpool.Pool
 	repo             *sites.Repository
 	ch               driver.Conn
+	jwtManager       *auth.JWTManager
 	authSvc          *auth.Service
 	mw               *middleware.Middleware
 	redisClient      *redis.Client
@@ -41,6 +44,9 @@ type Router struct {
 	shopbaseHandler  *handlers.ShopBaseHandler
 	shopbaseWebhook  *handlers.ShopBaseWebhookHandler
 	shipmentTracking *handlers.ShipmentTrackingHandler
+	billingSvc       *billing.BillingService
+	encryptionKey    []byte
+	apiBaseURL       string
 }
 
 func NewRouter(
@@ -65,16 +71,19 @@ func NewRouter(
 	orderQueue := orders.NewQueue(redisClient)
 	orderRepo := orders.NewRepository(pg)
 	shipmentRepo := shipment_tracking.NewRepository(pg)
+	billingSvc := billing.NewBillingServiceWithDB(pg)
 
 	encKey, _ := handlers.LoadEncryptionKey(cfg.IntegrationEncryptionKey)
 
 	return &Router{
-		engine:  engine,
-		repo:    repo,
-		ch:      ch,
-		authSvc: auth.NewService(userRepo, jwtManager),
+		engine:     engine,
+		pg:         pg,
+		repo:       repo,
+		ch:         ch,
+		jwtManager: jwtManager,
+		authSvc:    auth.NewService(userRepo, jwtManager),
 		// M3: pass allowed origins for proper CORS validation
-		mw:              middleware.NewMiddleware(jwtManager, redisClient, allowedOrigins),
+		mw:              middleware.NewMiddleware(jwtManager, userRepo, redisClient, allowedOrigins),
 		redisClient:     redisClient,
 		collector:       ingest.NewCollector(redisClient),
 		orderSvc:        orders.NewService(orderQueue, orderRepo),
@@ -91,7 +100,11 @@ func NewRouter(
 			shipment_tracking.NewService(shipmentRepo, repo, encKey),
 			repo,
 			redisClient,
+			billingSvc,
 		),
+		billingSvc:    billingSvc,
+		encryptionKey: encKey,
+		apiBaseURL:    cfg.APIBaseURL,
 	}
 }
 
@@ -103,7 +116,9 @@ func (r *Router) Setup() *gin.Engine {
 	r.registerCollectRoutes(v1)
 	r.registerWooSyncRoutes(v1)
 	r.registerShipmentTrackingPluginRoutes(v1)
+	r.registerTrackingProviderWebhookRoutes(v1)
 	r.registerShopBaseWebhookRoutes(v1)
+	r.registerPlatformAdminRoutes()
 
 	authHandler := handlers.NewAuthHandler(r.authSvc)
 	r.registerAuthRoutes(v1, authHandler)
@@ -116,6 +131,29 @@ func (r *Router) Setup() *gin.Engine {
 	return r.engine
 }
 
+func (r *Router) registerPlatformAdminRoutes() {
+	adminHandler := handlers.NewPlatformAdminHandler(r.pg, r.jwtManager, r.encryptionKey, r.apiBaseURL)
+	admin := r.engine.Group("/api/admin/v1")
+	admin.POST("/auth/login", adminHandler.Login)
+	protected := admin.Group("")
+	protected.Use(adminHandler.AuthRequired())
+	{
+		protected.GET("/me", adminHandler.Me)
+		protected.GET("/users", adminHandler.ListUsers)
+		protected.PUT("/users/:user_id/status", adminHandler.UpdateUserStatus)
+		protected.PUT("/users/:user_id/plan", adminHandler.UpdateUserPlan)
+		protected.GET("/plans", adminHandler.ListPlans)
+		protected.PUT("/plans/:plan_id", adminHandler.UpdatePlan)
+		protected.GET("/audit-logs", adminHandler.ListAuditLogs)
+		protected.GET("/tracking-providers", adminHandler.ListTrackingProviders)
+		protected.PUT("/tracking-providers/:provider_id", adminHandler.UpdateTrackingProvider)
+		protected.GET("/system-settings/smtp", adminHandler.GetSMTPSettings)
+		protected.PUT("/system-settings/smtp", adminHandler.UpdateSMTPSettings)
+		protected.POST("/impersonation", adminHandler.StartImpersonation)
+		protected.DELETE("/impersonation/:session_id", adminHandler.EndImpersonation)
+	}
+}
+
 func (r *Router) registerShipmentTrackingPluginRoutes(v1 *gin.RouterGroup) {
 	tracking := v1.Group("/shipment-tracking")
 	tracking.Use(r.mw.APIKeyAuth(r.repo))
@@ -123,6 +161,10 @@ func (r *Router) registerShipmentTrackingPluginRoutes(v1 *gin.RouterGroup) {
 	{
 		tracking.POST("/wc-push-config", r.shipmentTracking.SaveWCPushConfig)
 	}
+}
+
+func (r *Router) registerTrackingProviderWebhookRoutes(v1 *gin.RouterGroup) {
+	v1.POST("/shipment-tracking/webhooks/trackingmore", r.shipmentTracking.TrackingMoreWebhook)
 }
 
 func (r *Router) registerHealthRoute() {
@@ -136,7 +178,7 @@ func (r *Router) registerCollectRoutes(v1 *gin.RouterGroup) {
 	collect.Use(r.mw.APIKeyAuth(r.repo))
 	collect.Use(r.mw.RateLimit())
 	{
-		collectHandler := handlers.NewCollectHandler(r.collector, r.repo)
+		collectHandler := handlers.NewCollectHandler(r.collector, r.repo, r.redisClient, r.billingSvc)
 		collect.POST("", collectHandler.CollectEvent)
 		collect.POST("/batch", collectHandler.CollectBatch)
 		collect.GET("/verify", collectHandler.Verify)
@@ -174,11 +216,14 @@ func (r *Router) registerDashboardRoutes(v1 *gin.RouterGroup, authHandler *handl
 		sitesHandler := handlers.NewSitesHandler(r.repo, r.collector, r.templateRepo, siteDataSvc)
 		ordersHandler := handlers.NewOrdersHandler(r.orderSvc, r.repo, r.redisClient, r.templateRepo)
 		settingsHandler := handlers.NewSettingsHandler(r.settingsRepo)
+		billingHandler := handlers.NewBillingHandler(r.pg, r.redisClient, r.billingSvc)
 		dashboard.GET("/settings", settingsHandler.GetUserSettings)
 		dashboard.PUT("/settings", settingsHandler.UpdateUserSettings)
 		dashboard.GET("/billing/profile", settingsHandler.GetBillingProfile)
 		dashboard.PUT("/billing/profile", settingsHandler.UpdateBillingProfile)
 		dashboard.GET("/billing/invoices", settingsHandler.ListInvoices)
+		dashboard.GET("/billing/usage", billingHandler.Usage)
+		dashboard.GET("/billing/plans", billingHandler.Plans)
 		dashboard.POST("/sites", sitesHandler.CreateSite)
 		dashboard.GET("/sites", sitesHandler.GetSites)
 		dashboard.GET("/sites/:site_id", sitesHandler.GetSite)
@@ -222,28 +267,29 @@ func (r *Router) registerDashboardRoutes(v1 *gin.RouterGroup, authHandler *handl
 
 func (r *Router) registerStatsRoutes(v1 *gin.RouterGroup) {
 	statsHandler := handlers.NewStatsHandler(r.stats, r.bots, r.onlineUsers, r.repo, r.redisClient, r.exports, r.customers)
+	features := middleware.NewFeatureMiddleware(r.billingSvc)
 	stats := v1.Group("/stats")
 	stats.Use(r.mw.JWTAuth())
 	{
-		stats.GET("/overview", statsHandler.GetOverview)
-		stats.GET("/trend", statsHandler.GetTrend)
-		stats.GET("/sources", statsHandler.GetSources)
-		stats.GET("/campaigns", statsHandler.GetCampaigns)
-		stats.GET("/pages", statsHandler.GetPages)
-		stats.GET("/products", statsHandler.GetProducts)
-		stats.GET("/funnel", statsHandler.GetFunnel)
-		stats.GET("/realtime", statsHandler.GetRealtime)
-		stats.GET("/realtime/events", statsHandler.GetRealtimeEvents)
-		stats.GET("/bots", statsHandler.GetBots)
-		stats.GET("/health", statsHandler.GetHealth)
-		stats.GET("/export", statsHandler.Export)
-		stats.GET("/customers", statsHandler.GetCustomers)
-		stats.GET("/customers/:client_id", statsHandler.GetCustomer)
-		stats.GET("/devices", statsHandler.GetDeviceStats)
-		stats.GET("/geo", statsHandler.GetGeoStats)
-		stats.GET("/abandonment", statsHandler.GetAbandonmentStats)
-		stats.GET("/heatmap", statsHandler.GetHeatmapStats)
-		stats.GET("/channels", statsHandler.GetChannelStats)
+		stats.GET("/overview", features.RequireFeature("basic_analytics"), statsHandler.GetOverview)
+		stats.GET("/trend", features.RequireFeature("basic_analytics"), statsHandler.GetTrend)
+		stats.GET("/sources", features.RequireFeature("basic_analytics"), statsHandler.GetSources)
+		stats.GET("/campaigns", features.RequireFeature("all_analytics"), statsHandler.GetCampaigns)
+		stats.GET("/pages", features.RequireFeature("all_analytics"), statsHandler.GetPages)
+		stats.GET("/products", features.RequireFeature("all_analytics"), statsHandler.GetProducts)
+		stats.GET("/funnel", features.RequireFeature("all_analytics"), statsHandler.GetFunnel)
+		stats.GET("/realtime", features.RequireFeature("realtime"), statsHandler.GetRealtime)
+		stats.GET("/realtime/events", features.RequireFeature("realtime"), statsHandler.GetRealtimeEvents)
+		stats.GET("/bots", features.RequireFeature("all_analytics"), statsHandler.GetBots)
+		stats.GET("/health", features.RequireFeature("all_analytics"), statsHandler.GetHealth)
+		stats.GET("/export", features.RequireFeature("api_access"), statsHandler.Export)
+		stats.GET("/customers", features.RequireFeature("all_analytics"), statsHandler.GetCustomers)
+		stats.GET("/customers/:client_id", features.RequireFeature("all_analytics"), statsHandler.GetCustomer)
+		stats.GET("/devices", features.RequireFeature("all_analytics"), statsHandler.GetDeviceStats)
+		stats.GET("/geo", features.RequireFeature("all_analytics"), statsHandler.GetGeoStats)
+		stats.GET("/abandonment", features.RequireFeature("all_analytics"), statsHandler.GetAbandonmentStats)
+		stats.GET("/heatmap", features.RequireFeature("all_analytics"), statsHandler.GetHeatmapStats)
+		stats.GET("/channels", features.RequireFeature("all_analytics"), statsHandler.GetChannelStats)
 	}
 }
 
@@ -268,6 +314,7 @@ func (r *Router) registerShipmentTrackingRoutes(v1 *gin.RouterGroup) {
 	{
 		tracking.GET("/sites/:site_id/orders/:woo_order_id/trackings", r.shipmentTracking.List)
 		tracking.POST("/sites/:site_id/orders/:woo_order_id/trackings", r.shipmentTracking.Add)
+		tracking.POST("/sites/:site_id/trackings/batch", r.shipmentTracking.AddBatch)
 		tracking.POST("/sites/:site_id/orders/:woo_order_id/trackings/:tracking_id/refresh", r.shipmentTracking.Refresh)
 		tracking.DELETE("/sites/:site_id/orders/:woo_order_id/trackings/:tracking_id", r.shipmentTracking.Delete)
 	}

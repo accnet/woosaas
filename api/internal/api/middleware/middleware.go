@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 	"github.com/accnet/woosaas/api/internal/auth"
 	"github.com/accnet/woosaas/api/internal/observability"
 	"github.com/accnet/woosaas/api/pkg/models"
+	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
 
 // apiKeyValidator is the minimal interface needed by APIKeyAuth.
@@ -24,19 +24,25 @@ type apiKeyValidator interface {
 	TouchAPIKeyLastUsedByHash(ctx context.Context, keyHash string) error
 }
 
+type tenantAuthValidator interface {
+	GetMemberByIDWithAccount(ctx context.Context, memberID string) (*models.UserMember, *models.User, error)
+}
+
 type Middleware struct {
 	jwtManager     *auth.JWTManager
+	tenantAuth     tenantAuthValidator
 	redis          *redis.Client
 	allowedOrigins map[string]struct{}
 }
 
-func NewMiddleware(jwtManager *auth.JWTManager, redis *redis.Client, allowedOrigins []string) *Middleware {
+func NewMiddleware(jwtManager *auth.JWTManager, tenantAuth tenantAuthValidator, redis *redis.Client, allowedOrigins []string) *Middleware {
 	origins := make(map[string]struct{}, len(allowedOrigins))
 	for _, o := range allowedOrigins {
 		origins[strings.TrimRight(o, "/")] = struct{}{}
 	}
 	return &Middleware{
 		jwtManager:     jwtManager,
+		tenantAuth:     tenantAuth,
 		redis:          redis,
 		allowedOrigins: origins,
 	}
@@ -102,8 +108,33 @@ func (m *Middleware) JWTAuth() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("user_id", claims.UserID)
-		c.Set("email", claims.Email)
+		if claims.TokenType != "" && claims.TokenType != "tenant" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			c.Abort()
+			return
+		}
+
+		memberID := claims.MemberID
+		if memberID == "" {
+			// Legacy tokens used the account id as the JWT subject. Force clients to
+			// re-authenticate once tenant members are enabled.
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token must be refreshed"})
+			c.Abort()
+			return
+		}
+
+		member, account, err := m.tenantAuth.GetMemberByIDWithAccount(c.Request.Context(), memberID)
+		if err != nil || account.ID != claims.UserID || account.Status != "active" || member.Status != "active" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			c.Abort()
+			return
+		}
+
+		c.Set("user_id", account.ID)
+		c.Set("account_id", account.ID)
+		c.Set("member_id", member.ID)
+		c.Set("member_role", member.Role)
+		c.Set("email", member.Email)
 		c.Next()
 	}
 }

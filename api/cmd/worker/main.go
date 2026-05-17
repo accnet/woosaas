@@ -92,6 +92,28 @@ func main() {
 		}
 	}()
 
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				_, err := pg.Exec(ctx, `
+					UPDATE subscriptions
+					SET status = 'past_due', updated_at = NOW()
+					WHERE status = 'active'
+					  AND current_period_end IS NOT NULL
+					  AND current_period_end < NOW() - INTERVAL '7 days'
+				`)
+				if err != nil {
+					logger.LogError(ctx, "subscription_expiry", err, nil)
+				}
+			}
+		}
+	}()
+
 	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

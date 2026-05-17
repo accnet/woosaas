@@ -5,6 +5,7 @@ import type {
   APIKeyResponse,
   AbandonmentStats,
   AuthResponse,
+  BillingUsage,
   BillingProfile,
   BotReportResponse,
   CampaignStats,
@@ -70,7 +71,7 @@ export const api = axios.create({
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
     const token = getStoredToken()
-    if (token) {
+    if (token && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${token}`
     }
   }
@@ -83,8 +84,21 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
-        clearStoredAuth()
-        window.location.href = '/login'
+        const requestUrl = error.config?.url || ''
+        const isAdminRequest = requestUrl.startsWith('/api/admin/')
+        const isLoginRequest = requestUrl.includes('/auth/login')
+
+        if (!isLoginRequest && isAdminRequest) {
+          localStorage.removeItem('woosaas-admin-token')
+          if (window.location.pathname !== '/admin/login') {
+            window.location.href = '/admin/login'
+          }
+        } else if (!isLoginRequest) {
+          clearStoredAuth()
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login'
+          }
+        }
       }
     }
     return Promise.reject(error)
@@ -93,7 +107,7 @@ api.interceptors.response.use(
 
 // Auth API
 export const authApi = {
-  register: (email: string, password: string, name: string) =>
+  register: (name: string, email: string, password: string) =>
     api.post<AuthResponse>('/api/v1/auth/register', { email, password, name }),
   login: (email: string, password: string) =>
     api.post<AuthResponse>('/api/v1/auth/login', { email, password }),
@@ -114,6 +128,8 @@ export const billingApi = {
   getProfile: () => api.get<BillingProfile>('/api/v1/billing/profile'),
   updateProfile: (data: BillingProfile) => api.put<BillingProfile>('/api/v1/billing/profile', data),
   listInvoices: () => api.get<Invoice[]>('/api/v1/billing/invoices'),
+  usage: () => api.get<BillingUsage>('/api/v1/billing/usage'),
+  plans: () => api.get('/api/v1/billing/plans'),
 }
 
 // Sites API
@@ -282,6 +298,11 @@ export const ordersApi = {
     api.get<ShipmentTracking[]>(`/api/v1/sites/${siteId}/orders/${encodeURIComponent(wooOrderId)}/trackings`),
   addTracking: (siteId: string, wooOrderId: string, data: AddShipmentTrackingInput) =>
     api.post<ShipmentTracking>(`/api/v1/sites/${siteId}/orders/${encodeURIComponent(wooOrderId)}/trackings`, data),
+  addTrackingsBatch: (siteId: string, trackings: Array<AddShipmentTrackingInput & { woo_order_id: string }>) =>
+    api.post<{ created: ShipmentTracking[]; errors: Array<{ index: number; woo_order_id?: string; tracking_number?: string; error: string }> }>(
+      `/api/v1/sites/${siteId}/trackings/batch`,
+      { trackings }
+    ),
   refreshTracking: (siteId: string, wooOrderId: string, trackingId: string) =>
     api.post<ShipmentTracking>(`/api/v1/sites/${siteId}/orders/${encodeURIComponent(wooOrderId)}/trackings/${trackingId}/refresh`),
   deleteTracking: (siteId: string, wooOrderId: string, trackingId: string) =>

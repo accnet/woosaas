@@ -2,6 +2,18 @@ export interface User {
   id: string
   email: string
   name: string
+  status?: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface UserMember {
+  id: string
+  user_id: string
+  email: string
+  full_name: string
+  role: 'owner' | 'admin' | 'member' | 'billing' | 'viewer'
+  status: string
   created_at?: string
   updated_at?: string
 }
@@ -155,6 +167,28 @@ export interface EventResponse {
 export interface AuthResponse {
   token: string
   user: User
+  account?: User
+  member?: UserMember
+}
+
+export interface BillingUsage {
+  plan: {
+    id: string
+    name: string
+    price_cents: number
+    event_limit: number
+    site_limit: number
+    tracking_order_limit: number
+    features: string[]
+  }
+  subscription: {
+    status: string
+    current_period_end: string
+  }
+  period: string
+  sites: { used: number; limit: number }
+  events: { used: number; limit: number }
+  tracking_orders: { used: number; limit: number }
 }
 
 export interface CreateSiteInput {

@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/accnet/woosaas/api/internal/teams"
 	"github.com/accnet/woosaas/api/pkg/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -28,6 +27,18 @@ func NewRepository(db *pgxpool.Pool) *Repository {
 // Site operations
 
 func (r *Repository) CreateSite(ctx context.Context, userID, name, domain, timezone, currency string) (*models.Site, error) {
+	var activeSites, siteLimit int
+	if err := r.db.QueryRow(ctx, `
+		SELECT
+			(SELECT COUNT(*) FROM sites WHERE user_id = $1 AND deleted_at IS NULL),
+			COALESCE(p.site_limit, 1)
+		FROM subscriptions sub
+		INNER JOIN plans p ON p.id = sub.plan_id
+		WHERE sub.user_id = $1
+	`, userID).Scan(&activeSites, &siteLimit); err == nil && activeSites >= siteLimit {
+		return nil, fmt.Errorf("site limit reached")
+	}
+
 	site := &models.Site{
 		ID:             uuid.New().String(),
 		UserID:         userID,
@@ -55,12 +66,6 @@ func (r *Repository) CreateSite(ctx context.Context, userID, name, domain, timez
 		VALUES ($1, 'pending')
 	`, site.ID)
 
-	_, _ = r.db.Exec(ctx, `
-		INSERT INTO site_members (site_id, user_id, role)
-		VALUES ($1, $2, 'owner')
-		ON CONFLICT (site_id, user_id) DO NOTHING
-	`, site.ID, site.UserID)
-
 	return site, nil
 }
 
@@ -80,11 +85,12 @@ func (r *Repository) GetSiteByID(ctx context.Context, id string) (*models.Site, 
 			tv.last_event_at,
 			COALESCE(s.wc_push_url, ''),
 			COALESCE(s.wc_push_token_encrypted, ''),
+			s.deleted_at,
 			s.created_at,
 			s.updated_at
 		FROM sites s
 		LEFT JOIN tracking_verifications tv ON tv.site_id = s.id
-		WHERE s.id = $1
+		WHERE s.id = $1 AND s.deleted_at IS NULL
 	`, id).Scan(
 		&site.ID,
 		&site.UserID,
@@ -98,6 +104,7 @@ func (r *Repository) GetSiteByID(ctx context.Context, id string) (*models.Site, 
 		&site.TrackingLastEventAt,
 		&site.WCPushURL,
 		&site.WCPushTokenEncrypted,
+		&site.DeletedAt,
 		&site.CreatedAt,
 		&site.UpdatedAt,
 	)
@@ -124,12 +131,12 @@ func (r *Repository) GetSitesByUserID(ctx context.Context, userID string) ([]mod
 			tv.last_event_at,
 			COALESCE(s.wc_push_url, ''),
 			COALESCE(s.wc_push_token_encrypted, ''),
+			s.deleted_at,
 			s.created_at,
 			s.updated_at
 		FROM sites s
 		LEFT JOIN tracking_verifications tv ON tv.site_id = s.id
-		LEFT JOIN site_members sm ON sm.site_id = s.id AND sm.user_id = $1
-		WHERE s.user_id = $1 OR sm.user_id = $1
+		WHERE s.user_id = $1 AND s.deleted_at IS NULL
 		ORDER BY s.created_at DESC
 	`, userID)
 
@@ -154,6 +161,7 @@ func (r *Repository) GetSitesByUserID(ctx context.Context, userID string) ([]mod
 			&site.TrackingLastEventAt,
 			&site.WCPushURL,
 			&site.WCPushTokenEncrypted,
+			&site.DeletedAt,
 			&site.CreatedAt,
 			&site.UpdatedAt,
 		); err != nil {
@@ -168,14 +176,14 @@ func (r *Repository) GetSitesByUserID(ctx context.Context, userID string) ([]mod
 func (r *Repository) UpdateSite(ctx context.Context, id string, name, timezone, currency string) error {
 	_, err := r.db.Exec(ctx, `
 		UPDATE sites SET name = $1, timezone = $2, currency = $3, updated_at = NOW()
-		WHERE id = $4
+		WHERE id = $4 AND deleted_at IS NULL
 	`, name, timezone, currency, id)
 
 	return err
 }
 
 func (r *Repository) DeleteSite(ctx context.Context, id string) error {
-	_, err := r.db.Exec(ctx, `DELETE FROM sites WHERE id = $1`, id)
+	_, err := r.db.Exec(ctx, `UPDATE sites SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id)
 	return err
 }
 
@@ -392,7 +400,12 @@ func (r *Repository) ValidateAPIKey(ctx context.Context, apiKey string) (*models
 
 	var siteID string
 	err := r.db.QueryRow(ctx, `
-		SELECT site_id FROM api_keys WHERE key_hash = $1 AND status = 'active'
+		SELECT ak.site_id
+		FROM api_keys ak
+		INNER JOIN sites s ON s.id = ak.site_id
+		WHERE ak.key_hash = $1
+		  AND ak.status = 'active'
+		  AND s.deleted_at IS NULL
 	`, keyHash).Scan(&siteID)
 
 	if err != nil {
@@ -427,8 +440,7 @@ func (r *Repository) UserHasAccessToSite(ctx context.Context, userID, siteID str
 	err := r.db.QueryRow(ctx, `
 		SELECT COUNT(*)
 		FROM sites s
-		LEFT JOIN site_members sm ON sm.site_id = s.id AND sm.user_id = $2
-		WHERE s.id = $1 AND (s.user_id = $2 OR sm.user_id = $2)
+		WHERE s.id = $1 AND s.user_id = $2 AND s.deleted_at IS NULL
 	`, siteID, userID).Scan(&count)
 
 	if err != nil {
@@ -441,13 +453,21 @@ func (r *Repository) UserHasAccessToSite(ctx context.Context, userID, siteID str
 func (r *Repository) GetUserSiteRole(ctx context.Context, userID, siteID string) (string, error) {
 	var role string
 	err := r.db.QueryRow(ctx, `
-		SELECT CASE
-			WHEN s.user_id = $2 THEN 'owner'
-			ELSE COALESCE(sm.role, '')
-		END AS role
+		SELECT COALESCE(um.role, '')
 		FROM sites s
-		LEFT JOIN site_members sm ON sm.site_id = s.id AND sm.user_id = $2
-		WHERE s.id = $1 AND (s.user_id = $2 OR sm.user_id = $2)
+		INNER JOIN users_members um ON um.user_id = s.user_id
+		WHERE s.id = $1
+		  AND s.user_id = $2
+		  AND s.deleted_at IS NULL
+		  AND um.status = 'active'
+		ORDER BY CASE um.role
+			WHEN 'owner' THEN 0
+			WHEN 'admin' THEN 1
+			WHEN 'member' THEN 2
+			WHEN 'billing' THEN 3
+			ELSE 4
+		END
+		LIMIT 1
 	`, siteID, userID).Scan(&role)
 	if err != nil {
 		return "", err
@@ -460,38 +480,28 @@ func (r *Repository) UserHasSitePermission(ctx context.Context, userID, siteID, 
 	if err != nil {
 		return false, err
 	}
-	return teams.HasPermission(role, permission), nil
+	return accountRoleHasPermission(role, permission), nil
 }
 
 func (r *Repository) ensureOwnerMembership(ctx context.Context, siteID string) error {
-	_, err := r.db.Exec(ctx, `
-		INSERT INTO site_members (site_id, user_id, role)
-		SELECT id, user_id, 'owner'
-		FROM sites
-		WHERE id = $1
-		ON CONFLICT (site_id, user_id) DO UPDATE SET role = 'owner'
-	`, siteID)
-	return err
+	return nil
 }
 
 func (r *Repository) GetSiteMembers(ctx context.Context, siteID string) ([]models.SiteMember, error) {
-	if err := r.ensureOwnerMembership(ctx, siteID); err != nil {
-		return nil, err
-	}
-
 	rows, err := r.db.Query(ctx, `
-		SELECT sm.id, sm.site_id, sm.user_id, u.email, u.name, sm.role, sm.created_at
-		FROM site_members sm
-		INNER JOIN users u ON u.id = sm.user_id
-		WHERE sm.site_id = $1
+		SELECT um.id, s.id, um.user_id, um.email, COALESCE(um.full_name, ''), um.role, um.created_at
+		FROM sites s
+		INNER JOIN users_members um ON um.user_id = s.user_id
+		WHERE s.id = $1 AND s.deleted_at IS NULL
 		ORDER BY
-			CASE sm.role
+			CASE um.role
 				WHEN 'owner' THEN 0
 				WHEN 'admin' THEN 1
-				WHEN 'editor' THEN 2
+				WHEN 'member' THEN 2
+				WHEN 'billing' THEN 3
 				ELSE 3
 			END,
-			u.email ASC
+			um.email ASC
 	`, siteID)
 	if err != nil {
 		return nil, err
@@ -519,65 +529,60 @@ func (r *Repository) GetSiteMembers(ctx context.Context, siteID string) ([]model
 }
 
 func (r *Repository) AddSiteMemberByEmail(ctx context.Context, siteID, email, role string) (*models.SiteMember, error) {
-	if role == "owner" || !teams.IsValidRole(role) {
+	if role == "owner" || !isValidAccountRole(role) {
 		return nil, fmt.Errorf("invalid role")
 	}
-	if err := r.ensureOwnerMembership(ctx, siteID); err != nil {
-		return nil, err
-	}
 
-	var userID, userEmail, userName string
+	var accountID string
 	err := r.db.QueryRow(ctx, `
-		SELECT id, email, name FROM users WHERE email = $1
-	`, email).Scan(&userID, &userEmail, &userName)
+		SELECT user_id FROM sites WHERE id = $1 AND deleted_at IS NULL
+	`, siteID).Scan(&accountID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("user account not found")
-		}
-		return nil, err
-	}
-
-	if hasAccess, err := r.UserHasAccessToSite(ctx, userID, siteID); err == nil && hasAccess {
-		return nil, fmt.Errorf("user already has access to this site")
-	} else if err != nil {
-		return nil, err
-	}
-
-	memberID := uuid.New().String()
-	createdAt := time.Now()
-	if _, err := r.db.Exec(ctx, `
-		INSERT INTO site_members (id, site_id, user_id, role, created_at)
-		VALUES ($1, $2, $3, $4, $5)
-	`, memberID, siteID, userID, role, createdAt); err != nil {
-		return nil, err
-	}
-
-	return &models.SiteMember{
-		ID:        memberID,
-		SiteID:    siteID,
-		UserID:    userID,
-		UserEmail: userEmail,
-		UserName:  userName,
-		Role:      role,
-		CreatedAt: createdAt,
-	}, nil
-}
-
-func (r *Repository) UpdateSiteMemberRole(ctx context.Context, siteID, memberID, role string) (*models.SiteMember, error) {
-	if role == "owner" || !teams.IsValidRole(role) {
-		return nil, fmt.Errorf("invalid role")
-	}
-	if err := r.ensureOwnerMembership(ctx, siteID); err != nil {
 		return nil, err
 	}
 
 	var member models.SiteMember
+	err = r.db.QueryRow(ctx, `
+		UPDATE users_members
+		SET role = $3, updated_at = NOW()
+		WHERE user_id = $1 AND LOWER(email) = LOWER($2)
+		RETURNING id, $4::uuid, user_id, email, COALESCE(full_name, ''), role, created_at
+	`, accountID, email, role, siteID).Scan(
+		&member.ID,
+		&member.SiteID,
+		&member.UserID,
+		&member.UserEmail,
+		&member.UserName,
+		&member.Role,
+		&member.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("member account not found")
+		}
+		return nil, err
+	}
+
+	return &member, nil
+}
+
+func (r *Repository) UpdateSiteMemberRole(ctx context.Context, siteID, memberID, role string) (*models.SiteMember, error) {
+	if role == "owner" || !isValidAccountRole(role) {
+		return nil, fmt.Errorf("invalid role")
+	}
+
+	var member models.SiteMember
 	err := r.db.QueryRow(ctx, `
-		SELECT sm.id, sm.site_id, sm.user_id, u.email, u.name, sm.role, sm.created_at
-		FROM site_members sm
-		INNER JOIN users u ON u.id = sm.user_id
-		WHERE sm.site_id = $1 AND sm.id = $2
-	`, siteID, memberID).Scan(
+		UPDATE users_members um
+		SET role = $3, updated_at = NOW()
+		FROM sites s
+		WHERE s.id = $1
+		  AND s.deleted_at IS NULL
+		  AND s.user_id = um.user_id
+		  AND um.id = $2
+		  AND um.role <> 'owner'
+		RETURNING um.id, s.id, um.user_id, um.email, COALESCE(um.full_name, ''), um.role, um.created_at
+	`, siteID, memberID, role).Scan(
 		&member.ID,
 		&member.SiteID,
 		&member.UserID,
@@ -589,42 +594,19 @@ func (r *Repository) UpdateSiteMemberRole(ctx context.Context, siteID, memberID,
 	if err != nil {
 		return nil, err
 	}
-	if member.Role == "owner" {
-		return nil, fmt.Errorf("owner role cannot be changed")
-	}
-
-	if _, err := r.db.Exec(ctx, `
-		UPDATE site_members
-		SET role = $1
-		WHERE site_id = $2 AND id = $3
-	`, role, siteID, memberID); err != nil {
-		return nil, err
-	}
-	member.Role = role
 	return &member, nil
 }
 
 func (r *Repository) RemoveSiteMember(ctx context.Context, siteID, memberID string) error {
-	if err := r.ensureOwnerMembership(ctx, siteID); err != nil {
-		return err
-	}
-
-	var role string
-	err := r.db.QueryRow(ctx, `
-		SELECT role
-		FROM site_members
-		WHERE site_id = $1 AND id = $2
-	`, siteID, memberID).Scan(&role)
-	if err != nil {
-		return err
-	}
-	if role == "owner" {
-		return fmt.Errorf("owner membership cannot be removed")
-	}
-
 	commandTag, err := r.db.Exec(ctx, `
-		DELETE FROM site_members
-		WHERE site_id = $1 AND id = $2
+		UPDATE users_members um
+		SET status = 'disabled', updated_at = NOW()
+		FROM sites s
+		WHERE s.id = $1
+		  AND s.deleted_at IS NULL
+		  AND s.user_id = um.user_id
+		  AND um.id = $2
+		  AND um.role <> 'owner'
 	`, siteID, memberID)
 	if err != nil {
 		return err
@@ -634,6 +616,37 @@ func (r *Repository) RemoveSiteMember(ctx context.Context, siteID, memberID stri
 	}
 
 	return nil
+}
+
+func isValidAccountRole(role string) bool {
+	switch role {
+	case "admin", "member", "billing", "viewer":
+		return true
+	default:
+		return false
+	}
+}
+
+func accountRoleHasPermission(role, permission string) bool {
+	switch role {
+	case "owner":
+		return true
+	case "admin":
+		switch permission {
+		case "site:read", "site:write", "site:delete", "api_keys:read", "api_keys:write", "members:read", "members:write", "users:read", "users:write", "users:delete":
+			return true
+		}
+	case "member":
+		switch permission {
+		case "site:read", "site:write", "api_keys:read":
+			return true
+		}
+	case "billing":
+		return permission == "billing:read" || permission == "billing:write" || permission == "site:read"
+	case "viewer":
+		return permission == "site:read" || permission == "api_keys:read" || permission == "members:read" || permission == "users:read"
+	}
+	return false
 }
 
 // Domain validation helper
