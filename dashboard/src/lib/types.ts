@@ -542,6 +542,36 @@ export interface OrderDetail {
   delivery_method: string
 }
 
+export interface ShipmentTracking {
+  id: string
+  site_id: string
+  source_platform: string
+  woo_order_id: string
+  tracking_number: string
+  carrier_slug: string | null
+  carrier_name: string | null
+  provider: string
+  provider_tracking_id: string | null
+  status: string
+  status_raw: string | null
+  tracking_url: string | null
+  last_checkpoint_at: string | null
+  last_synced_at: string | null
+  sync_error: string | null
+  wc_push_status: string | null
+  wc_push_error: string | null
+  wc_pushed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AddShipmentTrackingInput {
+  tracking_number: string
+  carrier_slug?: string
+  carrier_name?: string
+  tracking_url?: string
+}
+
 export interface WooContactListResponse {
   contacts: OrderContact[]
   total_count: number

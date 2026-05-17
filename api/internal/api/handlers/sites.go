@@ -17,10 +17,11 @@ type SitesHandler struct {
 	repo         sites.SiteRepository
 	collector    *ingest.Collector
 	templateRepo *export.TemplateRepository
+	siteData     *sites.SiteDataService
 }
 
-func NewSitesHandler(repo sites.SiteRepository, collector *ingest.Collector, templateRepo *export.TemplateRepository) *SitesHandler {
-	return &SitesHandler{repo: repo, collector: collector, templateRepo: templateRepo}
+func NewSitesHandler(repo sites.SiteRepository, collector *ingest.Collector, templateRepo *export.TemplateRepository, siteData *sites.SiteDataService) *SitesHandler {
+	return &SitesHandler{repo: repo, collector: collector, templateRepo: templateRepo, siteData: siteData}
 }
 
 // CreateSite creates a new site
@@ -131,12 +132,30 @@ func (h *SitesHandler) DeleteSite(c *gin.Context) {
 		return
 	}
 
-	if err := h.repo.DeleteSite(c.Request.Context(), siteID); err != nil {
+	if err := h.siteData.DeleteSiteWithData(c.Request.Context(), siteID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete site"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Site deleted"})
+}
+
+// ResetSiteData clears analytics and commerce data for a site but keeps the site and integration config.
+func (h *SitesHandler) ResetSiteData(c *gin.Context) {
+	userID := c.GetString("user_id")
+	siteID := c.Param("site_id")
+
+	if !h.requireSitePermission(c, userID, siteID, "site:delete") {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Site not found"})
+		return
+	}
+
+	if err := h.siteData.ResetSiteData(c.Request.Context(), siteID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reset site data"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Site data reset"})
 }
 
 // CreateAPIKey creates a new API key for a site

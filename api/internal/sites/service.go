@@ -74,9 +74,12 @@ func (r *Repository) GetSiteByID(ctx context.Context, id string) (*models.Site, 
 			s.domain,
 			s.timezone,
 			s.currency,
+			COALESCE(s.platform, ''),
 			COALESCE(tv.status, 'pending') AS tracking_status,
 			tv.last_checked_at,
 			tv.last_event_at,
+			COALESCE(s.wc_push_url, ''),
+			COALESCE(s.wc_push_token_encrypted, ''),
 			s.created_at,
 			s.updated_at
 		FROM sites s
@@ -89,9 +92,12 @@ func (r *Repository) GetSiteByID(ctx context.Context, id string) (*models.Site, 
 		&site.Domain,
 		&site.Timezone,
 		&site.Currency,
+		&site.Platform,
 		&site.TrackingStatus,
 		&site.TrackingLastCheckedAt,
 		&site.TrackingLastEventAt,
+		&site.WCPushURL,
+		&site.WCPushTokenEncrypted,
 		&site.CreatedAt,
 		&site.UpdatedAt,
 	)
@@ -112,9 +118,12 @@ func (r *Repository) GetSitesByUserID(ctx context.Context, userID string) ([]mod
 			s.domain,
 			s.timezone,
 			s.currency,
+			COALESCE(s.platform, ''),
 			COALESCE(tv.status, 'pending') AS tracking_status,
 			tv.last_checked_at,
 			tv.last_event_at,
+			COALESCE(s.wc_push_url, ''),
+			COALESCE(s.wc_push_token_encrypted, ''),
 			s.created_at,
 			s.updated_at
 		FROM sites s
@@ -139,9 +148,12 @@ func (r *Repository) GetSitesByUserID(ctx context.Context, userID string) ([]mod
 			&site.Domain,
 			&site.Timezone,
 			&site.Currency,
+			&site.Platform,
 			&site.TrackingStatus,
 			&site.TrackingLastCheckedAt,
 			&site.TrackingLastEventAt,
+			&site.WCPushURL,
+			&site.WCPushTokenEncrypted,
 			&site.CreatedAt,
 			&site.UpdatedAt,
 		); err != nil {
@@ -165,6 +177,74 @@ func (r *Repository) UpdateSite(ctx context.Context, id string, name, timezone, 
 func (r *Repository) DeleteSite(ctx context.Context, id string) error {
 	_, err := r.db.Exec(ctx, `DELETE FROM sites WHERE id = $1`, id)
 	return err
+}
+
+func (r *Repository) ResetSiteData(ctx context.Context, id string) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `DELETE FROM shipment_trackings WHERE site_id = $1`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM commerce_order_items WHERE site_id = $1`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM commerce_orders WHERE site_id = $1`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM commerce_order_contacts WHERE site_id = $1`, id); err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE tracking_verifications
+		SET status = 'pending', last_checked_at = NULL, last_event_at = NULL, updated_at = NOW()
+		WHERE site_id = $1
+	`, id); err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE commerce_order_sync_state
+		SET status = 'idle',
+			last_backfill_modified_at = NULL,
+			last_backfill_order_id = NULL,
+			last_realtime_synced_at = NULL,
+			last_success_at = NULL,
+			last_error = NULL,
+			last_error_at = NULL,
+			backfill_completed_at = NULL,
+			updated_at = NOW()
+		WHERE site_id = $1
+	`, id); err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE shopbase_sync_state
+		SET status = 'idle',
+			last_order_updated_at = NULL,
+			last_customer_updated_at = NULL,
+			last_product_updated_at = NULL,
+			last_webhook_at = NULL,
+			last_success_at = NULL,
+			last_error = NULL,
+			last_error_at = NULL,
+			backfill_completed_at = NULL,
+			updated_at = NOW()
+		WHERE site_id = $1
+	`, id); err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(ctx, `UPDATE sites SET updated_at = NOW() WHERE id = $1`, id); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
 }
 
 // API Key operations

@@ -1242,7 +1242,7 @@ function TopNav({
 
   return (
     <header className="sticky top-0 z-20 border-b border-app-line bg-app/95 backdrop-blur">
-      <div className="flex h-12 items-center gap-0 px-3 md:px-5">
+      <div className="flex h-14 items-center gap-0 px-3 md:px-5">
         {/* Left: logo + mobile menu + site switcher + inline status */}
         <DemoLogo />
         <button type="button" onClick={onOpenMobileNav} className="icon-button ml-2 xl:hidden">

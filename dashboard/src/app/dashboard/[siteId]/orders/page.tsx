@@ -17,10 +17,15 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { useSiteId } from '@/hooks/use-site-id'
 import { getApiErrorMessage, ordersApi } from '@/lib/api'
 import { DATE_RANGE_OPTIONS, getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
-import { useDateRange } from '@/hooks/use-date-range'
 import type { OrderListItem, OrderListResponse, WooOrderSyncState } from '@/lib/types'
 
 const PAGE_SIZE = 30
+type OrdersDateRange = PresetDateRange | 'all'
+
+const ORDER_DATE_RANGE_OPTIONS: Array<{ value: OrdersDateRange; label: string }> = [
+  { value: 'all', label: 'All time' },
+  ...DATE_RANGE_OPTIONS,
+]
 
 const PAYMENT_FILTERS = [
   { label: 'All', value: '' },
@@ -48,10 +53,21 @@ function money(amount: number, currency: string) {
 
 function chipTone(value: string): 'neutral' | 'info' | 'good' | 'warn' | 'danger' {
   const normalized = value.toLowerCase()
-  if (normalized === 'paid' || normalized === 'fulfilled' || normalized === 'completed') return 'good'
+  if (normalized === 'paid' || normalized === 'fulfilled') return 'neutral'
+  if (normalized === 'completed') return 'good'
   if (normalized === 'pending' || normalized === 'processing' || normalized === 'unfulfilled') return 'warn'
   if (normalized === 'cancelled' || normalized === 'failed' || normalized === 'refunded') return 'danger'
   return 'neutral'
+}
+
+function formatStatusLabel(value: string) {
+  return value
+    .replaceAll('_', ' ')
+    .replaceAll('-', ' ')
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ') || 'Unknown'
 }
 
 function formatShortDate(value: string | null | undefined) {
@@ -59,7 +75,7 @@ function formatShortDate(value: string | null | undefined) {
   const d = new Date(value)
   return (
     <>
-      <span>{d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+      <span>{d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</span>
       <span className="ml-1 text-app-soft">{d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
     </>
   )
@@ -135,7 +151,7 @@ export default function OrdersPage() {
   const [query, setQuery] = useState('')
   const [paymentFilter, setPaymentFilter] = useState('')
   const [fulfillmentFilter, setFulfillmentFilter] = useState('')
-  const [dateRange, setDateRange] = useDateRange()
+  const [dateRange, setDateRange] = useState<OrdersDateRange>('all')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -161,13 +177,13 @@ export default function OrdersPage() {
       setError(null)
 
       try {
-        const { from, to } = getPresetDateRange(dateRange)
+        const range = dateRange === 'all' ? null : getPresetDateRange(dateRange)
         const response = await ordersApi.list(siteId, page, PAGE_SIZE, {
           q: query || undefined,
           payment_status: paymentFilter || undefined,
           fulfillment_status: fulfillmentFilter || undefined,
-          date_from: from,
-          date_to: to,
+          date_from: range?.from,
+          date_to: range?.to,
         })
         const data = response.data as OrderListResponse
         setOrders(data.orders)
@@ -202,9 +218,9 @@ export default function OrdersPage() {
               value={dateRange}
               onChange={(v) => {
                 setPage(1)
-                setDateRange(v as PresetDateRange)
+                setDateRange(v as OrdersDateRange)
               }}
-              options={DATE_RANGE_OPTIONS}
+              options={ORDER_DATE_RANGE_OPTIONS}
             />
             {refreshing ? <StatusChip label="Refreshing…" tone="info" /> : null}
             <SearchInput
@@ -233,8 +249,6 @@ export default function OrdersPage() {
       />
 
       <AnalyticsPageContent>
-        {syncState && <SyncStateBanner state={syncState} />}
-
         {error ? (
           <InlineErrorState
             body={error}
@@ -244,7 +258,7 @@ export default function OrdersPage() {
         ) : null}
 
         {/* Filter bar */}
-        <div className="rounded-xl border border-app-line bg-white px-4 py-3 shadow-sm">
+        <div className="rounded-xl border border-app-line bg-white px-4 py-1.5 shadow-sm">
           <div className="flex flex-wrap gap-x-6 gap-y-3">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-xs font-semibold uppercase tracking-wider text-app-soft">Payment</span>
@@ -293,7 +307,7 @@ export default function OrdersPage() {
               <table className="min-w-full">
                 <thead className="table-header sticky top-0">
                   <tr>
-                    <th className="w-10 px-4 py-2.5 text-left">
+                    <th className="w-10 px-4 py-3 text-left">
                       <input
                         type="checkbox"
                         checked={selectedOrders.size === orders.length && orders.length > 0}
@@ -307,15 +321,15 @@ export default function OrdersPage() {
                         className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                       />
                     </th>
-                    <th className="px-4 py-2.5 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Order</th>
-                    <th className="px-4 py-2.5 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Date</th>
-                    <th className="px-4 py-2.5 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Total</th>
-                    <th className="px-4 py-2.5 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Payment</th>
-                    <th className="px-4 py-2.5 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Delivery</th>
-                    <th className="px-4 py-2.5 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Shipping</th>
-                    <th className="px-4 py-2.5 text-left text-[11px] font-medium text-app-soft">Customer</th>
-                    <th className="px-4 py-2.5 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Items</th>
-                    <th className="px-4 py-2.5 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Fulfillment</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Order</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Date</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Total</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Payment</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Delivery</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Shipping</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft">Customer</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Items</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-medium text-app-soft w-px whitespace-nowrap">Fulfillment</th>
                   </tr>
                 </thead>
                 <tbody className="table-body">
@@ -358,7 +372,7 @@ export default function OrdersPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                          <StatusChip label={order.payment_status || 'unknown'} tone={chipTone(order.payment_status || 'unknown')} />
+                          <StatusChip label={formatStatusLabel(order.payment_status || 'unknown')} tone={chipTone(order.payment_status || 'unknown')} />
                         </td>
                         <td className="px-4 py-3 text-sm text-app-muted">
                           <div className="max-w-[130px] truncate" title={order.delivery_method}>
@@ -367,13 +381,21 @@ export default function OrdersPage() {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           {(order.shipping_city || order.shipping_country) ? (
-                            <div>
-                              <div className="text-sm text-app-strong">
-                                {[order.shipping_city, order.shipping_postcode].filter(Boolean).join(', ') || '—'}
-                              </div>
-                              <div className="mt-0.5 text-xs text-app-muted">
-                                {[order.shipping_state, order.shipping_country].filter(Boolean).join(' · ')}
-                              </div>
+                            <div
+                              className="max-w-[220px] truncate text-sm text-app-strong"
+                              title={[
+                                [order.shipping_city, order.shipping_postcode].filter(Boolean).join(', '),
+                                [order.shipping_state, order.shipping_country].filter(Boolean).join(' · '),
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            >
+                              {[
+                                [order.shipping_city, order.shipping_postcode].filter(Boolean).join(', '),
+                                [order.shipping_state, order.shipping_country].filter(Boolean).join(' · '),
+                              ]
+                                .filter(Boolean)
+                                .join(' · ') || '—'}
                             </div>
                           ) : (
                             <span className="text-sm text-app-soft">—</span>
@@ -381,15 +403,12 @@ export default function OrdersPage() {
                         </td>
                         <td className="px-4 py-3 text-sm text-app-strong">
                           <div className="max-w-[200px] truncate">{customer}</div>
-                          {order.customer_email ? (
-                            <div className="mt-0.5 text-xs text-app-soft truncate">{order.customer_email}</div>
-                          ) : null}
                         </td>
                         <td className="px-4 py-3 text-sm text-app-muted tabular-nums">
                           {order.items_count}
                         </td>
                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                          <StatusChip label={order.fulfillment_status || 'unknown'} tone={chipTone(order.fulfillment_status || 'unknown')} />
+                          <StatusChip label={formatStatusLabel(order.fulfillment_status || 'unknown')} tone={chipTone(order.fulfillment_status || 'unknown')} />
                         </td>
                       </tr>
                     )
@@ -406,6 +425,8 @@ export default function OrdersPage() {
           onPrevious={() => setPage((value) => Math.max(1, value - 1))}
           onNext={() => setPage((value) => Math.min(totalPages, value + 1))}
         />
+
+        {syncState && <SyncStateBanner state={syncState} />}
       </AnalyticsPageContent>
 
       {exportOpen && (
@@ -416,8 +437,8 @@ export default function OrdersPage() {
             q: query || undefined,
             paymentStatus: paymentFilter || undefined,
             fulfillmentStatus: fulfillmentFilter || undefined,
-            dateFrom: getPresetDateRange(dateRange).from,
-            dateTo: getPresetDateRange(dateRange).to,
+            dateFrom: dateRange === 'all' ? undefined : getPresetDateRange(dateRange).from,
+            dateTo: dateRange === 'all' ? undefined : getPresetDateRange(dateRange).to,
           }}
           previewOrders={orders}
           onClose={() => setExportOpen(false)}

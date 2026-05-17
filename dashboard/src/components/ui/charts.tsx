@@ -56,6 +56,60 @@ const defaultTooltipStyle = {
   fontSize: '12px',
 }
 
+function formatChartDate(value: string | number) {
+  if (typeof value !== 'string') return String(value)
+
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+
+  const hasHour = /T|\d{2}:\d{2}/.test(value)
+  return new Intl.DateTimeFormat('en-US', hasHour ? { month: 'short', day: 'numeric', hour: 'numeric' } : { month: 'short', day: 'numeric' }).format(parsed)
+}
+
+function getMetricKind(dataKey: string, name: string): 'currency' | 'percent' | 'count' {
+  const metric = `${dataKey} ${name}`.toLowerCase()
+  if (metric.includes('revenue') || metric.includes('aov') || metric.includes('value')) return 'currency'
+  if (metric.includes('rate') || metric.includes('%') || metric.includes('conversion')) return 'percent'
+  return 'count'
+}
+
+function formatMetricValue(value: number, kind: 'currency' | 'percent' | 'count') {
+  if (!Number.isFinite(value)) return '0'
+
+  if (kind === 'currency') {
+    if (Math.abs(value) >= 1000) return `$${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k`
+    return `$${value.toLocaleString('en-US', { maximumFractionDigits: value < 10 ? 2 : 0 })}`
+  }
+
+  if (kind === 'percent') {
+    return `${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}%`
+  }
+
+  return value.toLocaleString('en-US', { maximumFractionDigits: 0 })
+}
+
+function toNumericValue(value: unknown) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+  return 0
+}
+
+type EChartsTooltipParam = {
+  axisValue?: string | number
+  axisValueLabel?: string
+  marker?: string
+  seriesName?: string
+  value?: unknown
+}
+
+function getTooltipValue(value: unknown) {
+  if (Array.isArray(value)) return value[value.length - 1]
+  return value
+}
+
 export function LineChart({ data, dataKey, height = 300 }: LineChartProps) {
   if (!data || data.length === 0) {
     return (
@@ -71,6 +125,7 @@ export function LineChart({ data, dataKey, height = 300 }: LineChartProps) {
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
         <XAxis
           dataKey="date"
+          tickFormatter={formatChartDate}
           tick={{ fontSize: 12, fill: '#94a3b8' }}
           tickLine={false}
           axisLine={{ stroke: '#e2e8f0' }}
@@ -87,7 +142,7 @@ export function LineChart({ data, dataKey, height = 300 }: LineChartProps) {
           dataKey={dataKey}
           stroke="#6366f1"
           strokeWidth={2}
-          dot={false}
+          dot={data.length <= 2 ? { r: 3, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' } : false}
           activeDot={{ r: 4, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }}
         />
       </RechartsLineChart>
@@ -107,30 +162,43 @@ export function MultiLineChart({ data, lines, height }: MultiLineChartProps) {
   }
 
   const hasRightAxis = lines.some((l) => l.yAxisId === 'right')
+  const getAxisKind = (axisId: 'left' | 'right') => {
+    const axisLines = lines.filter((l) => (l.yAxisId ?? 'left') === axisId)
+    const kinds = axisLines.map((l) => getMetricKind(l.dataKey, l.name))
+    if (kinds.length > 0 && kinds.every((kind) => kind === 'currency')) return 'currency'
+    if (kinds.length > 0 && kinds.every((kind) => kind === 'percent')) return 'percent'
+    return 'count'
+  }
+  const leftAxisKind = getAxisKind('left')
+  const rightAxisKind = getAxisKind('right')
+  const showPointSymbols = data.length <= 2
 
   const yAxisConfig = hasRightAxis
     ? [
         {
           type: 'value',
+          min: 0,
           axisLine: { show: false },
           axisTick: { show: false },
-          axisLabel: { color: '#94a3b8', fontSize: 11 },
+          axisLabel: { color: '#94a3b8', fontSize: 11, formatter: (v: number) => formatMetricValue(v, leftAxisKind) },
           splitLine: { lineStyle: { color: '#f1f5f9', type: 'dashed' as const } },
         },
         {
           type: 'value',
           position: 'right',
+          min: 0,
           axisLine: { show: false },
           axisTick: { show: false },
-          axisLabel: { color: '#10b981', fontSize: 11, formatter: (v: number) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}` },
+          axisLabel: { color: '#94a3b8', fontSize: 11, formatter: (v: number) => formatMetricValue(v, rightAxisKind) },
           splitLine: { show: false },
         },
       ]
     : {
         type: 'value',
+        min: 0,
         axisLine: { show: false },
         axisTick: { show: false },
-        axisLabel: { color: '#94a3b8', fontSize: 11 },
+        axisLabel: { color: '#94a3b8', fontSize: 11, formatter: (v: number) => formatMetricValue(v, leftAxisKind) },
         splitLine: { lineStyle: { color: '#f1f5f9', type: 'dashed' as const } },
       }
 
@@ -141,7 +209,7 @@ export function MultiLineChart({ data, lines, height }: MultiLineChartProps) {
       data: data.map((d) => d.date),
       axisLine: { lineStyle: { color: '#e2e8f0' } },
       axisTick: { show: false },
-      axisLabel: { color: '#94a3b8', fontSize: 11 },
+      axisLabel: { color: '#94a3b8', fontSize: 11, formatter: formatChartDate, hideOverlap: true },
       splitLine: { show: false },
     },
     yAxis: yAxisConfig,
@@ -152,6 +220,18 @@ export function MultiLineChart({ data, lines, height }: MultiLineChartProps) {
       borderWidth: 1,
       textStyle: { fontSize: 12, color: '#314056' },
       extraCssText: 'box-shadow: 0 4px 16px rgba(0,0,0,0.08); border-radius: 8px;',
+      formatter: (params: EChartsTooltipParam | EChartsTooltipParam[]) => {
+        const points = Array.isArray(params) ? params : [params]
+        const axisValue = points[0]?.axisValue ?? points[0]?.axisValueLabel ?? ''
+        const rows = points.map((point) => {
+          const line = lines.find((l) => l.name === point.seriesName)
+          const kind = line ? getMetricKind(line.dataKey, line.name) : 'count'
+          const value = formatMetricValue(toNumericValue(getTooltipValue(point.value)), kind)
+          return `${point.marker ?? ''}${point.seriesName ?? ''}: <strong>${value}</strong>`
+        })
+
+        return [`<strong>${formatChartDate(axisValue)}</strong>`, ...rows].join('<br/>')
+      },
     },
     legend: {
       bottom: 0,
@@ -164,9 +244,10 @@ export function MultiLineChart({ data, lines, height }: MultiLineChartProps) {
       name: l.name,
       type: 'line',
       smooth: true,
-      symbol: 'none',
+      symbol: showPointSymbols ? 'circle' : 'none',
+      symbolSize: 7,
       yAxisIndex: l.yAxisId === 'right' ? 1 : 0,
-      data: data.map((d) => (d as unknown as Record<string, number>)[l.dataKey] ?? 0),
+      data: data.map((d) => toNumericValue((d as unknown as Record<string, unknown>)[l.dataKey])),
       lineStyle: { color: l.color, width: 2.5 },
       itemStyle: { color: l.color },
       areaStyle: {
@@ -244,7 +325,7 @@ export function AreaChart({ data, areas, height }: AreaChartProps) {
       data: data.map((d) => d.date),
       axisLine: { lineStyle: { color: '#e2e8f0' } },
       axisTick: { show: false },
-      axisLabel: { color: '#94a3b8', fontSize: 11 },
+      axisLabel: { color: '#94a3b8', fontSize: 11, formatter: formatChartDate, hideOverlap: true },
       splitLine: { show: false },
     },
     yAxis: {
@@ -275,7 +356,7 @@ export function AreaChart({ data, areas, height }: AreaChartProps) {
       smooth: true,
       symbol: 'none',
       stack: 'total',
-      data: data.map((d) => (d as unknown as Record<string, number>)[a.dataKey] ?? 0),
+      data: data.map((d) => toNumericValue((d as unknown as Record<string, unknown>)[a.dataKey])),
       lineStyle: { color: a.color, width: 2 },
       itemStyle: { color: a.color },
       areaStyle: {

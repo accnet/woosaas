@@ -249,7 +249,7 @@ export default function ContactsPage() {
                 const isRepeat = contact.orders_count > 1
 
                 return (
-                  <div key={contact.id} className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-slate-50/70">
+                  <div key={contact.id} className="flex items-center gap-4 px-5 py-2.5 transition-colors hover:bg-slate-50/70">
                     {/* Avatar */}
                     <div className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold ${avatarClass}`}>
                       {initial}

@@ -419,7 +419,7 @@ function TemplateFormInner({ existingTemplate, columnGroups }: FormPageProps) {
                     draggable
                     onDragStart={() => handleDragStart(index)}
                     onDragOver={e => handleDragOver(e, index)}
-                    className="flex cursor-grab items-center gap-2 px-3 py-2 transition-colors hover:bg-slate-50/80 active:cursor-grabbing"
+                    className="flex cursor-grab items-center gap-2 px-3 py-1.5 transition-colors hover:bg-slate-50/80 active:cursor-grabbing"
                   >
                     <GripVertical className="h-4 w-4 shrink-0 text-app-muted" />
 

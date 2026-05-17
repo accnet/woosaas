@@ -79,6 +79,8 @@ services:
       API_BASE_URL: ${API_BASE_URL:-http://localhost:8080}
     ports:
       - "${PORT:-8080}:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null || exit 1"]
       interval: 10s

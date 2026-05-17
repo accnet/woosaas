@@ -48,9 +48,9 @@ func (r *Repository) CreateShopBaseSite(
 	}
 
 	_, err = tx.Exec(ctx, `
-		INSERT INTO tracking_verifications (site_id, status)
-		VALUES ($1, 'pending')
-	`, siteID)
+		INSERT INTO tracking_verifications (site_id, status, last_checked_at, created_at, updated_at)
+		VALUES ($1, 'verified', $2, $2, $2)
+	`, siteID, now)
 	if err != nil {
 		return nil, err
 	}
@@ -65,9 +65,13 @@ func (r *Repository) CreateShopBaseSite(
 	}
 
 	_, err = tx.Exec(ctx, `
-		INSERT INTO site_integrations (site_id, platform, auth_type, shop_domain, api_key_encrypted, api_password_encrypted, webhook_secret_encrypted, status)
-		VALUES ($1, 'shopbase', 'private_app', $2, $3, $4, $5, 'connected')
-	`, siteID, meta.PlatformDomain, apiKeyEncrypted, apiPasswordEncrypted, webhookSecretEncrypted)
+		INSERT INTO site_integrations (
+			site_id, platform, auth_type, shop_domain,
+			api_key_encrypted, api_password_encrypted, webhook_secret_encrypted,
+			status, last_verified_at, created_at, updated_at
+		)
+		VALUES ($1, 'shopbase', 'private_app', $2, $3, $4, $5, 'connected', $6, $6, $6)
+	`, siteID, meta.PlatformDomain, apiKeyEncrypted, apiPasswordEncrypted, webhookSecretEncrypted, now)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +95,7 @@ func (r *Repository) CreateShopBaseSite(
 func (r *Repository) GetSiteIntegration(ctx context.Context, siteID, platform string) (*models.SiteIntegration, error) {
 	var si models.SiteIntegration
 	err := r.db.QueryRow(ctx, `
-		SELECT id, site_id, platform, auth_type, shop_domain, status, last_verified_at, last_error, created_at, updated_at
+		SELECT id, site_id, platform, auth_type, shop_domain, status, last_verified_at, COALESCE(last_error, ''), created_at, updated_at
 		FROM site_integrations
 		WHERE site_id = $1 AND platform = $2
 	`, siteID, platform).Scan(
@@ -140,7 +144,7 @@ func (r *Repository) GetShopBaseSyncState(ctx context.Context, siteID string) (*
 	err := r.db.QueryRow(ctx, `
 		SELECT site_id, order_sync_enabled, checkout_sync_enabled, customer_sync_enabled, product_sync_enabled,
 			status, last_order_updated_at, last_customer_updated_at, last_product_updated_at,
-			last_webhook_at, last_success_at, last_error, last_error_at, backfill_completed_at, created_at, updated_at
+			last_webhook_at, last_success_at, COALESCE(last_error, ''), last_error_at, backfill_completed_at, created_at, updated_at
 		FROM shopbase_sync_state WHERE site_id = $1
 	`, siteID).Scan(
 		&s.SiteID, &s.OrderSyncEnabled, &s.CheckoutSyncEnabled, &s.CustomerSyncEnabled, &s.ProductSyncEnabled,

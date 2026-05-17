@@ -162,7 +162,7 @@ function TemplateRow({
   const isActing = (key: string) => actionLoading === template.id + '-' + key
 
   return (
-    <div className="flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-slate-50/80 sm:flex-row sm:items-start sm:justify-between">
+    <div className="flex flex-col gap-3 px-5 py-2.5 transition-colors hover:bg-slate-50/80 sm:flex-row sm:items-start sm:justify-between">
       {/* Info */}
       <div className="min-w-0 space-y-1">
         <div className="flex flex-wrap items-center gap-2">

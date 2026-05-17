@@ -30,7 +30,9 @@ import type {
   RetentionCohort,
   ShopBaseInstallScriptResponse,
   ShopBaseIntegrationStatus,
+  AddShipmentTrackingInput,
   ShopBaseVerifyResponse,
+  ShipmentTracking,
   SyncOptions,
   UpdateExportTemplateInput,
   WooContactListResponse,
@@ -122,6 +124,7 @@ export const sitesApi = {
   update: (id: string, data: UpdateSiteInput) =>
     api.put<Site>(`/api/v1/sites/${id}`, data),
   delete: (id: string) => api.delete(`/api/v1/sites/${id}`),
+  resetData: (id: string) => api.post(`/api/v1/sites/${id}/reset-data`),
   getApiKeys: (id: string) => api.get<APIKey[]>(`/api/v1/sites/${id}/api-keys`),
   createApiKey: (id: string, name: string) =>
     api.post<APIKeyResponse>(`/api/v1/sites/${id}/api-keys`, { name }),
@@ -274,6 +277,14 @@ export const ordersApi = {
     api.get<OrderDetail>(`/api/v1/orders/${encodeURIComponent(wooOrderId)}`, {
       params: { site_id: siteId },
     }),
+  listTrackings: (siteId: string, wooOrderId: string) =>
+    api.get<ShipmentTracking[]>(`/api/v1/sites/${siteId}/orders/${encodeURIComponent(wooOrderId)}/trackings`),
+  addTracking: (siteId: string, wooOrderId: string, data: AddShipmentTrackingInput) =>
+    api.post<ShipmentTracking>(`/api/v1/sites/${siteId}/orders/${encodeURIComponent(wooOrderId)}/trackings`, data),
+  refreshTracking: (siteId: string, wooOrderId: string, trackingId: string) =>
+    api.post<ShipmentTracking>(`/api/v1/sites/${siteId}/orders/${encodeURIComponent(wooOrderId)}/trackings/${trackingId}/refresh`),
+  deleteTracking: (siteId: string, wooOrderId: string, trackingId: string) =>
+    api.delete(`/api/v1/sites/${siteId}/orders/${encodeURIComponent(wooOrderId)}/trackings/${trackingId}`),
   listContacts: (siteId: string, page = 1, pageSize = 25, q?: string) =>
     api.get<WooContactListResponse>('/api/v1/contacts', {
       params: { site_id: siteId, page, page_size: pageSize, ...(q ? { q } : {}) },

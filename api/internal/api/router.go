@@ -10,9 +10,11 @@ import (
 	"github.com/accnet/woosaas/api/internal/customers"
 	"github.com/accnet/woosaas/api/internal/export"
 	"github.com/accnet/woosaas/api/internal/ingest"
+	"github.com/accnet/woosaas/api/internal/observability"
 	"github.com/accnet/woosaas/api/internal/orders"
 	"github.com/accnet/woosaas/api/internal/realtime"
 	appsettings "github.com/accnet/woosaas/api/internal/settings"
+	"github.com/accnet/woosaas/api/internal/shipment_tracking"
 	"github.com/accnet/woosaas/api/internal/sites"
 	"github.com/accnet/woosaas/api/internal/users"
 	"github.com/gin-gonic/gin"
@@ -21,22 +23,24 @@ import (
 )
 
 type Router struct {
-	engine          *gin.Engine
-	repo            *sites.Repository
-	authSvc         *auth.Service
-	mw              *middleware.Middleware
-	redisClient     *redis.Client
-	collector       *ingest.Collector
-	orderSvc        *orders.Service
-	settingsRepo    *appsettings.Repository
-	templateRepo    *export.TemplateRepository
-	stats           *analytics.Stats
-	bots            *analytics.Bots
-	exports         *export.ExportService
-	customers       *customers.CustomerService
-	onlineUsers     *realtime.OnlineUsers
-	shopbaseHandler *handlers.ShopBaseHandler
-	shopbaseWebhook *handlers.ShopBaseWebhookHandler
+	engine           *gin.Engine
+	repo             *sites.Repository
+	ch               driver.Conn
+	authSvc          *auth.Service
+	mw               *middleware.Middleware
+	redisClient      *redis.Client
+	collector        *ingest.Collector
+	orderSvc         *orders.Service
+	settingsRepo     *appsettings.Repository
+	templateRepo     *export.TemplateRepository
+	stats            *analytics.Stats
+	bots             *analytics.Bots
+	exports          *export.ExportService
+	customers        *customers.CustomerService
+	onlineUsers      *realtime.OnlineUsers
+	shopbaseHandler  *handlers.ShopBaseHandler
+	shopbaseWebhook  *handlers.ShopBaseWebhookHandler
+	shipmentTracking *handlers.ShipmentTrackingHandler
 }
 
 func NewRouter(
@@ -60,12 +64,14 @@ func NewRouter(
 	userRepo := users.NewRepository(pg)
 	orderQueue := orders.NewQueue(redisClient)
 	orderRepo := orders.NewRepository(pg)
+	shipmentRepo := shipment_tracking.NewRepository(pg)
 
 	encKey, _ := handlers.LoadEncryptionKey(cfg.IntegrationEncryptionKey)
 
 	return &Router{
 		engine:  engine,
 		repo:    repo,
+		ch:      ch,
 		authSvc: auth.NewService(userRepo, jwtManager),
 		// M3: pass allowed origins for proper CORS validation
 		mw:              middleware.NewMiddleware(jwtManager, redisClient, allowedOrigins),
@@ -81,6 +87,11 @@ func NewRouter(
 		onlineUsers:     realtime.NewOnlineUsers(redisClient),
 		shopbaseHandler: handlers.NewShopBaseHandler(repo, encKey, cfg.TrackerBaseURL, cfg.APIBaseURL),
 		shopbaseWebhook: handlers.NewShopBaseWebhookHandler(repo, redisClient, encKey),
+		shipmentTracking: handlers.NewShipmentTrackingHandler(
+			shipment_tracking.NewService(shipmentRepo, repo, encKey),
+			repo,
+			redisClient,
+		),
 	}
 }
 
@@ -91,6 +102,7 @@ func (r *Router) Setup() *gin.Engine {
 	v1 := r.engine.Group("/api/v1")
 	r.registerCollectRoutes(v1)
 	r.registerWooSyncRoutes(v1)
+	r.registerShipmentTrackingPluginRoutes(v1)
 	r.registerShopBaseWebhookRoutes(v1)
 
 	authHandler := handlers.NewAuthHandler(r.authSvc)
@@ -98,9 +110,19 @@ func (r *Router) Setup() *gin.Engine {
 	r.registerDashboardRoutes(v1, authHandler)
 	r.registerStatsRoutes(v1)
 	r.registerOrdersRoutes(v1)
+	r.registerShipmentTrackingRoutes(v1)
 	r.registerShopBaseRoutes(v1)
 
 	return r.engine
+}
+
+func (r *Router) registerShipmentTrackingPluginRoutes(v1 *gin.RouterGroup) {
+	tracking := v1.Group("/shipment-tracking")
+	tracking.Use(r.mw.APIKeyAuth(r.repo))
+	tracking.Use(r.mw.RateLimit())
+	{
+		tracking.POST("/wc-push-config", r.shipmentTracking.SaveWCPushConfig)
+	}
 }
 
 func (r *Router) registerHealthRoute() {
@@ -148,7 +170,8 @@ func (r *Router) registerDashboardRoutes(v1 *gin.RouterGroup, authHandler *handl
 		dashboard.PUT("/me", authHandler.UpdateProfile)
 		dashboard.PUT("/me/password", authHandler.ChangePassword)
 
-		sitesHandler := handlers.NewSitesHandler(r.repo, r.collector, r.templateRepo)
+		siteDataSvc := sites.NewSiteDataService(r.repo, r.ch, observability.NewStructuredLogger())
+		sitesHandler := handlers.NewSitesHandler(r.repo, r.collector, r.templateRepo, siteDataSvc)
 		ordersHandler := handlers.NewOrdersHandler(r.orderSvc, r.repo, r.redisClient, r.templateRepo)
 		settingsHandler := handlers.NewSettingsHandler(r.settingsRepo)
 		dashboard.GET("/settings", settingsHandler.GetUserSettings)
@@ -161,6 +184,7 @@ func (r *Router) registerDashboardRoutes(v1 *gin.RouterGroup, authHandler *handl
 		dashboard.GET("/sites/:site_id", sitesHandler.GetSite)
 		dashboard.PUT("/sites/:site_id", sitesHandler.UpdateSite)
 		dashboard.DELETE("/sites/:site_id", sitesHandler.DeleteSite)
+		dashboard.POST("/sites/:site_id/reset-data", sitesHandler.ResetSiteData)
 
 		// API Keys
 		dashboard.POST("/sites/:site_id/api-keys", sitesHandler.CreateAPIKey)
@@ -235,6 +259,17 @@ func (r *Router) registerOrdersRoutes(v1 *gin.RouterGroup) {
 		orders.GET("/orders/cross-sell", ordersHandler.GetCrossSell)
 		orders.GET("/orders/:woo_order_id", ordersHandler.GetOrderDetail)
 		orders.GET("/contacts", ordersHandler.ListContacts)
+	}
+}
+
+func (r *Router) registerShipmentTrackingRoutes(v1 *gin.RouterGroup) {
+	tracking := v1.Group("")
+	tracking.Use(r.mw.JWTAuth())
+	{
+		tracking.GET("/sites/:site_id/orders/:woo_order_id/trackings", r.shipmentTracking.List)
+		tracking.POST("/sites/:site_id/orders/:woo_order_id/trackings", r.shipmentTracking.Add)
+		tracking.POST("/sites/:site_id/orders/:woo_order_id/trackings/:tracking_id/refresh", r.shipmentTracking.Refresh)
+		tracking.DELETE("/sites/:site_id/orders/:woo_order_id/trackings/:tracking_id", r.shipmentTracking.Delete)
 	}
 }
 

@@ -10,23 +10,28 @@ import {
   ChevronDown,
   Clock3,
   Copy,
-  CreditCard,
   ExternalLink,
   MapPin,
   Package2,
+  Plus,
   ReceiptText,
+  RefreshCw,
+  Trash2,
+  Truck,
   UserRound,
+  X,
 } from 'lucide-react'
 import { AnalyticsPage, AnalyticsPageContent } from '@/components/ui/analytics-page-layout'
 import { DetailNote } from '@/components/ui/detail-note'
 import { DetailRow } from '@/components/ui/detail-row'
+import { EmptyState } from '@/components/ui/empty-state'
 import { InlineErrorState } from '@/components/ui/inline-error-state'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { SectionCard } from '@/components/ui/section-card'
 import { StatusChip } from '@/components/ui/status-chip'
 import { useSiteId } from '@/hooks/use-site-id'
 import { getApiErrorMessage, ordersApi } from '@/lib/api'
-import type { OrderDetail, OrderItem } from '@/lib/types'
+import type { AddShipmentTrackingInput, OrderDetail, OrderItem, ShipmentTracking } from '@/lib/types'
 
 function money(amount: number, currency: string) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(amount || 0)
@@ -98,10 +103,21 @@ function AddressBlock({ address, showPhone = false }: { address: Record<string, 
 
 function chipTone(value: string): 'neutral' | 'info' | 'good' | 'warn' | 'danger' {
   const normalized = value.toLowerCase()
-  if (normalized === 'paid' || normalized === 'fulfilled' || normalized === 'completed') return 'good'
-  if (normalized === 'pending' || normalized === 'processing' || normalized === 'unfulfilled') return 'warn'
-  if (normalized === 'cancelled' || normalized === 'failed' || normalized === 'refunded' || normalized === 'unpaid') return 'danger'
+  if (normalized === 'paid' || normalized === 'fulfilled') return 'neutral'
+  if (normalized === 'completed' || normalized === 'delivered' || normalized === 'ok') return 'good'
+  if (normalized === 'pending' || normalized === 'processing' || normalized === 'unfulfilled' || normalized === 'in_transit' || normalized === 'out_for_delivery') return 'warn'
+  if (normalized === 'cancelled' || normalized === 'failed' || normalized === 'refunded' || normalized === 'unpaid' || normalized === 'error' || normalized === 'exception') return 'danger'
   return 'neutral'
+}
+
+function formatStatusLabel(value: string) {
+  return value
+    .replaceAll('_', ' ')
+    .replaceAll('-', ' ')
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ') || 'Unknown'
 }
 
 function asObject(value: unknown): Record<string, unknown> | null {
@@ -215,8 +231,18 @@ export default function OrderDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionsOpen, setActionsOpen] = useState(false)
-  const [paymentOpen, setPaymentOpen] = useState(false)
   const [expandedMeta, setExpandedMeta] = useState<Set<string>>(new Set())
+  const [trackings, setTrackings] = useState<ShipmentTracking[]>([])
+  const [trackingModalOpen, setTrackingModalOpen] = useState(false)
+  const [trackingSaving, setTrackingSaving] = useState(false)
+  const [trackingActionId, setTrackingActionId] = useState<string | null>(null)
+  const [trackingError, setTrackingError] = useState<string | null>(null)
+  const [trackingForm, setTrackingForm] = useState<AddShipmentTrackingInput>({
+    tracking_number: '',
+    carrier_name: '',
+    carrier_slug: '',
+    tracking_url: '',
+  })
 
   const toggleMeta = (lineItemId: string) => {
     setExpandedMeta((prev) => {
@@ -227,15 +253,18 @@ export default function OrderDetailPage() {
     })
   }
   const actionsRef = useRef<HTMLDivElement | null>(null)
-  const paymentRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     const loadData = async () => {
       setLoading(true)
       setError(null)
       try {
-        const response = await ordersApi.detail(siteId, orderId)
+        const [response, trackingsResponse] = await Promise.all([
+          ordersApi.detail(siteId, orderId),
+          ordersApi.listTrackings(siteId, orderId),
+        ])
         setOrder(response.data)
+        setTrackings(trackingsResponse.data)
       } catch (err) {
         if (!axios.isCancel(err)) {
           setError(getApiErrorMessage(err, 'Order detail could not be loaded right now.'))
@@ -253,9 +282,6 @@ export default function OrderDetailPage() {
       const target = event.target as Node | null
       if (target && actionsRef.current && !actionsRef.current.contains(target)) {
         setActionsOpen(false)
-      }
-      if (target && paymentRef.current && !paymentRef.current.contains(target)) {
-        setPaymentOpen(false)
       }
     }
 
@@ -295,7 +321,53 @@ export default function OrderDetailPage() {
     if (!value) return
     await navigator.clipboard.writeText(value)
     setActionsOpen(false)
-    setPaymentOpen(false)
+  }
+
+  const reloadTrackings = async () => {
+    const response = await ordersApi.listTrackings(siteId, orderId)
+    setTrackings(response.data)
+  }
+
+  const handleAddTracking = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setTrackingSaving(true)
+    setTrackingError(null)
+    try {
+      await ordersApi.addTracking(siteId, orderId, trackingForm)
+      await reloadTrackings()
+      setTrackingModalOpen(false)
+      setTrackingForm({ tracking_number: '', carrier_name: '', carrier_slug: '', tracking_url: '' })
+    } catch (err) {
+      setTrackingError(getApiErrorMessage(err, 'Tracking could not be saved.'))
+    } finally {
+      setTrackingSaving(false)
+    }
+  }
+
+  const handleRefreshTracking = async (trackingId: string) => {
+    setTrackingActionId(trackingId)
+    setTrackingError(null)
+    try {
+      await ordersApi.refreshTracking(siteId, orderId, trackingId)
+      await reloadTrackings()
+    } catch (err) {
+      setTrackingError(getApiErrorMessage(err, 'Tracking could not be refreshed.'))
+    } finally {
+      setTrackingActionId(null)
+    }
+  }
+
+  const handleDeleteTracking = async (trackingId: string) => {
+    setTrackingActionId(trackingId)
+    setTrackingError(null)
+    try {
+      await ordersApi.deleteTracking(siteId, orderId, trackingId)
+      await reloadTrackings()
+    } catch (err) {
+      setTrackingError(getApiErrorMessage(err, 'Tracking could not be deleted.'))
+    } finally {
+      setTrackingActionId(null)
+    }
   }
 
   if (loading) {
@@ -325,21 +397,21 @@ export default function OrderDetailPage() {
           <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-3xl font-semibold tracking-tight text-app-strong md:text-[2.2rem]">
+                <h1 className="text-2xl font-semibold tracking-tight text-app-strong">
                   Order #{order.woo_order_id}
                 </h1>
                 <StatusChip
-                  label={order.payment_status || 'unknown'}
+                  label={formatStatusLabel(order.payment_status || 'unknown')}
                   tone={chipTone(order.payment_status || 'unknown')}
-                  className="px-3 py-1.5 text-xs uppercase tracking-[0.08em]"
+                  className="px-2.5 py-1 text-xs uppercase tracking-[0.08em]"
                 />
                 <StatusChip
-                  label={order.fulfillment_status || 'unknown'}
+                  label={formatStatusLabel(order.fulfillment_status || 'unknown')}
                   tone={chipTone(order.fulfillment_status || 'unknown')}
-                  className="px-3 py-1.5 text-xs uppercase tracking-[0.08em]"
+                  className="px-2.5 py-1 text-xs uppercase tracking-[0.08em]"
                 />
               </div>
-              <div className="mt-2 text-base text-app-muted">
+              <div className="mt-1.5 text-sm text-app-muted">
                 Placed on {formatTimestamp(order.created_at_woo || order.created_at)}
               </div>
             </div>
@@ -351,7 +423,6 @@ export default function OrderDetailPage() {
                   className="btn-secondary gap-2"
                   onClick={() => {
                     setActionsOpen((value) => !value)
-                    setPaymentOpen(false)
                   }}
                 >
                   More Actions
@@ -389,33 +460,6 @@ export default function OrderDetailPage() {
                 ) : null}
               </div>
 
-              <div ref={paymentRef} className="relative">
-                <button
-                  type="button"
-                  className="btn-primary gap-2"
-                  onClick={() => {
-                    setPaymentOpen((value) => !value)
-                    setActionsOpen(false)
-                  }}
-                >
-                  Collect Payment
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-                {paymentOpen ? (
-                  <div className="absolute right-0 top-[calc(100%+0.5rem)] z-20 min-w-[250px] rounded-2xl border border-app-line bg-white p-2 shadow-card">
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm text-app-strong transition hover:bg-slate-50"
-                      onClick={() => handleCopy(`${customerName} · ${money(amountDue, order.currency)}`)}
-                    >
-                      Copy payment summary
-                      <CreditCard className="h-4 w-4 text-app-soft" />
-                    </button>
-                    <div className="rounded-xl px-3 py-2 text-sm text-app-muted">Send payment link soon</div>
-                    <div className="rounded-xl px-3 py-2 text-sm text-app-muted">Record offline payment soon</div>
-                  </div>
-                ) : null}
-              </div>
             </div>
           </div>
 
@@ -452,10 +496,10 @@ export default function OrderDetailPage() {
                         const isExpanded = expandedMeta.has(item.line_item_id)
                         return (
                           <div key={item.line_item_id} className="border-b border-slate-100 last:border-0">
-                            <div className="grid grid-cols-[minmax(0,1fr)_80px_56px_96px] items-center gap-4 px-5 py-4">
+                            <div className="grid grid-cols-[minmax(0,1fr)_80px_56px_96px] items-center gap-4 px-5 py-3">
                               {/* Product info */}
                               <div className="flex min-w-0 items-center gap-3">
-                                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-app-line bg-slate-50 text-app-soft">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-app-line bg-slate-50 text-app-soft">
                                   {imageUrl ? (
                                     <img src={imageUrl} alt={item.name || 'Product'} className="h-full w-full object-cover" />
                                   ) : (
@@ -540,10 +584,87 @@ export default function OrderDetailPage() {
               </SectionCard>
 
               <SectionCard
+                title="Shipment Tracking"
+                action={
+                  <button
+                    type="button"
+                    className="btn-secondary gap-2"
+                    onClick={() => {
+                      setTrackingError(null)
+                      setTrackingModalOpen(true)
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Tracking
+                  </button>
+                }
+              >
+                {trackingError ? (
+                  <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {trackingError}
+                  </div>
+                ) : null}
+                {trackings.length === 0 ? (
+                  <EmptyState icon={<Truck className="h-8 w-8" />} body="No tracking numbers have been added for this order." className="py-8" />
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {trackings.map((tracking) => (
+                      <div key={tracking.id} className="py-3 first:pt-0 last:pb-0">
+                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <StatusChip label={tracking.carrier_name || tracking.carrier_slug || 'Carrier'} tone="neutral" />
+                              <StatusChip label={tracking.status.replaceAll('_', ' ')} tone={chipTone(tracking.status)} />
+                              <StatusChip label={`WC ${tracking.wc_push_status || 'pending'}`} tone={chipTone(tracking.wc_push_status || 'pending')} />
+                            </div>
+                            <div className="mt-2 text-sm font-semibold text-app-strong">
+                              {tracking.tracking_url ? (
+                                <a href={tracking.tracking_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700">
+                                  {tracking.tracking_number}
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </a>
+                              ) : (
+                                tracking.tracking_number
+                              )}
+                            </div>
+                            <div className="mt-1 text-xs text-app-muted">
+                              Last checkpoint: {formatTimestamp(tracking.last_checkpoint_at)} · Added: {formatTimestamp(tracking.created_at)}
+                            </div>
+                            {tracking.sync_error ? <div className="mt-2 text-xs text-red-600">Provider sync: {tracking.sync_error}</div> : null}
+                            {tracking.wc_push_error ? <div className="mt-1 text-xs text-red-600">Woo sync: {tracking.wc_push_error}</div> : null}
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <button
+                              type="button"
+                              className="btn-secondary gap-2"
+                              disabled={trackingActionId === tracking.id}
+                              onClick={() => handleRefreshTracking(tracking.id)}
+                            >
+                              <RefreshCw className={`h-4 w-4 ${trackingActionId === tracking.id ? 'animate-spin' : ''}`} />
+                              Sync
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-secondary gap-2 text-red-600 hover:text-red-700"
+                              disabled={trackingActionId === tracking.id}
+                              onClick={() => handleDeleteTracking(tracking.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </SectionCard>
+
+              <SectionCard
                 title="Payment Summary"
                 action={
                   <StatusChip
-                    label={order.payment_status || 'unknown'}
+                    label={formatStatusLabel(order.payment_status || 'unknown')}
                     tone={chipTone(order.payment_status || 'unknown')}
                     className="px-3 py-1.5 text-xs uppercase tracking-[0.08em]"
                   />
@@ -562,7 +683,7 @@ export default function OrderDetailPage() {
                     </div>
                   ))}
                   {/* Total */}
-                  <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-3 text-base font-bold text-app-strong">
+                  <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm font-bold text-app-strong">
                     <span>Total</span>
                     <span>{money(order.total_amount, order.currency)}</span>
                   </div>
@@ -580,14 +701,6 @@ export default function OrderDetailPage() {
                           Amount due: {money(amountDue, order.currency)}
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        className="btn-primary gap-2"
-                        onClick={() => setPaymentOpen((value) => !value)}
-                      >
-                        <CreditCard className="h-4 w-4" />
-                        Collect Payment
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -656,20 +769,20 @@ export default function OrderDetailPage() {
                         )}
                       </div>
                       <div className="min-w-0">
-                        <div className="text-xl font-medium text-app-strong">{customerName}</div>
-                        <div className="mt-1 text-base text-app-muted">
+                        <div className="text-base font-semibold text-app-strong">{customerName}</div>
+                        <div className="mt-0.5 text-sm text-app-muted">
                           {order.customer_email || order.contact?.email || 'No email'}
                         </div>
-                        <div className="mt-1 text-sm text-app-soft">
+                        <div className="mt-0.5 text-xs text-app-soft">
                           {order.customer_phone || order.contact?.phone || 'No phone'}
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="border-t border-app-line pt-4">
+                  <div className="border-t border-app-line pt-3">
                     <div className="text-sm font-medium text-app-muted">Delivery method</div>
-                    <div className="mt-2 text-base text-app-strong">
+                    <div className="mt-1.5 text-sm text-app-strong">
                       {order.fulfillment_status === 'fulfilled' ? 'Fulfilled shipment' : 'Standard'}
                     </div>
                   </div>
@@ -794,6 +907,66 @@ export default function OrderDetailPage() {
             </div>
           </div>
         </div>
+        {trackingModalOpen ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
+            <form onSubmit={handleAddTracking} className="w-full max-w-lg rounded-xl border border-app-line bg-white p-5 shadow-card">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-base font-semibold text-app-strong">Add Tracking</h2>
+                <button type="button" className="btn-secondary h-9 w-9 p-0" onClick={() => setTrackingModalOpen(false)}>
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="mt-4 space-y-3">
+                <label className="block">
+                  <span className="text-sm font-medium text-app-muted">Tracking number</span>
+                  <input
+                    className="input mt-1"
+                    value={trackingForm.tracking_number}
+                    onChange={(event) => setTrackingForm((value) => ({ ...value, tracking_number: event.target.value }))}
+                    required
+                    autoFocus
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm font-medium text-app-muted">Carrier name</span>
+                  <input
+                    className="input mt-1"
+                    value={trackingForm.carrier_name || ''}
+                    onChange={(event) => setTrackingForm((value) => ({ ...value, carrier_name: event.target.value }))}
+                    placeholder="UPS, FedEx, DHL..."
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm font-medium text-app-muted">Carrier slug</span>
+                  <input
+                    className="input mt-1"
+                    value={trackingForm.carrier_slug || ''}
+                    onChange={(event) => setTrackingForm((value) => ({ ...value, carrier_slug: event.target.value }))}
+                    placeholder="ups, fedex, dhl..."
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm font-medium text-app-muted">Tracking URL</span>
+                  <input
+                    className="input mt-1"
+                    type="url"
+                    value={trackingForm.tracking_url || ''}
+                    onChange={(event) => setTrackingForm((value) => ({ ...value, tracking_url: event.target.value }))}
+                    placeholder="https://..."
+                  />
+                </label>
+              </div>
+              <div className="mt-5 flex justify-end gap-2">
+                <button type="button" className="btn-secondary" onClick={() => setTrackingModalOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" disabled={trackingSaving}>
+                  {trackingSaving ? 'Saving...' : 'Save tracking'}
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : null}
       </AnalyticsPageContent>
     </AnalyticsPage>
   )

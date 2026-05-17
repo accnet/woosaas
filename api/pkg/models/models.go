@@ -30,6 +30,8 @@ type Site struct {
 	TrackingStatus        string     `json:"tracking_status" db:"tracking_status"`
 	TrackingLastCheckedAt *time.Time `json:"tracking_last_checked_at" db:"tracking_last_checked_at"`
 	TrackingLastEventAt   *time.Time `json:"tracking_last_event_at" db:"tracking_last_event_at"`
+	WCPushURL             string     `json:"wc_push_url,omitempty" db:"wc_push_url"`
+	WCPushTokenEncrypted  string     `json:"-" db:"wc_push_token_encrypted"`
 	CreatedAt             time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt             time.Time  `json:"updated_at" db:"updated_at"`
 }

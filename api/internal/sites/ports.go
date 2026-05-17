@@ -17,6 +17,7 @@ type SiteRepository interface {
 	GetSitesByUserID(ctx context.Context, userID string) ([]models.Site, error)
 	UpdateSite(ctx context.Context, id, name, timezone, currency string) error
 	DeleteSite(ctx context.Context, id string) error
+	ResetSiteData(ctx context.Context, id string) error
 
 	// API key operations
 	CreateAPIKey(ctx context.Context, siteID, name string) (*models.APIKeyResponse, error)
