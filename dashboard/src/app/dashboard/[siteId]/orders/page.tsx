@@ -67,22 +67,22 @@ function money(amount: number, currency: string) {
 }
 
 function chipTone(value: string): 'neutral' | 'info' | 'good' | 'warn' | 'danger' {
-  const normalized = value.toLowerCase()
-  if (normalized === 'paid' || normalized === 'fulfilled') return 'neutral'
-  if (normalized === 'completed') return 'good'
-  if (normalized === 'pending' || normalized === 'processing' || normalized === 'unfulfilled') return 'warn'
+  const normalized = value.toLowerCase().trim()
+  if (normalized === 'fulfilled' || normalized === 'completed') return 'neutral'
+  if (normalized === 'delivered') return 'good'
+  if (normalized === 'partial' || normalized === 'in_progress') return 'info'
+  if (normalized === 'unfulfilled' || normalized === 'pending' || normalized === 'processing') return 'warn'
   if (normalized === 'cancelled' || normalized === 'failed' || normalized === 'refunded') return 'danger'
   return 'neutral'
 }
 
 function lifecycleTone(value: string): 'neutral' | 'info' | 'good' | 'warn' | 'danger' {
-  const normalized = value.toLowerCase()
+  const normalized = value.toLowerCase().trim()
+  if (normalized === 'completed') return 'neutral'
   if (normalized === 'delivered') return 'good'
-  if (normalized === 'in_transit' || normalized === 'out_for_delivery') return 'info'
-  if (normalized === 'processing') return 'warn'
-  if (normalized === 'fulfilled') return 'neutral'
-  if (normalized === 'exception') return 'warn'
-  if (normalized === 'failed_delivery' || normalized === 'cancelled' || normalized === 'refunded' || normalized === 'returned' || normalized === 'deleted') return 'danger'
+  if (normalized === 'in_transit' || normalized === 'out_for_delivery' || normalized === 'shipped') return 'info'
+  if (normalized === 'processing' || normalized === 'pending' || normalized === 'on-hold' || normalized === 'on_hold' || normalized === 'exception') return 'warn'
+  if (normalized === 'failed_delivery' || normalized === 'cancelled' || normalized === 'refunded' || normalized === 'failed' || normalized === 'returned' || normalized === 'deleted') return 'danger'
   return 'neutral'
 }
 
@@ -103,16 +103,19 @@ function getPaymentBadge(value: string) {
       return { label: 'Paid', tone: 'neutral' as const }
     case 'refunded':
     case 'partially_refunded':
+      return { label: 'Refunded', tone: 'info' as const }
     case 'voided':
-      return { label: 'Refunded', tone: 'neutral' as const }
+      return { label: 'Voided', tone: 'neutral' as const }
     case 'failed':
-      return { label: 'Failed', tone: 'neutral' as const }
+      return { label: 'Failed', tone: 'danger' as const }
     case 'cancelled':
-      return { label: 'Cancelled', tone: 'neutral' as const }
+      return { label: 'Cancelled', tone: 'danger' as const }
     case 'pending':
+      return { label: 'Pending', tone: 'warn' as const }
     case 'unpaid':
+      return { label: 'Unpaid', tone: 'warn' as const }
     default:
-      return { label: 'Unpaid', tone: 'neutral' as const }
+      return { label: value ? formatStatusLabel(value) : 'Unpaid', tone: 'warn' as const }
   }
 }
 
@@ -472,7 +475,7 @@ export default function OrdersPage() {
                     return (
                       <tr 
                         key={order.woo_order_id} 
-                        className={`table-row group cursor-pointer transition-colors duration-150 hover:bg-slate-50/70 ${isSelected ? 'bg-indigo-50/20' : ''}`}
+                        className={`table-row group cursor-pointer ${isSelected ? 'is-selected' : ''}`}
                       >
                         <td className="table-cell w-10 px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
                           <input
@@ -493,7 +496,7 @@ export default function OrdersPage() {
                         <td className="table-cell px-4 py-3.5 whitespace-nowrap">
                           <Link
                             href={`/dashboard/${siteId}/orders/${encodeURIComponent(order.woo_order_id)}`}
-                            className="text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+                            className="text-sm font-bold text-indigo-600 hover:text-indigo-800 hover:underline transition-colors"
                           >
                             #{order.woo_order_id}
                           </Link>

@@ -13,10 +13,10 @@
     --primary: 243 75% 59%;
     --primary-foreground: 0 0% 100%;
     --muted: 210 24% 94%;
-    --muted-foreground: 218 10% 44%;
+    --muted-foreground: 218 10% 38%;
     --accent: 210 24% 94%;
     --accent-foreground: 218 24% 12%;
-    --border: 214 20% 88%;
+    --border: 214 16% 83%;
     --ring: 243 75% 59%;
 
     /* Status semantic tokens - Premium Palettes */
@@ -44,7 +44,7 @@
   body {
     @apply antialiased;
     background-color: #fafbfe;
-    background-image: 
+    background-image:
       radial-gradient(at top left, rgba(99, 102, 241, 0.04) 0px, transparent 50%),
       radial-gradient(at top right, rgba(244, 63, 94, 0.02) 0px, transparent 50%),
       radial-gradient(at bottom left, rgba(16, 185, 129, 0.02) 0px, transparent 50%);
@@ -75,35 +75,74 @@
 
 @layer components {
   @keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
   }
 
   @keyframes slide-up {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   @keyframes slide-right {
-    from { opacity: 0; transform: translateX(-20px); }
-    to { opacity: 1; transform: translateX(0); }
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
   }
 
   @keyframes float-slow {
-    0%, 100% { transform: translateY(0px) rotate(0deg); }
-    33% { transform: translateY(-8px) rotate(1deg); }
-    66% { transform: translateY(4px) rotate(-1deg); }
+
+    0%,
+    100% {
+      transform: translateY(0px) rotate(0deg);
+    }
+
+    33% {
+      transform: translateY(-8px) rotate(1deg);
+    }
+
+    66% {
+      transform: translateY(4px) rotate(-1deg);
+    }
   }
 
   @keyframes float-delayed {
-    0%, 100% { transform: translateY(0px) rotate(0deg); }
-    33% { transform: translateY(6px) rotate(-1deg); }
-    66% { transform: translateY(-10px) rotate(1.5deg); }
+
+    0%,
+    100% {
+      transform: translateY(0px) rotate(0deg);
+    }
+
+    33% {
+      transform: translateY(6px) rotate(-1deg);
+    }
+
+    66% {
+      transform: translateY(-10px) rotate(1.5deg);
+    }
   }
 
   .bg-app {
     background:
-      linear-gradient(180deg, rgba(255,255,255,0.86) 0%, rgba(245,247,251,0.96) 100%);
+      linear-gradient(180deg, rgba(255, 255, 255, 0.86) 0%, rgba(245, 247, 251, 0.96) 100%);
   }
 
   .bg-app-panel {
@@ -119,7 +158,7 @@
   }
 
   .border-app-line {
-    border-color: #dbe3ee;
+    border-color: #cbd5e1;
   }
 
   .text-app-strong {
@@ -127,11 +166,11 @@
   }
 
   .text-app-muted {
-    color: #667287;
+    color: #526071;
   }
 
   .text-app-soft {
-    color: #778399;
+    color: #637289;
   }
 
   .bg-app-subtle {
@@ -144,20 +183,20 @@
 
   .card {
     @apply rounded-2xl border bg-white/90 backdrop-blur-md;
-    border-color: rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.13);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.01), 0 10px 30px rgba(149, 157, 165, 0.05);
     transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .card:hover {
-    border-color: rgba(99, 102, 241, 0.16);
+    border-color: rgba(99, 102, 241, 0.22);
     box-shadow: 0 10px 20px rgba(99, 102, 241, 0.03), 0 20px 50px rgba(149, 157, 165, 0.1);
     transform: translateY(-2px);
   }
 
   .card-static {
     @apply rounded-2xl border bg-white/90 backdrop-blur-md;
-    border-color: rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.13);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.01), 0 10px 30px rgba(149, 157, 165, 0.05);
   }
 
@@ -176,7 +215,7 @@
 
   .card-header {
     @apply border-b px-5 py-3.5;
-    border-color: rgba(99, 102, 241, 0.06);
+    border-color: rgba(99, 102, 241, 0.10);
   }
 
   .card-body {
@@ -185,7 +224,7 @@
 
   .input {
     @apply w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm transition-all duration-200 focus:outline-none disabled:cursor-not-allowed disabled:text-surface-400;
-    border-color: #e2e8f0;
+    border-color: #d1dbe5;
     color: #0f172a;
   }
 
@@ -204,7 +243,7 @@
 
   .select {
     @apply rounded-xl border bg-white px-3.5 py-2.5 text-sm transition-all duration-200 focus:outline-none;
-    border-color: #e2e8f0;
+    border-color: #d1dbe5;
     color: #0f172a;
   }
 
@@ -237,19 +276,19 @@
 
   .btn-secondary {
     @apply btn border bg-white;
-    border-color: #e2e8f0;
-    color: #475569;
+    border-color: #d1dbe5;
+    color: #334155;
   }
 
   .btn-secondary:hover {
     background: #f8fafc;
-    border-color: #cbd5e1;
-    color: #1e293b;
+    border-color: #a3b2c5;
+    color: #0f172a;
   }
 
   .btn-ghost {
     @apply btn;
-    color: #64748b;
+    color: #526071;
   }
 
   .btn-ghost:hover {
@@ -303,46 +342,44 @@
 
   .badge-neutral {
     @apply badge;
-    background: #f8fafc;
-    color: #475569;
-    border: 1px solid #e2e8f0;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
   }
 
   .table-container {
     @apply overflow-hidden rounded-2xl border bg-white;
-    border-color: rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.13);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.01), 0 10px 30px rgba(149, 157, 165, 0.05);
   }
 
   .table-header {
     background: #f8fafc;
-    border-bottom: 1px solid rgba(99, 102, 241, 0.06);
+    border-bottom: 1px solid rgba(99, 102, 241, 0.10);
   }
 
   .table-header th {
-    @apply px-4 py-3 text-left text-[11px] font-semibold uppercase text-slate-400;
+    @apply px-4 py-3 text-left text-[11px] font-semibold uppercase text-slate-500;
     letter-spacing: 0.08em;
     vertical-align: middle;
     white-space: nowrap;
   }
 
-  .table-body {
-    divide-color: rgba(99, 102, 241, 0.04);
-  }
+
 
   .table-row {
     transition: background 150ms ease;
   }
 
   .table-row:hover .table-cell {
-    background: rgba(99, 102, 241, 0.015);
+    background: rgba(99, 102, 241, 0.035);
   }
 
   .table-cell {
     @apply whitespace-nowrap px-4 py-3.5 text-sm;
     color: #334155;
     vertical-align: middle;
-    border-bottom: 1px solid rgba(99, 102, 241, 0.04);
+    border-bottom: 1px solid rgba(99, 102, 241, 0.07);
     background: #fff;
     transition: all 150ms ease;
   }
@@ -369,6 +406,18 @@
 
   .table-row:hover .table-cell:first-child::before {
     width: 3px;
+  }
+
+  .table-row.is-selected .table-cell {
+    background: rgba(99, 102, 241, 0.05) !important;
+  }
+
+  .table-row.is-selected:hover .table-cell {
+    background: rgba(99, 102, 241, 0.08) !important;
+  }
+
+  .table-row.is-selected .table-cell:first-child::before {
+    width: 4px;
   }
 
   :root[data-dashboard-density='compact'] .card {
@@ -437,7 +486,7 @@
   }
 
   .nav-item-idle {
-    color: #5e6b84;
+    color: #526071;
   }
 
   .nav-item-idle:hover {
@@ -464,8 +513,8 @@
 
   .icon-button {
     @apply inline-flex h-9 w-9 items-center justify-center rounded-md border bg-white transition;
-    border-color: #dbe3ee;
-    color: #5e6b84;
+    border-color: #cbd5e1;
+    color: #526071;
   }
 
   .icon-button:hover {
@@ -488,7 +537,7 @@
   }
 
   .app-rail-item-idle {
-    color: #5e6b84;
+    color: #526071;
   }
 
   .app-rail-item-idle:hover {
@@ -517,7 +566,7 @@
 
   .app-rail-expand-button {
     @apply absolute bottom-[-14px] right-[-14px] z-10 hidden h-7 w-7 items-center justify-center rounded-full border bg-white text-app-soft shadow-sm transition xl:inline-flex;
-    border-color: #dbe3ee;
+    border-color: #d1dbe5;
   }
 
   .app-rail-expand-button:hover {
@@ -527,18 +576,18 @@
 
   .site-switcher-trigger {
     @apply flex h-10 w-full items-center justify-between gap-2.5 rounded-lg border bg-white px-2.5 text-left transition;
-    border-color: #dbe3ee;
+    border-color: #d1dbe5;
   }
 
   .site-switcher-trigger:hover {
     background: #f6f9fc;
-    border-color: #b8c8da;
+    border-color: #a3b2c5;
   }
 
   .site-switcher-panel {
     @apply absolute left-0 top-[calc(100%+0.5rem)] z-30 overflow-hidden rounded-xl border bg-white shadow-card;
     width: 300px;
-    border-color: #dbe3ee;
+    border-color: #d1dbe5;
     box-shadow: 0 18px 40px rgba(17, 24, 39, 0.08);
   }
 
@@ -677,7 +726,7 @@
   }
 
   .bg-grid {
-    background-image: 
+    background-image:
       linear-gradient(rgba(15, 108, 222, 0.035) 1px, transparent 1px),
       linear-gradient(90deg, rgba(15, 108, 222, 0.035) 1px, transparent 1px);
     background-size: 40px 40px;
@@ -685,7 +734,7 @@
 
   .bg-gradient-radial {
     background: radial-gradient(ellipse at top, rgba(15, 108, 222, 0.12), transparent 55%),
-                radial-gradient(ellipse at bottom, rgba(14, 116, 144, 0.09), transparent 60%);
+      radial-gradient(ellipse at bottom, rgba(14, 116, 144, 0.09), transparent 60%);
   }
 
   .shadow-soft {
