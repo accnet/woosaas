@@ -541,7 +541,7 @@ function UserMenu({
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-[calc(100%+0.5rem)] z-30 w-[220px] overflow-hidden rounded-xl border border-app-line bg-white p-2 shadow-card">
+        <div className="absolute right-0 top-[calc(100%+0.5rem)] z-30 w-[220px] overflow-hidden rounded-2xl border border-slate-100 bg-white/95 p-2 shadow-[0_10px_35px_rgba(99,102,241,0.06)] backdrop-blur-md animate-slide-up">
           <nav className="space-y-1">
             <Link href="/dashboard/sites" className="nav-item nav-item-idle" onClick={() => setOpen(false)}>
               <Globe className="h-4 w-4" />
@@ -733,7 +733,7 @@ function AppRail({
 
   return (
     <aside
-      className={`relative hidden shrink-0 border-r border-app-line bg-app-panel transition-[width] duration-200 xl:flex xl:flex-col ${
+      className={`relative hidden shrink-0 border-r border-slate-100 bg-white/70 backdrop-blur-sm transition-[width] duration-200 xl:flex xl:flex-col ${
         expanded ? 'w-[220px]' : 'w-[64px]'
       }`}
     >
@@ -1042,9 +1042,9 @@ function SiteSidebar({
   const showSettingsSidebar = isSettingsRoute(pathname)
 
   return (
-    <aside className="hidden min-h-0 w-[280px] shrink-0 border-r border-app-line bg-white xl:flex xl:flex-col">
+    <aside className="hidden min-h-0 w-[280px] shrink-0 border-r border-slate-100 bg-white/80 backdrop-blur-md xl:flex xl:flex-col">
       {showSettingsSidebar ? (
-        <div className="border-b border-app-line px-5 py-4">
+        <div className="border-b border-slate-100 px-5 py-4">
           <div className="text-lg font-semibold text-app-strong">Setting</div>
           <div className="mt-1 text-sm text-app-muted">User settings, teams, authentication, billing, and invoices.</div>
         </div>
@@ -1289,8 +1289,8 @@ function SidebarGroup({
 
 function DemoLogo() {
   return (
-    <Link href="/dashboard" className="-ml-2 flex shrink-0 items-center gap-3 rounded-xl transition hover:opacity-90 md:-ml-3">
-      <div className="app-rail-logo h-11 w-11 rounded-xl">W</div>
+    <Link href="/dashboard" className="-ml-2 flex shrink-0 items-center gap-3 rounded-xl transition duration-300 hover:scale-[1.03] md:-ml-3">
+      <div className="app-rail-logo h-10 w-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-violet-600 text-white font-bold text-base shadow-[0_4px_12px_rgba(99,102,241,0.2)]">W</div>
     </Link>
   )
 }
@@ -1318,7 +1318,7 @@ function TopNav({
   const lastSignal = currentSite?.tracking_last_event_at || currentSite?.tracking_last_checked_at || currentSite?.created_at
 
   return (
-    <header className="sticky top-0 z-20 border-b border-app-line bg-app/95 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b border-slate-100/80 bg-white/80 backdrop-blur-md shadow-sm shadow-slate-100/40">
       <div className="flex h-14 items-center gap-0 px-3 md:px-5">
         {/* Left: logo + mobile menu + site switcher + inline status */}
         <DemoLogo />

@@ -30,6 +30,12 @@ export function MetricCard({
   valueClassName?: string
   sparklineData?: number[]
 }) {
+  const stripeGradient = {
+    neutral: 'from-indigo-500 to-violet-500',
+    good: 'from-emerald-500 to-teal-500',
+    warn: 'from-amber-500 to-orange-500',
+  }[tone]
+
   const sparklineColor = {
     neutral: '#6366f1',
     good: '#10b981',
@@ -41,12 +47,14 @@ export function MetricCard({
     delta === null || delta === undefined ? null : delta === 0 ? Minus : isDeltaPositive ? ArrowUpRight : ArrowDownRight
 
   return (
-    <div className="card px-4 py-3.5">
+    <div className="card relative overflow-hidden px-5 pt-5 pb-4">
+      <div className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${stripeGradient}`} />
+      
       {/* Label — normal case, small, subdued */}
       <div className="text-xs font-medium text-app-soft">{label}</div>
 
       {/* Value — large, bold, tabular */}
-      <div className={`mt-1.5 flex items-center gap-2 font-bold tabular-nums text-app-strong text-[1.5rem] leading-none ${valueClassName}`.trim()}>
+      <div className={`mt-1.5 flex items-center gap-2 font-bold tabular-nums text-app-strong text-[1.625rem] leading-none ${valueClassName}`.trim()}>
         {value}
         {live && (
           <div className="relative h-2 w-2 shrink-0">
@@ -60,12 +68,12 @@ export function MetricCard({
       {delta !== null && delta !== undefined && DeltaIcon ? (
         <div className="mt-2">
           <span
-            className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
+            className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
               delta === 0
-                ? 'bg-app-subtle text-app-muted'
+                ? 'bg-app-subtle text-app-muted border border-slate-100'
                 : isDeltaPositive
-                  ? 'bg-emerald-50 text-emerald-700'
-                  : 'bg-red-50 text-red-700'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                  : 'bg-red-50 text-red-700 border border-red-100'
             }`}
             title={comparisonLabel || "vs previous period"}
           >
@@ -76,25 +84,26 @@ export function MetricCard({
         </div>
       ) : null}
 
-      {/* Sparkline — flat stroke, no gradient */}
+      {/* Sparkline — flat stroke, beautiful glowing gradient */}
       {sparklineData && sparklineData.length > 2 && (
         <div className="-mx-1 mt-3">
-          <ResponsiveContainer width="100%" height={32}>
+          <ResponsiveContainer width="100%" height={36}>
             <AreaChart data={sparklineData.map((v, i) => ({ v, i }))}>
               <defs>
-                <linearGradient id={`sg-${label}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={sparklineColor} stopOpacity={0.12} />
-                  <stop offset="95%" stopColor={sparklineColor} stopOpacity={0} />
+                <linearGradient id={`sg-${label.replace(/[^a-zA-Z0-9]/g, '-')}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={sparklineColor} stopOpacity={0.2} />
+                  <stop offset="100%" stopColor={sparklineColor} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <Area
                 dataKey="v"
                 type="monotone"
                 stroke={sparklineColor}
-                strokeWidth={1.5}
-                fill={`url(#sg-${label})`}
+                strokeWidth={2}
+                fill={`url(#sg-${label.replace(/[^a-zA-Z0-9]/g, '-')})`}
                 dot={false}
-                isAnimationActive={false}
+                isAnimationActive={true}
+                animationDuration={800}
               />
             </AreaChart>
           </ResponsiveContainer>

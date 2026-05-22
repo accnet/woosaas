@@ -35,20 +35,29 @@ function MiniFlowBar({
   pct?: number
 }) {
   const barWidth = max > 0 ? Math.min((value / max) * 100, 100) : 0
+  
+  // Custom glowing gradients based on funnel step
+  const gradientClass = {
+    'Product Views': 'from-indigo-500 to-violet-500 shadow-[0_0_8px_rgba(99,102,241,0.25)]',
+    'Add to Cart': 'from-blue-500 to-sky-400 shadow-[0_0_8px_rgba(59,130,246,0.25)]',
+    'Checkouts': 'from-amber-500 to-yellow-400 shadow-[0_0_8px_rgba(245,158,11,0.25)]',
+    'Purchases': 'from-emerald-500 to-teal-400 shadow-[0_0_8px_rgba(16,185,129,0.25)]',
+  }[label] || 'from-indigo-500 to-violet-500'
+
   return (
-    <div className="flex items-center gap-3 py-1.5">
-      <div className="w-28 shrink-0 text-xs text-app-muted">{label}</div>
-      <div className="h-3 flex-1 overflow-hidden rounded-full bg-app-subtle">
+    <div className="flex items-center gap-4 py-2.5">
+      <div className="w-28 shrink-0 text-xs font-semibold text-app-muted">{label}</div>
+      <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100/80 border border-slate-200/30">
         <div
-          className="h-full rounded-full bg-indigo-400/60"
+          className={`h-full rounded-full bg-gradient-to-r ${gradientClass} transition-all duration-500 ease-out`}
           style={{ width: `${barWidth}%` }}
         />
       </div>
-      <div className="w-16 shrink-0 text-right text-sm font-semibold tabular-nums text-app-strong">
+      <div className="w-16 shrink-0 text-right text-xs font-bold tabular-nums text-app-strong">
         {displayValue}
       </div>
       {pct !== undefined && (
-        <div className="w-10 shrink-0 text-right text-xs tabular-nums text-app-soft">
+        <div className="w-10 shrink-0 text-right text-xs font-semibold tabular-nums text-indigo-600/80">
           {pct.toFixed(0)}%
         </div>
       )}

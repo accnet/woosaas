@@ -113,7 +113,7 @@ export function DataTable<T>({
                   {columns.map((col) => (
                     <td
                       key={col.key}
-                      className={`px-4 py-2 text-sm tabular-nums ${
+                      className={`table-cell px-4 py-2.5 text-sm tabular-nums ${
                         col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : ''
                       }`}
                     >

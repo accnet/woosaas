@@ -15,6 +15,7 @@ import { TableLoadingSkeleton } from '@/components/ui/table-loading-skeleton'
 import { SectionCard } from '@/components/ui/section-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useSiteId } from '@/hooks/use-site-id'
+import { useDateRange } from '@/hooks/use-date-range'
 import { getApiErrorMessage, ordersApi } from '@/lib/api'
 import { DATE_RANGE_OPTIONS, getPresetDateRange, type PresetDateRange } from '@/lib/date-range'
 import type { OrderListItem, OrderListResponse, WooOrderSyncState } from '@/lib/types'
@@ -151,15 +152,15 @@ function formatSyncMoment(value: string | null) {
 function SyncStateBanner({ state }: { state: WooOrderSyncState }) {
   if (!state.order_sync_enabled) {
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-3.5">
-        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-100">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
+      <div className="flex items-start gap-4 rounded-2xl border border-amber-200/60 bg-gradient-to-r from-amber-50/70 via-orange-50/40 to-white px-5 py-4 shadow-sm backdrop-blur-md transition-all duration-300 hover:shadow-md hover:border-amber-300/80">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100/80 shadow-inner">
+          <AlertTriangle className="h-5 w-5 text-amber-600 animate-pulse" />
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-medium text-amber-800">Order sync is disabled</p>
-          <p className="mt-0.5 text-xs text-amber-700">
-            New WooCommerce orders will not be recorded. Enable sync in{' '}
-            <span className="font-semibold">WooSaaS plugin → Settings</span>.
+          <p className="text-sm font-semibold text-amber-800">WooCommerce Order Sync is Disabled</p>
+          <p className="mt-1 text-xs leading-relaxed text-amber-700">
+            Realtime WooCommerce order snapshots are currently paused. You can enable automatic synchronization in the{' '}
+            <span className="font-semibold underline decoration-amber-500/35 hover:decoration-amber-500 transition-colors">WooSaaS plugin settings</span> on your site.
           </p>
         </div>
       </div>
@@ -167,22 +168,74 @@ function SyncStateBanner({ state }: { state: WooOrderSyncState }) {
   }
 
   const tone = state.status === 'error' ? 'danger' : state.status === 'running' ? 'info' : 'good'
+  
+  // Choose gradient and border colors based on tone
+  const toneColorMap = {
+    danger: {
+      border: 'border-red-100/80',
+      bg: 'from-red-50/30 via-white to-white',
+      glow: 'bg-red-500/10'
+    },
+    info: {
+      border: 'border-indigo-100/80',
+      bg: 'from-indigo-50/20 via-white to-white',
+      glow: 'bg-indigo-500/10'
+    },
+    good: {
+      border: 'border-emerald-100/80',
+      bg: 'from-emerald-50/30 via-white to-white',
+      glow: 'bg-emerald-500/10'
+    }
+  }
+  const colors = toneColorMap[tone] || toneColorMap.info
+
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-app-line bg-white px-4 py-3.5 lg:flex-row lg:items-center lg:justify-between">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm font-medium text-app-strong">WooCommerce order sync</p>
-          <StatusChip label={state.status || 'unknown'} tone={tone} />
+    <div className={`card-glass flex flex-col gap-4 p-5 md:p-6 transition-all duration-300 hover:shadow-lg hover:border-indigo-200 border ${colors.border} bg-gradient-to-br ${colors.bg}`}>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="relative flex h-3.5 w-3.5">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${tone === 'danger' ? 'bg-rose-400' : tone === 'info' ? 'bg-indigo-400 animate-pulse' : 'bg-emerald-400'}`}></span>
+              <span className={`relative inline-flex rounded-full h-3.5 w-3.5 ${tone === 'danger' ? 'bg-rose-500' : tone === 'info' ? 'bg-indigo-500' : 'bg-emerald-500'}`}></span>
+            </span>
+            <h4 className="text-sm font-semibold tracking-tight text-app-strong">WooCommerce Sync Status</h4>
+            <StatusChip label={state.status || 'unknown'} tone={tone} />
+          </div>
+          <p className="mt-1.5 text-xs text-app-muted leading-relaxed">
+            Active developer sync pipeline. Realtime sync updates occur securely via background webhooks.
+          </p>
         </div>
-        <p className="mt-1 text-xs text-app-muted">
-          Last realtime sync: {formatSyncMoment(state.last_realtime_synced_at)}. Last success: {formatSyncMoment(state.last_success_at)}.
-        </p>
+        <div className="flex flex-wrap gap-2 text-xs">
+          <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-1.5 font-medium text-app-muted">
+            Last success: <span className="font-semibold text-app-strong">{formatSyncMoment(state.last_success_at)}</span>
+          </div>
+          <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-1.5 font-medium text-app-muted">
+            Last sync check: <span className="font-semibold text-app-strong">{formatSyncMoment(state.last_realtime_synced_at)}</span>
+          </div>
+        </div>
       </div>
-      <div className="grid gap-1 text-xs text-app-muted sm:grid-cols-2 sm:gap-x-5">
-        <span>Backfill cursor: {state.last_backfill_order_id || 'Not started'}</span>
-        <span>Backfill modified: {formatSyncMoment(state.last_backfill_modified_at)}</span>
-        <span>Backfill completed: {formatSyncMoment(state.backfill_completed_at)}</span>
-        <span>{state.last_error ? `Last error: ${state.last_error}` : 'No recent sync error'}</span>
+
+      <div className="h-px bg-slate-100/80 my-0.5" />
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="flex flex-col gap-1 rounded-xl bg-slate-50/50 p-3 border border-slate-100/50">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-app-soft">Backfill Cursor</span>
+          <span className="text-xs font-semibold text-app-strong">{state.last_backfill_order_id || 'Not started'}</span>
+        </div>
+        <div className="flex flex-col gap-1 rounded-xl bg-slate-50/50 p-3 border border-slate-100/50">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-app-soft">Backfill Modified At</span>
+          <span className="text-xs font-semibold text-app-strong">{formatSyncMoment(state.last_backfill_modified_at)}</span>
+        </div>
+        <div className="flex flex-col gap-1 rounded-xl bg-slate-50/50 p-3 border border-slate-100/50">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-app-soft">Backfill Completed</span>
+          <span className="text-xs font-semibold text-app-strong">{formatSyncMoment(state.backfill_completed_at)}</span>
+        </div>
+        <div className={`flex flex-col gap-1 rounded-xl p-3 border ${state.last_error ? 'bg-red-50/30 border-red-100/50 text-red-700' : 'bg-slate-50/50 border-slate-100/50 text-app-strong'}`}>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-app-soft">Recent Diagnostic</span>
+          <span className="text-xs font-semibold truncate" title={state.last_error || 'No sync issues'}>
+            {state.last_error ? state.last_error : 'Healthy — No errors'}
+          </span>
+        </div>
       </div>
     </div>
   )
@@ -223,7 +276,7 @@ export default function OrdersPage() {
       setError(null)
 
       try {
-        const range = dateRange === 'all' ? null : getPresetDateRange(dateRange)
+        const range = dateRange === 'all' ? null : getPresetDateRange(dateRange as PresetDateRange)
         const response = await ordersApi.list(siteId, page, PAGE_SIZE, {
           q: query || undefined,
           status: statusFilter || undefined,
@@ -306,67 +359,81 @@ export default function OrdersPage() {
         ) : null}
 
         {/* Filter bar */}
-        <div className="rounded-xl border border-app-line bg-white px-2 py-2.5 shadow-sm md:px-4 md:py-1.5">
-          <div className="flex flex-col gap-2.5 md:flex-row md:flex-wrap md:gap-x-6 md:gap-y-3">
-            <div className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-2 md:flex md:items-center">
-              <span className="text-xs font-semibold uppercase tracking-wider text-app-soft">Status</span>
-              <select
-                value={statusFilter}
-                onChange={(event) => {
-                  setPage(1)
-                  setStatusFilter(event.target.value)
-                }}
-                className="select w-full min-w-0 md:min-w-[180px]"
-              >
-                {STATUS_FILTERS.map((filter) => (
-                  <option key={filter.value || 'all'} value={filter.value}>
-                    {filter.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-2 md:flex md:items-center">
-              <span className="text-xs font-semibold uppercase tracking-wider text-app-soft">Payment</span>
-              <select
-                value={paymentFilter}
-                onChange={(event) => {
-                  setPage(1)
-                  setPaymentFilter(event.target.value)
-                }}
-                className="select w-full min-w-0 md:min-w-[160px]"
-              >
-                {PAYMENT_FILTERS.map((filter) => (
-                  <option key={filter.value || 'all'} value={filter.value}>
-                    {filter.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid grid-cols-[64px_minmax(0,1fr)] items-start gap-2 md:flex md:flex-wrap md:items-center md:gap-1.5">
-              <span className="text-xs font-semibold uppercase tracking-wider text-app-soft">Fulfillment</span>
-              <div className="flex flex-wrap gap-1">
-                {FULFILLMENT_FILTERS.map((f) => (
-                  <FilterPill
-                    key={f.value}
-                    label={f.label}
-                    active={fulfillmentFilter === f.value}
-                    onClick={() => { setPage(1); setFulfillmentFilter(f.value) }}
-                  />
-                ))}
+        <div className="card-glass px-4 py-3 shadow-sm border border-slate-100/50">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <div className="flex items-center gap-2.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-app-soft">Status</span>
+                <select
+                  value={statusFilter}
+                  onChange={(event) => {
+                    setPage(1)
+                    setStatusFilter(event.target.value)
+                  }}
+                  className="select py-1.5 pl-3 pr-8 text-xs font-medium border-slate-200 bg-white/50 backdrop-blur-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 min-w-[140px] shadow-sm rounded-lg"
+                >
+                  {STATUS_FILTERS.map((filter) => (
+                    <option key={filter.value || 'all'} value={filter.value}>
+                      {filter.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-app-soft">Payment</span>
+                <select
+                  value={paymentFilter}
+                  onChange={(event) => {
+                    setPage(1)
+                    setPaymentFilter(event.target.value)
+                  }}
+                  className="select py-1.5 pl-3 pr-8 text-xs font-medium border-slate-200 bg-white/50 backdrop-blur-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 min-w-[130px] shadow-sm rounded-lg"
+                >
+                  {PAYMENT_FILTERS.map((filter) => (
+                    <option key={filter.value || 'all'} value={filter.value}>
+                      {filter.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-app-soft mr-1">Fulfillment</span>
+                <div className="flex flex-wrap gap-1">
+                  {FULFILLMENT_FILTERS.map((f) => (
+                    <button
+                      key={f.value}
+                      type="button"
+                      onClick={() => { setPage(1); setFulfillmentFilter(f.value) }}
+                      className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-all duration-200 ${
+                        fulfillmentFilter === f.value
+                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-sm font-semibold'
+                          : 'border-slate-200 bg-white/60 text-slate-500 hover:border-slate-300 hover:text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-            <div className="flex items-center justify-end md:ml-auto">
-              <span className="text-xs text-app-muted">{totalCount.toLocaleString()} orders</span>
+
+            <div className="flex items-center gap-2 self-end lg:self-auto text-xs text-app-muted bg-slate-100/50 border border-slate-100/40 px-2.5 py-1 rounded-lg">
+              <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
+              <span className="font-semibold text-app-strong">{totalCount.toLocaleString()}</span> orders found
             </div>
           </div>
         </div>
 
         {/* Orders table */}
-        <SectionCard className="px-0 py-0 overflow-hidden">
+        <div className="table-container">
           {orders.length === 0 ? (
             <div className="px-6 py-10">
               <EmptyState
-                icon={<ReceiptText className="h-10 w-10" />}
+                icon={<ReceiptText className="h-10 w-10 text-indigo-500" />}
                 title="No synced orders yet"
                 body="WooCommerce order snapshots will appear here after realtime sync or backfill starts."
               />
@@ -409,8 +476,8 @@ export default function OrdersPage() {
                     const paymentBadge = getPaymentBadge(order.payment_status || '')
 
                     return (
-                      <tr key={order.woo_order_id} className={`table-row group cursor-pointer transition-colors hover:bg-slate-50/70 ${isSelected ? 'bg-indigo-50/50' : ''}`}>
-                        <td className="w-10 px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <tr key={order.woo_order_id} className={`table-row group cursor-pointer transition-colors hover:bg-slate-50/70 ${isSelected ? 'bg-indigo-50/30' : ''}`}>
+                        <td className="table-cell w-10 px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={isSelected}
@@ -426,7 +493,7 @@ export default function OrdersPage() {
                             className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                           />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="table-cell px-4 py-3 whitespace-nowrap font-medium">
                           <Link
                             href={`/dashboard/${siteId}/orders/${encodeURIComponent(order.woo_order_id)}`}
                             className="text-sm font-semibold text-app-strong transition hover:text-indigo-600"
@@ -434,25 +501,25 @@ export default function OrdersPage() {
                             #{order.woo_order_id}
                           </Link>
                         </td>
-                        <td className="px-4 py-3 text-sm text-app-muted tabular-nums whitespace-nowrap">
+                        <td className="table-cell px-4 py-3 text-sm text-app-muted tabular-nums whitespace-nowrap">
                           {formatShortDate(order.created_at_woo)}
                         </td>
-                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <td className="table-cell px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <div title={formatStatusLabel(order.payment_status || 'unknown')}>
                             <StatusChip label={paymentBadge.label} tone={paymentBadge.tone} />
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-left whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          <div className="text-sm tabular-nums text-app-strong">
+                        <td className="table-cell px-4 py-3 text-left whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="text-sm tabular-nums text-app-strong font-semibold">
                             {money(order.total_amount, order.currency)}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-app-muted">
+                        <td className="table-cell px-4 py-3 text-sm text-app-muted">
                           <div className="max-w-[130px] truncate" title={order.delivery_method}>
                             {order.delivery_method || '—'}
                           </div>
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="table-cell px-4 py-3 whitespace-nowrap">
                           {(order.shipping_city || order.shipping_country) ? (
                             <div
                               className="max-w-[220px] truncate text-sm text-app-strong"
@@ -474,16 +541,16 @@ export default function OrdersPage() {
                             <span className="text-sm text-app-soft">—</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-sm text-app-strong">
+                        <td className="table-cell px-4 py-3 text-sm text-app-strong">
                           <div className="max-w-[200px] truncate">{customer}</div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-app-muted tabular-nums">
+                        <td className="table-cell px-4 py-3 text-sm text-app-muted tabular-nums">
                           {order.items_count}
                         </td>
-                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <td className="table-cell px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <StatusChip label={formatStatusLabel(order.fulfillment_status || 'unknown')} tone={chipTone(order.fulfillment_status || 'unknown')} />
                         </td>
-                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <td className="table-cell px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <StatusChip label={formatStatusLabel(order.status || 'unknown')} tone={lifecycleTone(order.status || 'unknown')} />
                         </td>
                       </tr>
@@ -493,7 +560,7 @@ export default function OrdersPage() {
               </table>
             </div>
           )}
-        </SectionCard>
+        </div>
 
         <PaginationControls
           page={page}
@@ -514,8 +581,8 @@ export default function OrdersPage() {
             status: statusFilter || undefined,
             paymentStatus: paymentFilter || undefined,
             fulfillmentStatus: fulfillmentFilter || undefined,
-            dateFrom: dateRange === 'all' ? undefined : getPresetDateRange(dateRange).from,
-            dateTo: dateRange === 'all' ? undefined : getPresetDateRange(dateRange).to,
+            dateFrom: dateRange === 'all' ? undefined : getPresetDateRange(dateRange as PresetDateRange).from,
+            dateTo: dateRange === 'all' ? undefined : getPresetDateRange(dateRange as PresetDateRange).to,
           }}
           previewOrders={orders}
           onClose={() => setExportOpen(false)}
