@@ -232,17 +232,25 @@ export default function RealtimePage() {
           className="overflow-hidden px-0 py-0"
         >
           {filteredEvents.length > 0 ? (
-            <div className="max-h-[560px] divide-y divide-slate-100 overflow-y-auto">
+            <div className="max-h-[560px] divide-y divide-slate-100/50 overflow-y-auto">
               {filteredEvents.map((event, index) => (
-                <div key={`${event.session_id}-${event.event_time}-${index}`} className="flex items-center gap-3 border-b border-slate-50 px-4 py-2 hover:bg-slate-50/50">
-                  <span className="w-16 shrink-0 text-xs tabular-nums text-app-soft">{formatTimestamp(event.event_time)}</span>
-                  <StatusChip label={event.event_name} tone="info" />
-                  <span className="flex-1 truncate text-sm font-medium text-app-strong">{event.path || '-'}</span>
-                  <span className="hidden w-24 shrink-0 truncate text-xs text-app-soft sm:block">{event.source || '(direct)'}</span>
+                <div
+                  key={`${event.session_id}-${event.event_time}-${index}`}
+                  className="flex items-center gap-4 px-4 py-2.5 hover:bg-indigo-500/[0.02] border-l-2 border-l-transparent hover:border-l-indigo-500 transition-all duration-150"
+                >
+                  <span className="w-20 shrink-0 text-xs font-semibold tabular-nums text-app-muted">{formatTimestamp(event.event_time)}</span>
+                  <div className="shrink-0">
+                    <StatusChip
+                      label={event.event_name}
+                      tone={event.event_name === 'purchase' ? 'good' : event.event_name === 'checkout' ? 'warn' : 'info'}
+                    />
+                  </div>
+                  <span className="flex-1 truncate text-sm font-semibold text-app-strong" title={event.path || '/'}>{event.path || '/'}</span>
+                  <span className="hidden w-28 shrink-0 truncate text-xs font-medium text-app-muted sm:block">{event.source || '(direct)'}</span>
                   {event.revenue > 0 ? (
-                    <span className="w-16 shrink-0 text-right text-xs font-semibold text-emerald-600">${event.revenue.toFixed(2)}</span>
+                    <span className="w-20 shrink-0 text-right text-sm font-bold tabular-nums text-emerald-600">${event.revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   ) : (
-                    <span className="w-16 shrink-0 text-right text-xs text-app-soft">-</span>
+                    <span className="w-20 shrink-0 text-right text-xs font-semibold text-app-soft">-</span>
                   )}
                 </div>
               ))}
@@ -293,14 +301,14 @@ export default function RealtimePage() {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-app-line bg-app-panel p-4">
-                <div className="text-sm font-semibold text-app-strong">Current mode</div>
-                <p className="mt-2 text-sm text-app-muted">
+              <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/[0.03] backdrop-blur-sm p-4">
+                <div className="text-xs font-bold uppercase tracking-wider text-indigo-800">Console Mode</div>
+                <p className="mt-2 text-sm text-indigo-950 font-medium leading-relaxed">
                   {liveStatus === 'live'
-                    ? 'The page is automatically polling every 15 seconds.'
+                    ? 'The terminal console is automatically polling live metrics stream every 15 seconds.'
                     : liveStatus === 'refreshing'
-                      ? 'A refresh is currently in flight.'
-                      : 'Auto refresh is paused until you resume it or trigger a manual refresh.'}
+                      ? 'A background data sync is currently in flight.'
+                      : 'Live streams are paused. Resume to enable automated event polling.'}
                 </p>
               </div>
             </div>

@@ -84,7 +84,9 @@ export default function PagesPage() {
       render: (p) => (
         <div className="truncate max-w-[280px]">
           <span className="font-medium text-app-strong" title={p.path || '/'}>{p.path || '/'}</span>
-          <div className="mt-0.5 text-xs text-app-muted">{p.previous_pageviews.toLocaleString()} views in previous range</div>
+          <div className="mt-0.5 text-xs text-app-muted font-normal">
+            <span className="tabular-nums font-semibold">{p.previous_pageviews.toLocaleString()}</span> views in previous
+          </div>
         </div>
       ),
     },
@@ -95,7 +97,7 @@ export default function PagesPage() {
       sortable: true,
       render: (p) => (
         <div>
-          <div className="font-medium text-app-strong">{p.pageviews.toLocaleString()}</div>
+          <div className="font-semibold tabular-nums text-app-strong">{p.pageviews.toLocaleString()}</div>
           <div className="mt-0.5 flex justify-end">
             <DeltaLabel value={p.pageviews_delta} />
           </div>
@@ -110,7 +112,7 @@ export default function PagesPage() {
       sortable: true,
       render: (p) => (
         <div>
-          <div className="font-medium text-app-strong">{p.sessions.toLocaleString()}</div>
+          <div className="font-semibold tabular-nums text-app-strong">{p.sessions.toLocaleString()}</div>
           <div className="mt-0.5 flex justify-end">
             <DeltaLabel value={p.sessions_delta} />
           </div>
@@ -118,8 +120,22 @@ export default function PagesPage() {
       ),
       sortValue: (p) => p.sessions,
     },
-    { key: 'product_views', label: 'Product Views', align: 'right', sortable: true, render: (p) => p.product_views.toLocaleString(), sortValue: (p) => p.product_views },
-    { key: 'purchases', label: 'Purchases', align: 'right', sortable: true, render: (p) => p.purchases.toLocaleString(), sortValue: (p) => p.purchases },
+    {
+      key: 'product_views',
+      label: 'Product Views',
+      align: 'right',
+      sortable: true,
+      render: (p) => <span className="tabular-nums font-medium text-app-strong">{p.product_views.toLocaleString()}</span>,
+      sortValue: (p) => p.product_views,
+    },
+    {
+      key: 'purchases',
+      label: 'Purchases',
+      align: 'right',
+      sortable: true,
+      render: (p) => <span className="tabular-nums font-semibold text-app-strong">{p.purchases.toLocaleString()}</span>,
+      sortValue: (p) => p.purchases,
+    },
     {
       key: 'revenue',
       label: 'Revenue',
@@ -127,7 +143,7 @@ export default function PagesPage() {
       sortable: true,
       render: (p) => (
         <div>
-          <div className="font-medium text-app-strong">${p.revenue.toFixed(2)}</div>
+          <div className="font-bold tabular-nums text-emerald-600">${p.revenue.toFixed(2)}</div>
           <div className="mt-0.5 flex justify-end">
             <DeltaLabel value={p.revenue_delta} />
           </div>
@@ -140,8 +156,9 @@ export default function PagesPage() {
       label: 'Momentum',
       align: 'right',
       render: (p) => (
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 items-center">
           <DeltaLabel value={p.pageviews_delta} />
+          <div className="h-3 w-px bg-slate-200" />
           <DeltaLabel value={p.revenue_delta} />
         </div>
       ),
@@ -226,7 +243,7 @@ export default function PagesPage() {
 }
 
 function DeltaLabel({ value }: { value: number | null | undefined }) {
-  if (value == null) return <span className="text-xs text-app-soft">-</span>
+  if (value == null) return <span className="text-xs text-app-soft font-medium">-</span>
   const isUp = value >= 0
-  return <span className={`text-xs font-semibold ${isUp ? 'text-emerald-600' : 'text-red-600'}`}>{isUp ? '+' : ''}{value.toFixed(1)}%</span>
+  return <span className={`text-xs font-semibold tabular-nums ${isUp ? 'text-emerald-600' : 'text-red-600'}`}>{isUp ? '+' : ''}{value.toFixed(1)}%</span>
 }

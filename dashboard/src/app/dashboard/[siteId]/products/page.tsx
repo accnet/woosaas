@@ -57,13 +57,20 @@ export default function ProductsPage() {
       label: 'Product',
       render: (p) => (
         <div className="flex items-center gap-2">
-          <span className="truncate max-w-[200px] block font-medium text-app-strong" title={p.product_name}>
+          <span className="truncate max-w-[200px] block font-semibold text-app-strong" title={p.product_name}>
             {p.product_name || p.product_id}
           </span>
         </div>
       ),
     },
-    { key: 'views', label: 'Views', align: 'right', sortable: true, render: (p) => p.views?.toLocaleString() || '0', sortValue: (p) => p.views },
+    {
+      key: 'views',
+      label: 'Views',
+      align: 'right',
+      sortable: true,
+      render: (p) => <span className="tabular-nums font-semibold text-app-strong">{p.views?.toLocaleString() || '0'}</span>,
+      sortValue: (p) => p.views
+    },
     {
       key: 'atc_rate',
       label: 'ATC Rate',
@@ -71,14 +78,42 @@ export default function ProductsPage() {
       sortable: true,
       render: (p) => {
         const rate = p.views > 0 ? ((p.add_to_carts || 0) / p.views) * 100 : 0
-        return <span className={rate > 10 ? 'font-medium text-emerald-600' : 'text-app-muted'}>{rate.toFixed(1)}%</span>
+        return <span className={`tabular-nums font-semibold ${rate > 10 ? 'text-indigo-600' : 'text-app-muted'}`}>{rate.toFixed(1)}%</span>
       },
       sortValue: (p) => p.views > 0 ? ((p.add_to_carts || 0) / p.views) * 100 : 0,
     },
-    { key: 'add_to_carts', label: 'Add to Cart', align: 'right', sortable: true, render: (p) => p.add_to_carts?.toLocaleString() || '0', sortValue: (p) => p.add_to_carts },
-    { key: 'purchases', label: 'Purchases', align: 'right', sortable: true, render: (p) => p.purchases?.toLocaleString() || '0', sortValue: (p) => p.purchases },
-    { key: 'units_sold', label: 'Units Sold', align: 'right', sortable: true, render: (p) => p.units_sold?.toLocaleString() || '0', sortValue: (p) => p.units_sold },
-    { key: 'conversion_rate', label: 'Conv. Rate', align: 'right', sortable: true, render: (p) => `${(p.conversion_rate || 0).toFixed(2)}%`, sortValue: (p) => p.conversion_rate },
+    {
+      key: 'add_to_carts',
+      label: 'Add to Cart',
+      align: 'right',
+      sortable: true,
+      render: (p) => <span className="tabular-nums font-medium text-app-strong">{p.add_to_carts?.toLocaleString() || '0'}</span>,
+      sortValue: (p) => p.add_to_carts
+    },
+    {
+      key: 'purchases',
+      label: 'Purchases',
+      align: 'right',
+      sortable: true,
+      render: (p) => <span className="tabular-nums font-semibold text-app-strong">{p.purchases?.toLocaleString() || '0'}</span>,
+      sortValue: (p) => p.purchases
+    },
+    {
+      key: 'units_sold',
+      label: 'Units Sold',
+      align: 'right',
+      sortable: true,
+      render: (p) => <span className="tabular-nums font-semibold text-app-strong">{p.units_sold?.toLocaleString() || '0'}</span>,
+      sortValue: (p) => p.units_sold
+    },
+    {
+      key: 'conversion_rate',
+      label: 'Conv. Rate',
+      align: 'right',
+      sortable: true,
+      render: (p) => <span className="tabular-nums font-semibold text-indigo-600">{(p.conversion_rate || 0).toFixed(2)}%</span>,
+      sortValue: (p) => p.conversion_rate
+    },
     {
       key: 'aov',
       label: 'AOV',
@@ -86,11 +121,18 @@ export default function ProductsPage() {
       sortable: true,
       render: (p) => {
         const aov = p.purchases > 0 ? (p.revenue || 0) / p.purchases : 0
-        return <span className="text-sm">${aov.toFixed(2)}</span>
+        return <span className="tabular-nums font-semibold text-app-strong">${aov.toFixed(2)}</span>
       },
       sortValue: (p) => p.purchases > 0 ? (p.revenue || 0) / p.purchases : 0,
     },
-    { key: 'revenue', label: 'Revenue', align: 'right', sortable: true, render: (p) => <span className="font-medium">${(p.revenue || 0).toFixed(2)}</span>, sortValue: (p) => p.revenue },
+    {
+      key: 'revenue',
+      label: 'Revenue',
+      align: 'right',
+      sortable: true,
+      render: (p) => <span className="tabular-nums font-bold text-emerald-600">${(p.revenue || 0).toFixed(2)}</span>,
+      sortValue: (p) => p.revenue
+    },
     {
       key: 'delta',
       label: 'Δ Revenue',
@@ -98,9 +140,9 @@ export default function ProductsPage() {
       sortable: true,
       render: (p) => {
         const delta = p.revenue_delta
-        if (delta == null) return <span className="text-app-soft">-</span>
+        if (delta == null) return <span className="tabular-nums text-app-soft font-medium">-</span>
         const isUp = delta >= 0
-        return <span className={`text-xs font-semibold ${isUp ? 'text-emerald-600' : 'text-red-600'}`}>{isUp ? '+' : ''}{delta.toFixed(1)}%</span>
+        return <span className={`text-xs font-semibold tabular-nums ${isUp ? 'text-emerald-600' : 'text-red-600'}`}>{isUp ? '+' : ''}{delta.toFixed(1)}%</span>
       },
       sortValue: (p) => p.revenue_delta,
     },

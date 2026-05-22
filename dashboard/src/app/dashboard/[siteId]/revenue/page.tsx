@@ -36,12 +36,12 @@ function money(v: number) {
 function HorizontalBar({ label, value, max, formatted }: { label: string; value: number; max: number; formatted: string }) {
   const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0
   return (
-    <div className="flex items-center gap-3 py-2">
-      <div className="w-32 shrink-0 truncate text-sm text-app-strong" title={label}>{label}</div>
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
-        <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${pct}%` }} />
+    <div className="flex items-center gap-4 py-2">
+      <div className="w-36 shrink-0 truncate text-sm font-semibold text-app-strong" title={label}>{label}</div>
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100/80 border border-slate-200/30">
+        <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 shadow-[0_0_8px_rgba(16,185,129,0.25)] transition-all duration-500" style={{ width: `${pct}%` }} />
       </div>
-      <div className="w-20 shrink-0 text-right text-sm font-semibold text-emerald-700">{formatted}</div>
+      <div className="w-24 shrink-0 text-right text-sm font-bold tabular-nums text-emerald-600">{formatted}</div>
     </div>
   )
 }

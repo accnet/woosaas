@@ -164,14 +164,14 @@ export default function OverviewPage() {
 
   const pageColumns: Column<PageStats>[] = [
     { key: 'path', label: 'Page', render: (p) => <span className="truncate max-w-[200px] block font-medium text-app-strong" title={p.path}>{p.path}</span> },
-    { key: 'pageviews', label: 'Views', align: 'right', sortable: true, render: (p) => <span className={p.pageviews && p.pageviews > 0 ? '' : 'text-app-soft'}>{p.pageviews?.toLocaleString() || '0'}</span>, sortValue: (p) => p.pageviews },
-    { key: 'sessions', label: 'Sessions', align: 'right', sortable: true, render: (p) => <span className={p.sessions && p.sessions > 0 ? '' : 'text-app-soft'}>{p.sessions?.toLocaleString() || '0'}</span>, sortValue: (p) => p.sessions },
-    { key: 'revenue', label: 'Revenue', align: 'right', sortable: true, render: (p) => <span className={p.revenue && p.revenue > 0 ? 'font-medium' : 'text-app-soft'}>${(p.revenue || 0).toFixed(2)}</span>, sortValue: (p) => p.revenue },
+    { key: 'pageviews', label: 'Views', align: 'right', sortable: true, render: (p) => <span className={`tabular-nums font-medium ${p.pageviews && p.pageviews > 0 ? '' : 'text-app-soft'}`}>{p.pageviews?.toLocaleString() || '0'}</span>, sortValue: (p) => p.pageviews },
+    { key: 'sessions', label: 'Sessions', align: 'right', sortable: true, render: (p) => <span className={`tabular-nums font-medium ${p.sessions && p.sessions > 0 ? '' : 'text-app-soft'}`}>{p.sessions?.toLocaleString() || '0'}</span>, sortValue: (p) => p.sessions },
+    { key: 'revenue', label: 'Revenue', align: 'right', sortable: true, render: (p) => <span className={`tabular-nums font-semibold ${p.revenue && p.revenue > 0 ? 'text-emerald-600' : 'text-app-soft'}`}>${(p.revenue || 0).toFixed(2)}</span>, sortValue: (p) => p.revenue },
     { key: 'pageviews_delta', label: 'Δ Views', align: 'right', sortable: true, render: (p) => {
       const delta = p.pageviews_delta
       if (delta == null) return <span className="text-app-soft">-</span>
       const isUp = delta >= 0
-      return <span className={`text-xs font-semibold ${isUp ? 'text-emerald-600' : 'text-red-600'}`}>{isUp ? '+' : ''}{delta.toFixed(1)}%</span>
+      return <span className={`text-xs font-semibold tabular-nums ${isUp ? 'text-emerald-600' : 'text-red-600'}`}>{isUp ? '+' : ''}{delta.toFixed(1)}%</span>
     }, sortValue: (p) => p.pageviews_delta },
   ]
 
@@ -306,19 +306,19 @@ export default function OverviewPage() {
             <SectionCard title="Top Products by Revenue" className="overflow-hidden px-0 py-0">
               {products.length > 0 ? (
                 <table className="min-w-full">
-                  <thead className="table-header">
+                  <thead className="table-header bg-slate-50/50">
                     <tr>
-                      <th className="table-header-cell text-left">Product</th>
-                      <th className="table-header-cell text-right">Revenue</th>
-                      <th className="table-header-cell text-right">Conv.</th>
+                      <th className="table-header-cell text-left font-mono text-[10px] uppercase tracking-wider text-slate-400 font-bold">Product</th>
+                      <th className="table-header-cell text-right font-mono text-[10px] uppercase tracking-wider text-slate-400 font-bold">Revenue</th>
+                      <th className="table-header-cell text-right font-mono text-[10px] uppercase tracking-wider text-slate-400 font-bold">Conv.</th>
                     </tr>
                   </thead>
                   <tbody className="table-body">
                     {products.map((p) => (
-                      <tr key={p.product_id} className="table-row">
+                      <tr key={p.product_id} className="table-row group hover:bg-slate-50/40 transition-colors">
                         <td className="table-cell truncate max-w-[160px] text-sm font-medium text-app-strong" title={p.product_name}>{p.product_name || p.product_id}</td>
-                        <td className="table-cell text-right text-sm font-medium text-emerald-700">${(p.revenue || 0).toFixed(2)}</td>
-                        <td className="table-cell text-right text-xs text-app-muted">{(p.conversion_rate || 0).toFixed(1)}%</td>
+                        <td className="table-cell text-right text-sm font-semibold tabular-nums text-emerald-600">${(p.revenue || 0).toFixed(2)}</td>
+                        <td className="table-cell text-right text-xs tabular-nums text-app-muted">{(p.conversion_rate || 0).toFixed(1)}%</td>
                       </tr>
                     ))}
                   </tbody>
@@ -331,19 +331,19 @@ export default function OverviewPage() {
             <SectionCard title="Top Sources by Revenue" className="overflow-hidden px-0 py-0">
               {sources.length > 0 ? (
                 <table className="min-w-full">
-                  <thead className="table-header">
+                  <thead className="table-header bg-slate-50/50">
                     <tr>
-                      <th className="table-header-cell text-left">Source</th>
-                      <th className="table-header-cell text-right">Revenue</th>
-                      <th className="table-header-cell text-right">Conv.</th>
+                      <th className="table-header-cell text-left font-mono text-[10px] uppercase tracking-wider text-slate-400 font-bold">Source</th>
+                      <th className="table-header-cell text-right font-mono text-[10px] uppercase tracking-wider text-slate-400 font-bold">Revenue</th>
+                      <th className="table-header-cell text-right font-mono text-[10px] uppercase tracking-wider text-slate-400 font-bold">Conv.</th>
                     </tr>
                   </thead>
                   <tbody className="table-body">
                     {sources.map((s) => (
-                      <tr key={`${s.source}-${s.medium}`} className="table-row">
+                      <tr key={`${s.source}-${s.medium}`} className="table-row group hover:bg-slate-50/40 transition-colors">
                         <td className="table-cell text-sm font-medium text-app-strong">{s.source || '(direct)'}<span className="ml-1 text-xs text-app-soft">{s.medium ? `/ ${s.medium}` : ''}</span></td>
-                        <td className="table-cell text-right text-sm font-medium text-emerald-700">${(s.revenue || 0).toFixed(2)}</td>
-                        <td className="table-cell text-right text-xs text-app-muted">{(s.conversion_rate || 0).toFixed(1)}%</td>
+                        <td className="table-cell text-right text-sm font-semibold tabular-nums text-emerald-600">${(s.revenue || 0).toFixed(2)}</td>
+                        <td className="table-cell text-right text-xs tabular-nums text-app-muted">{(s.conversion_rate || 0).toFixed(1)}%</td>
                       </tr>
                     ))}
                   </tbody>

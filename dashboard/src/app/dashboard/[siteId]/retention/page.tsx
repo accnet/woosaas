@@ -86,33 +86,33 @@ export default function RetentionPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-100">
-                    <th className="py-2 pr-4 text-left font-medium text-slate-500">Cohort Month</th>
-                    <th className="py-2 pr-4 text-right font-medium text-slate-500">New Customers</th>
-                    <th className="py-2 pr-4 text-right font-medium text-slate-500">Repeat Customers</th>
-                    <th className="py-2 text-right font-medium text-slate-500">Repeat Rate</th>
+                  <tr className="border-b border-slate-200/40">
+                    <th className="py-3 pr-4 text-left font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">Cohort Month</th>
+                    <th className="py-3 pr-4 text-right font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">New Customers</th>
+                    <th className="py-3 pr-4 text-right font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">Repeat Customers</th>
+                    <th className="py-3 text-right font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">Repeat Rate</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-slate-100/50">
                   {data.map((row) => {
                     const rate = row.repeat_rate
-                    const rateColor =
+                    const rateChipColor =
                       rate >= 30
-                        ? 'text-emerald-700 bg-emerald-50'
+                        ? 'text-emerald-600 bg-emerald-500/[0.04] border border-emerald-500/20'
                         : rate >= 15
-                        ? 'text-amber-700 bg-amber-50'
-                        : 'text-red-700 bg-red-50'
+                        ? 'text-amber-600 bg-amber-500/[0.04] border border-amber-500/20'
+                        : 'text-rose-600 bg-rose-500/[0.04] border border-rose-500/20'
                     return (
-                      <tr key={row.cohort} className="hover:bg-slate-50">
-                        <td className="py-2.5 pr-4 font-mono font-medium text-slate-700">{row.cohort}</td>
-                        <td className="py-2.5 pr-4 text-right text-slate-700">
+                      <tr key={row.cohort} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="py-3 pr-4 font-mono text-sm font-semibold text-app-strong">{row.cohort}</td>
+                        <td className="py-3 pr-4 text-right font-semibold tabular-nums text-app-strong">
                           {row.new_customers.toLocaleString()}
                         </td>
-                        <td className="py-2.5 pr-4 text-right text-slate-700">
+                        <td className="py-3 pr-4 text-right font-semibold tabular-nums text-app-strong">
                           {row.returning_customers.toLocaleString()}
                         </td>
-                        <td className="py-2.5 text-right">
-                          <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold ${rateColor}`}>
+                        <td className="py-3 text-right">
+                          <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold tabular-nums shadow-sm ${rateChipColor}`}>
                             {rate.toFixed(1)}%
                           </span>
                         </td>

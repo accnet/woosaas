@@ -177,14 +177,20 @@ export default function TrendPage() {
 
         {/* ── Run rate ── */}
         {runRate && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+          <div className="card-glass border border-amber-500/20 bg-amber-500/[0.03] px-5 py-4">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Period Run Rate</p>
-                <p className="mt-0.5 text-sm text-amber-800">
-                  At current pace ({runRate.progress}% of period elapsed), projected total:
-                  <span className="ml-2 font-bold">{money(runRate.revenue)}</span> revenue ·
-                  <span className="ml-1 font-bold">{runRate.orders.toLocaleString()}</span> orders
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div className="relative h-2 w-2 shrink-0">
+                    <div className="absolute inset-0 animate-ping rounded-full bg-amber-400 opacity-75" />
+                    <div className="absolute inset-0 rounded-full bg-amber-500" />
+                  </div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-700 font-mono">Period Run Rate Projection</span>
+                </div>
+                <p className="text-sm text-amber-900/90 leading-relaxed font-medium">
+                  At current pace (<span className="tabular-nums font-semibold text-amber-800">{runRate.progress}%</span> of period elapsed), projected total:
+                  <span className="ml-2 font-bold tabular-nums text-amber-800">{money(runRate.revenue)}</span> revenue ·
+                  <span className="ml-1 font-bold tabular-nums text-amber-800">{runRate.orders.toLocaleString()}</span> orders
                 </p>
               </div>
             </div>

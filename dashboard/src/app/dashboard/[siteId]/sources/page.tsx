@@ -53,7 +53,7 @@ export default function SourcesPage() {
   const overallAOV = totalConversions > 0 ? totalRevenue / totalConversions : 0
 
   const columns: Column<SourceStats>[] = [
-    { key: 'source', label: 'Source', render: (s) => <span className="font-medium text-app-strong">{s.source || '(direct)'}</span> },
+    { key: 'source', label: 'Source', render: (s) => <span className="font-semibold text-app-strong">{s.source || '(direct)'}</span> },
     { key: 'medium', label: 'Medium', render: (s) => <span className="text-app-muted">{s.medium || '(none)'}</span> },
     {
       key: 'sessions',
@@ -63,11 +63,11 @@ export default function SourcesPage() {
       render: (s) => {
         const pct = totalSessions > 0 ? (s.sessions / totalSessions) * 100 : 0
         return (
-          <div className="min-w-[80px]">
-            <div className="text-right text-sm font-medium text-app-strong">{s.sessions?.toLocaleString() || '0'}</div>
-            <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-slate-100">
+          <div className="min-w-[100px]">
+            <div className="text-right text-sm font-semibold tabular-nums text-app-strong">{s.sessions?.toLocaleString() || '0'}</div>
+            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100/80 border border-slate-200/30">
               <div
-                className="h-1 rounded-full bg-blue-500 transition-all duration-300"
+                className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.25)] transition-all duration-300"
                 style={{ width: `${Math.min(pct, 100)}%` }}
               />
             </div>
@@ -84,11 +84,11 @@ export default function SourcesPage() {
       render: (s) => {
         const pct = totalUsers > 0 ? (s.users / totalUsers) * 100 : 0
         return (
-          <div className="min-w-[80px]">
-            <div className="text-right text-sm font-medium text-app-strong">{s.users?.toLocaleString() || '0'}</div>
-            <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-slate-100">
+          <div className="min-w-[100px]">
+            <div className="text-right text-sm font-semibold tabular-nums text-app-strong">{s.users?.toLocaleString() || '0'}</div>
+            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100/80 border border-slate-200/30">
               <div
-                className="h-1 rounded-full bg-violet-500 transition-all duration-300"
+                className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 shadow-[0_0_8px_rgba(139,92,246,0.25)] transition-all duration-300"
                 style={{ width: `${Math.min(pct, 100)}%` }}
               />
             </div>
@@ -97,9 +97,9 @@ export default function SourcesPage() {
       },
       sortValue: (s) => s.users,
     },
-    { key: 'pageviews', label: 'Pageviews', align: 'right', sortable: true, render: (s) => s.pageviews?.toLocaleString() || '0', sortValue: (s) => s.pageviews },
-    { key: 'conversions', label: 'Conversions', align: 'right', sortable: true, render: (s) => s.conversions?.toLocaleString() || '0', sortValue: (s) => s.conversions },
-    { key: 'conversion_rate', label: 'Conv. Rate', align: 'right', sortable: true, render: (s) => `${(s.conversion_rate || 0).toFixed(2)}%`, sortValue: (s) => s.conversion_rate },
+    { key: 'pageviews', label: 'Pageviews', align: 'right', sortable: true, render: (s) => <span className="tabular-nums font-medium text-app-strong">{s.pageviews?.toLocaleString() || '0'}</span>, sortValue: (s) => s.pageviews },
+    { key: 'conversions', label: 'Conversions', align: 'right', sortable: true, render: (s) => <span className="tabular-nums font-semibold text-app-strong">{s.conversions?.toLocaleString() || '0'}</span>, sortValue: (s) => s.conversions },
+    { key: 'conversion_rate', label: 'Conv. Rate', align: 'right', sortable: true, render: (s) => <span className="tabular-nums font-semibold text-indigo-600">{(s.conversion_rate || 0).toFixed(2)}%</span>, sortValue: (s) => s.conversion_rate },
     {
       key: 'aov',
       label: 'AOV',
@@ -107,7 +107,7 @@ export default function SourcesPage() {
       sortable: true,
       render: (s) => {
         const aov = (s.conversions || 0) > 0 ? s.revenue / s.conversions : 0
-        return <span className={aov > 0 ? 'font-medium' : 'text-app-muted'}>${aov.toFixed(2)}</span>
+        return <span className={`tabular-nums font-medium ${aov > 0 ? 'text-app-strong' : 'text-app-soft'}`}>${aov.toFixed(2)}</span>
       },
       sortValue: (s) => (s.conversions || 0) > 0 ? s.revenue / s.conversions : 0,
     },
@@ -119,11 +119,11 @@ export default function SourcesPage() {
       render: (s) => {
         const pct = totalRevenue > 0 ? (s.revenue / totalRevenue) * 100 : 0
         return (
-          <div className="min-w-[90px]">
-            <div className="text-right text-sm font-medium text-emerald-700">${(s.revenue || 0).toFixed(2)}</div>
-            <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-slate-100">
+          <div className="min-w-[100px]">
+            <div className="text-right text-sm font-semibold tabular-nums text-emerald-600">${(s.revenue || 0).toFixed(2)}</div>
+            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100/80 border border-slate-200/30">
               <div
-                className="h-1 rounded-full bg-emerald-500 transition-all duration-300"
+                className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 shadow-[0_0_8px_rgba(16,185,129,0.25)] transition-all duration-300"
                 style={{ width: `${Math.min(pct, 100)}%` }}
               />
             </div>

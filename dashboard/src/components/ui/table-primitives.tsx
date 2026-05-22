@@ -3,13 +3,15 @@ import type { ReactNode } from 'react'
 export function TableHeaderCell({
   align = 'left',
   children,
+  className = '',
 }: {
   align?: 'left' | 'right' | 'center'
   children: ReactNode
+  className?: string
 }) {
   const alignClass = align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'
 
-  return <th className={alignClass}>{children}</th>
+  return <th className={`${alignClass} ${className}`.trim()}>{children}</th>
 }
 
 export function TableRowActionZone({ children }: { children: ReactNode }) {

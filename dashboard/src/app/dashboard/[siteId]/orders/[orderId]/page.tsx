@@ -24,6 +24,9 @@ import {
   BadgeCheck,
   UserRound,
   X,
+  User,
+  ShieldCheck,
+  Zap
 } from 'lucide-react'
 import { AnalyticsPage, AnalyticsPageContent } from '@/components/ui/analytics-page-layout'
 import { DetailNote } from '@/components/ui/detail-note'
@@ -85,21 +88,21 @@ function AddressBlock({ address, showPhone = false }: { address: Record<string, 
   }
 
   return (
-    <address className="not-italic">
+    <address className="not-italic space-y-1">
       {lines.map((line, i) => (
         <p
           key={i}
           className={
             i === 0
-              ? 'text-sm font-medium text-app-strong'
-              : 'text-sm text-app-strong'
+              ? 'text-sm font-semibold text-app-strong font-sans'
+              : 'text-sm text-slate-600 font-sans'
           }
         >
           {line}
         </p>
       ))}
       {showPhone && phone ? (
-        <p className="mt-1 text-sm text-app-muted">{phone}</p>
+        <p className="mt-1.5 text-xs text-app-muted bg-slate-50 border border-slate-100 rounded px-2 py-0.5 inline-block">{phone}</p>
       ) : null}
     </address>
   )
@@ -115,9 +118,7 @@ function chipTone(value: string): 'neutral' | 'info' | 'good' | 'warn' | 'danger
 }
 
 function paymentSummaryTone(value: string): 'neutral' | 'info' | 'good' | 'warn' | 'danger' {
-  const normalized = value.toLowerCase()
-  if (normalized === 'paid') return 'good'
-  return chipTone(value)
+  return 'neutral'
 }
 
 function formatStatusLabel(value: string) {
@@ -160,6 +161,16 @@ function getInitials(name: string, email: string) {
     .join('')
 }
 
+// Custom technical avatar helper
+function TextAvatar({ name, email }: { name: string; email: string }) {
+  const initials = getInitials(name, email)
+  return (
+    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-primary font-bold text-sm text-white shadow-sm ring-2 ring-white">
+      {initials}
+    </div>
+  )
+}
+
 function extractCustomerAvatarUrl(rawOrder: Record<string, unknown>) {
   const customer = asObject(rawOrder.customer)
   const billing = asObject(rawOrder.billing)
@@ -188,6 +199,7 @@ function findRawLineItem(rawOrder: Record<string, unknown>, item: OrderItem) {
   )
 }
 
+// Extract specific items images
 function extractItemImageUrl(rawOrder: Record<string, unknown>, item: OrderItem) {
   const rawLineItem = asObject(findRawLineItem(rawOrder, item))
   const image = asObject(rawLineItem?.image)
@@ -262,12 +274,12 @@ function lifecycleTone(value: string): 'neutral' | 'info' | 'good' | 'warn' | 'd
 }
 
 function ProgressStepIcon({ stepKey, state }: { stepKey: string; state: ProgressStepState }) {
-  const className = `h-4 w-4 ${
+  const className = `h-4 w-4 transition-colors duration-200 ${
     state === 'done'
-      ? 'text-emerald-700'
+      ? 'text-emerald-600'
       : state === 'current'
-        ? 'text-indigo-700'
-        : 'text-slate-500'
+        ? 'text-indigo-600'
+        : 'text-slate-400'
   }`
 
   switch (stepKey) {
@@ -448,7 +460,7 @@ export default function OrderDetailPage() {
     return (
       [order.customer_first_name, order.customer_last_name].filter(Boolean).join(' ') ||
       order.customer_email ||
-      'Unknown customer'
+      'Unknown Customer'
     )
   }, [order])
 
@@ -536,43 +548,47 @@ export default function OrderDetailPage() {
   return (
     <AnalyticsPage>
       <AnalyticsPageContent>
-        <div className="space-y-5">
-          <div className="flex flex-wrap items-center gap-2 text-sm text-app-muted">
+        <div className="space-y-6">
+          {/* Breadcrumb row */}
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold tracking-tight text-app-soft uppercase">
             <Link
               href={`/dashboard/${siteId}/orders`}
-              className="inline-flex items-center gap-1 transition hover:text-app-strong"
+              className="inline-flex items-center gap-1 transition hover:text-indigo-600"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-3 w-3 transition-transform duration-150 hover:-translate-x-0.5" />
               Orders
             </Link>
-            <span>/</span>
-            <span className="text-app-strong">Order #{order.woo_order_id}</span>
+            <span className="text-slate-300">/</span>
+            <span className="text-slate-500">ID: #{order.woo_order_id}</span>
           </div>
 
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          {/* Header section with statuses & dropdown actions */}
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between border-b border-slate-100 pb-5">
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-2xl font-semibold tracking-tight text-app-strong">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-2xl font-bold tracking-tight text-slate-800 font-sans">
                   Order #{order.woo_order_id}
                 </h1>
-                <StatusChip
-                  label={formatStatusLabel(order.status || 'unknown')}
-                  tone={lifecycleTone(order.status || 'unknown')}
-                  className="px-2.5 py-1 text-xs"
-                />
-                <StatusChip
-                  label={formatStatusLabel(order.payment_status || 'unknown')}
-                  tone={chipTone(order.payment_status || 'unknown')}
-                  className="px-2.5 py-1 text-xs"
-                />
-                <StatusChip
-                  label={formatStatusLabel(order.fulfillment_status || 'unknown')}
-                  tone={chipTone(order.fulfillment_status || 'unknown')}
-                  className="px-2.5 py-1 text-xs"
-                />
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <StatusChip
+                    label={formatStatusLabel(order.status || 'unknown')}
+                    tone={lifecycleTone(order.status || 'unknown')}
+                    className="px-2 py-0.5 text-[10px] font-bold"
+                  />
+                  <StatusChip
+                    label={formatStatusLabel(order.payment_status || 'unknown')}
+                    tone="neutral"
+                    className="px-2 py-0.5 text-[10px] font-bold"
+                  />
+                  <StatusChip
+                    label={formatStatusLabel(order.fulfillment_status || 'unknown')}
+                    tone={chipTone(order.fulfillment_status || 'unknown')}
+                    className="px-2 py-0.5 text-[10px] font-bold"
+                  />
+                </div>
               </div>
-              <div className="mt-1.5 text-sm text-app-muted">
-                Placed on {formatTimestamp(order.created_at_woo || order.created_at)}
+              <div className="mt-1.5 text-xs text-app-muted font-medium">
+                Placed on <span className="font-semibold text-slate-700">{formatTimestamp(order.created_at_woo || order.created_at)}</span>
               </div>
             </div>
 
@@ -580,54 +596,53 @@ export default function OrderDetailPage() {
               <div ref={actionsRef} className="relative">
                 <button
                   type="button"
-                  className="btn-secondary gap-2"
-                  onClick={() => {
-                    setActionsOpen((value) => !value)
-                  }}
+                  className="btn-secondary text-xs font-semibold gap-2 border-slate-200/80 hover:bg-slate-50 transition-all duration-200"
+                  onClick={() => setActionsOpen((value) => !value)}
                 >
                   More Actions
-                  <ChevronDown className="h-4 w-4" />
+                  <ChevronDown className={`h-3.5 w-3.5 text-app-soft transition-transform duration-200 ${actionsOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {actionsOpen ? (
-                  <div className="absolute right-0 top-[calc(100%+0.5rem)] z-20 min-w-[220px] rounded-2xl border border-app-line bg-white p-2 shadow-card">
+                  <div className="absolute right-0 top-[calc(100%+0.5rem)] z-20 min-w-[220px] rounded-2xl border border-slate-100 bg-white/95 p-2 shadow-[0_12px_40px_rgba(99,102,241,0.08)] backdrop-blur-md animate-slide-up">
                     <button
                       type="button"
-                      className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm text-app-strong transition hover:bg-slate-50"
+                      className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-indigo-600"
                       onClick={() => handleCopy(order.woo_order_id)}
                     >
-                      Copy order ID
-                      <Copy className="h-4 w-4 text-app-soft" />
+                      Copy Order ID
+                      <Copy className="h-3.5 w-3.5 text-app-soft" />
                     </button>
                     <button
                       type="button"
-                      className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm text-app-strong transition hover:bg-slate-50"
+                      className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-indigo-600"
                       onClick={() => handleCopy(renderAddress(order.shipping_address))}
                     >
-                      Copy shipping address
-                      <MapPin className="h-4 w-4 text-app-soft" />
+                      Copy Shipping Address
+                      <MapPin className="h-3.5 w-3.5 text-app-soft" />
                     </button>
                     {order.contact && order.client_id ? (
                       <Link
                         href={`/dashboard/${siteId}/contacts/${order.client_id}`}
-                        className="flex items-center justify-between rounded-xl px-3 py-2 text-sm text-app-strong transition hover:bg-slate-50"
+                        className="flex items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-indigo-600"
                         onClick={() => setActionsOpen(false)}
                       >
-                        Open contact record
-                        <ExternalLink className="h-4 w-4 text-app-soft" />
+                        Open Contact Record
+                        <ExternalLink className="h-3.5 w-3.5 text-app-soft" />
                       </Link>
                     ) : null}
                   </div>
                 ) : null}
               </div>
-
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.8fr)]">
-            <div className="space-y-5">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.8fr)]">
+            <div className="space-y-6">
+              
+              {/* Product Items card */}
               <SectionCard
                 title={`Items (${order.items.length})`}
-                className="px-0 py-0"
+                className="px-0 py-0 overflow-hidden border-slate-100/80 shadow-[0_4px_20px_rgba(99,102,241,0.01)]"
               >
                 {order.items.length === 0 ? (
                   <div className="px-5 pb-5">
@@ -639,10 +654,10 @@ export default function OrderDetailPage() {
                   </div>
                 ) : (
                   <div>
-                    {/* Column header */}
-                    <div className="grid grid-cols-[minmax(0,1fr)_80px_56px_96px] gap-4 border-t border-app-line bg-slate-50/80 px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-app-soft">
-                      <span>Product</span>
-                      <span className="text-right">Unit price</span>
+                    {/* Header Columns */}
+                    <div className="grid grid-cols-[minmax(0,1fr)_85px_50px_95px] gap-4 border-t border-slate-100 bg-slate-50/70 px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-app-soft">
+                      <span>Product Details</span>
+                      <span className="text-right">Unit Price</span>
                       <span className="text-right">Qty</span>
                       <span className="text-right">Total</span>
                     </div>
@@ -654,74 +669,83 @@ export default function OrderDetailPage() {
                         const hasMeta = publicMeta.length > 0 || privateMeta.length > 0
                         const isExpanded = expandedMeta.has(item.line_item_id)
                         return (
-                          <div key={item.line_item_id} className="border-b border-slate-100 last:border-0">
-                            <div className="grid grid-cols-[minmax(0,1fr)_80px_56px_96px] items-center gap-4 px-5 py-3">
-                              {/* Product info */}
+                          <div key={item.line_item_id} className="border-b border-slate-100 last:border-0 bg-white">
+                            <div className="grid grid-cols-[minmax(0,1fr)_85px_50px_95px] items-center gap-4 px-5 py-4">
+                              {/* Product Info image & attributes */}
                               <div className="flex min-w-0 items-center gap-3">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-app-line bg-slate-50 text-app-soft">
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50 text-app-soft shadow-inner">
                                   {imageUrl ? (
                                     <img src={imageUrl} alt={item.name || 'Product'} className="h-full w-full object-cover" />
                                   ) : (
-                                    <Package2 className="h-5 w-5" />
+                                    <Package2 className="h-5 w-5 text-slate-400" />
                                   )}
                                 </div>
                                 <div className="min-w-0">
-                                  <div className="truncate text-sm font-semibold text-app-strong">
+                                  <div className="truncate text-xs font-bold text-app-strong font-sans">
                                     {item.name || `Item ${item.line_item_id}`}
                                   </div>
                                   {formatVariantAttributes(item.variant_attributes) ? (
-                                    <div className="mt-0.5 text-xs font-medium text-app-muted">
+                                    <div className="mt-0.5 text-[11px] font-semibold text-app-muted">
                                       {formatVariantAttributes(item.variant_attributes)}
                                     </div>
                                   ) : null}
-                                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-app-muted">
-                                    <span>SKU: {item.sku || '—'}</span>
-                                    {item.variation_id ? <span>Var: {item.variation_id}</span> : null}
-                                    {item.external_variant_id ? <span className="font-mono text-app-soft">ext:{item.external_variant_id}</span> : null}
+                                  <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[10px] text-app-soft">
+                                    <span className="font-semibold">SKU: {item.sku || '—'}</span>
+                                    {item.variation_id ? <span className="text-slate-300">|</span> : null}
+                                    {item.variation_id ? <span className="font-semibold">Var: {item.variation_id}</span> : null}
+                                    {item.external_variant_id ? <span className="text-slate-300">|</span> : null}
+                                    {item.external_variant_id ? <span className="text-slate-400">ext: {item.external_variant_id}</span> : null}
                                     {hasMeta ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleMeta(item.line_item_id)}
-                                        className="ml-1 font-medium text-app-soft underline underline-offset-2 transition-colors hover:text-app-strong"
-                                      >
-                                        {isExpanded ? 'hide meta' : `meta (${(item.meta || []).length})`}
-                                      </button>
+                                      <>
+                                        <span className="text-slate-300">|</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => toggleMeta(item.line_item_id)}
+                                          className="font-bold text-indigo-600 hover:text-indigo-800 transition-colors uppercase tracking-tight text-[9px] underline"
+                                        >
+                                          {isExpanded ? 'Hide system metadata' : `Metadata logs (${(item.meta || []).length})`}
+                                        </button>
+                                      </>
                                     ) : null}
                                   </div>
                                 </div>
                               </div>
-                              {/* Unit price */}
-                              <div className="text-right text-sm text-app-strong">
+                              {/* Unit Price */}
+                              <div className="text-right text-xs font-semibold text-slate-700">
                                 {money(item.unit_price, order.currency)}
                               </div>
                               {/* Qty */}
                               <div className="text-right">
-                                <span className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-md bg-slate-100 px-1.5 text-xs font-semibold text-app-strong">
+                                <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-md bg-slate-100 px-1 text-[10px] font-bold text-slate-700">
                                   ×{item.quantity}
                                 </span>
                               </div>
-                              {/* Line total */}
-                              <div className="text-right text-sm font-bold text-app-strong">
+                              {/* Line Total */}
+                              <div className="text-right text-xs font-bold text-slate-800">
                                 {money(item.line_total, order.currency)}
                               </div>
                             </div>
-                            {/* Expandable meta panel */}
+                            {/* Expandable Meta Panel (Terminal Style) */}
                             {isExpanded && hasMeta ? (
-                              <div className="border-t border-slate-100 bg-slate-50/70 px-5 py-3">
-                                <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
+                              <div className="border-t border-slate-900 bg-slate-950 px-5 py-4 font-mono text-[11px]">
+                                <div className="flex items-center justify-between border-b border-slate-900 pb-2 mb-2 text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                                  <span>Variable Snapshot logs</span>
+                                  <span className="text-indigo-500/80">WooSaaS Engine v1.0</span>
+                                </div>
+                                <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
                                   {publicMeta.map((m, index) => (
                                     <Fragment key={`public-${item.line_item_id}-${m.key}-${index}`}>
-                                      <span className="text-xs font-medium text-app-muted">{m.key}</span>
-                                      <span className="truncate text-xs text-app-strong">{String(m.value ?? '')}</span>
+                                      <span className="text-indigo-400 font-bold">{m.key}</span>
+                                      <span className="text-slate-200 break-all">{String(m.value ?? '')}</span>
                                     </Fragment>
                                   ))}
                                   {privateMeta.length > 0 ? (
                                     <>
-                                      <span className="col-span-2 mt-1 text-[10px] font-semibold uppercase tracking-wider text-app-soft">Private</span>
+                                      <span className="col-span-2 border-t border-slate-900 pt-2 mt-1 text-[9px] font-bold text-slate-500 uppercase tracking-widest">System internal headers</span>
                                       {privateMeta.map((m, index) => (
                                         <Fragment key={`private-${item.line_item_id}-${m.key}-${index}`}>
-                                          <span className="font-mono text-xs text-app-soft">{m.key}</span>
-                                          <span className="truncate text-xs text-app-muted">{String(m.value ?? '')}</span>
+                                          <span className="text-emerald-500 font-bold">{m.key}</span>
+                                          <span className="text-slate-400 break-all">{String(m.value ?? '')}</span>
                                         </Fragment>
                                       ))}
                                     </>
@@ -733,49 +757,67 @@ export default function OrderDetailPage() {
                         )
                       })}
                     </div>
-                    {/* Subtotal footer */}
-                    <div className="flex items-center justify-between border-t border-app-line bg-slate-50/80 px-5 py-3">
-                      <span className="text-xs text-app-muted">{order.items.length} {order.items.length === 1 ? 'item' : 'items'}</span>
-                      <span className="text-sm font-semibold text-app-strong">{money(order.subtotal_amount, order.currency)}</span>
+                    {/* Items total bar */}
+                    <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 px-5 py-3.5">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-app-soft">Total quantity</span>
+                      <span className="text-sm font-bold text-slate-800">{money(order.subtotal_amount, order.currency)}</span>
                     </div>
                   </div>
                 )}
               </SectionCard>
 
+              {/* Order Progress Timeline */}
               {progress ? (
-                <SectionCard title="Order Progress">
-                  <div className="space-y-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <StatusChip
-                        label={formatStatusLabel(progress.currentStatus || 'unknown')}
-                        tone={lifecycleTone(progress.currentStatus || 'unknown')}
-                      />
-                      {progress.latestTracking ? (
-                        <span className="text-sm text-app-muted">
-                          Latest tracking update: {formatTimestamp(progress.latestTracking.last_checkpoint_at || progress.latestTracking.updated_at)}
-                        </span>
-                      ) : (
-                        <span className="text-sm text-app-muted">No carrier checkpoint yet.</span>
-                      )}
+                <SectionCard title="Order Progress" className="border-slate-100/80 shadow-[0_4px_20px_rgba(99,102,241,0.01)] bg-white">
+                  <div className="space-y-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <StatusChip
+                          label={formatStatusLabel(progress.currentStatus || 'unknown')}
+                          tone={lifecycleTone(progress.currentStatus || 'unknown')}
+                          className="px-2.5 py-0.5 text-xs font-bold"
+                        />
+                        {progress.latestTracking ? (
+                          <span className="text-xs font-medium text-app-soft">
+                            Checkpoint: <span className="text-slate-600">{formatTimestamp(progress.latestTracking.last_checkpoint_at || progress.latestTracking.updated_at)}</span>
+                          </span>
+                        ) : (
+                          <span className="text-xs font-medium text-app-soft">No sync checkpoints yet.</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-app-muted">
+                        <Zap className="h-3.5 w-3.5 text-indigo-500" />
+                        <span>Realtime delivery tracking sync is active</span>
+                      </div>
                     </div>
 
                     {progress.isException ? (
-                      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                        This order is currently in an exception state. Review the latest tracking note and shipment status before taking action.
+                      <div className="rounded-xl border border-amber-200/50 bg-amber-50/40 px-4 py-3 text-xs leading-relaxed text-amber-800 font-medium">
+                        This order is currently flagged with an active transport exception. Please investigate the latest shipment logs below.
                       </div>
                     ) : null}
 
-                    <div className="grid gap-3 xl:grid-cols-5">
+                    {/* Progress grid timeline */}
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                       {progress.steps.map((step, index) => (
-                        <div key={step.key} className="relative rounded-lg border border-app-line bg-slate-50/70 px-3 py-2.5 text-center">
+                        <div 
+                          key={step.key} 
+                          className={`relative rounded-xl border p-3 text-center transition-all duration-200 ${
+                            step.state === 'done'
+                              ? 'bg-emerald-50/20 border-emerald-100/60 shadow-sm'
+                              : step.state === 'current'
+                                ? 'bg-indigo-50/20 border-indigo-100/60 shadow-[0_4px_12px_rgba(99,102,241,0.03)]'
+                                : 'bg-slate-50/30 border-slate-100'
+                          }`}
+                        >
                           {index < progress.steps.length - 1 ? (
-                            <span className="absolute left-full top-6 z-0 hidden h-0.5 w-3 -translate-y-1/2 rounded-full bg-slate-200 xl:block">
+                            <span className="absolute left-full top-7 z-0 hidden h-0.5 w-4 -translate-y-1/2 rounded-full bg-slate-100 lg:block">
                               <span
-                                className={`block h-full rounded-full ${
+                                className={`block h-full rounded-full transition-all duration-300 ${
                                   step.state === 'done'
-                                    ? 'w-full bg-emerald-300'
+                                    ? 'w-full bg-emerald-400'
                                     : step.state === 'current'
-                                      ? 'w-1/2 bg-indigo-300'
+                                      ? 'w-1/2 bg-indigo-400'
                                       : 'w-0 bg-transparent'
                                 }`}
                               />
@@ -783,20 +825,20 @@ export default function OrderDetailPage() {
                           ) : null}
                           <div className="flex items-center justify-center gap-2">
                             <span
-                              className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
+                              className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-all duration-200 ${
                                 step.state === 'done'
-                                  ? 'bg-emerald-100 text-emerald-700'
+                                  ? 'bg-emerald-100/70 text-emerald-700 ring-2 ring-emerald-50'
                                   : step.state === 'current'
-                                    ? 'bg-indigo-100 text-indigo-700'
-                                    : 'bg-slate-200 text-slate-500'
+                                    ? 'bg-indigo-100/70 text-indigo-700 ring-2 ring-indigo-50 animate-pulse'
+                                    : 'bg-slate-100 text-slate-400'
                               }`}
                             >
                               <ProgressStepIcon stepKey={step.key} state={step.state} />
                             </span>
-                            <span className="text-sm font-semibold leading-tight text-app-strong">{step.label}</span>
+                            <span className="text-xs font-bold leading-tight text-app-strong">{step.label}</span>
                           </div>
-                          <div className="mt-1.5 text-xs text-app-muted">
-                            {step.timestamp ? formatTimestamp(step.timestamp) : step.state === 'pending' ? 'Pending' : 'Not recorded'}
+                          <div className="mt-2 text-[10px] text-app-soft font-medium truncate" title={step.timestamp ? new Date(step.timestamp).toLocaleString() : ''}>
+                            {step.timestamp ? new Date(step.timestamp).toLocaleDateString([], {month: '2-digit', day: '2-digit'}) + ' ' + new Date(step.timestamp).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', hour12: false}) : step.state === 'pending' ? 'Pending' : '—'}
                           </div>
                         </div>
                       ))}
@@ -805,12 +847,14 @@ export default function OrderDetailPage() {
                 </SectionCard>
               ) : null}
 
+              {/* Shipment Tracking Card */}
               <SectionCard
                 title="Shipment Tracking"
+                className="border-slate-100/80 shadow-[0_4px_20px_rgba(99,102,241,0.01)] bg-white"
                 action={
                   <button
                     type="button"
-                    className="btn-secondary gap-2"
+                    className="btn-primary text-xs font-semibold gap-1.5 h-9 px-3.5 shadow-sm transition-all duration-200"
                     onClick={() => {
                       setTrackingError(null)
                       setTrackingModalOpen(true)
@@ -822,22 +866,23 @@ export default function OrderDetailPage() {
                 }
               >
                 {trackingError ? (
-                  <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                    {trackingError}
+                  <div className="mb-4 rounded-xl border border-red-200 bg-red-50/50 px-4 py-3 text-xs leading-relaxed text-red-700 font-medium font-mono">
+                    ERROR: {trackingError}
                   </div>
                 ) : null}
                 {trackings.length === 0 ? (
-                  <EmptyState icon={<Truck className="h-8 w-8" />} body="No tracking numbers have been added for this order." className="py-8" />
+                  <EmptyState icon={<Truck className="h-9 w-9 text-slate-300" />} body="No tracking numbers have been added for this order." className="py-10 bg-white" />
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {trackings.map((tracking) => (
-                      <div key={tracking.id} className="rounded-2xl border border-app-line bg-slate-50/60 p-4">
+                      <div key={tracking.id} className="card-glass relative overflow-hidden p-5 border-slate-100 bg-gradient-to-r from-slate-50/30 to-white hover:shadow-sm">
+                        <div className="absolute top-0 left-0 w-[3px] h-full bg-slate-300" />
                         <div className="flex flex-col gap-4">
                           <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <StatusChip label={tracking.carrier_name || tracking.carrier_slug || 'Carrier'} tone="neutral" />
-                              <StatusChip label={formatStatusLabel(tracking.status || 'unknown')} tone={chipTone(tracking.status)} />
-                              <StatusChip label={`Woo ${formatStatusLabel(tracking.wc_push_status || 'pending')}`} tone={chipTone(tracking.wc_push_status || 'pending')} />
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <StatusChip label={tracking.carrier_name || tracking.carrier_slug || 'Carrier'} tone="neutral" className="px-2 py-0.5 text-[9px] font-bold" />
+                              <StatusChip label={formatStatusLabel(tracking.status || 'unknown')} tone={chipTone(tracking.status)} className="px-2 py-0.5 text-[9px] font-bold" />
+                              <StatusChip label={`Woo: ${formatStatusLabel(tracking.wc_push_status || 'pending')}`} tone={chipTone(tracking.wc_push_status || 'pending')} className="px-2 py-0.5 text-[9px] font-bold" />
                             </div>
                             <div className="mt-3 flex items-start justify-between gap-3">
                               <div className="min-w-0 flex flex-wrap items-center gap-2">
@@ -846,84 +891,81 @@ export default function OrderDetailPage() {
                                     href={tracking.tracking_url}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="inline-flex items-center gap-1 text-base font-semibold text-indigo-600 hover:text-indigo-700"
+                                    className="inline-flex items-center gap-1 text-sm font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
                                   >
                                     {tracking.tracking_number}
                                     <ExternalLink className="h-3.5 w-3.5" />
                                   </a>
                                 ) : (
-                                  <span className="text-base font-semibold text-app-strong">{tracking.tracking_number}</span>
+                                  <span className="text-sm font-bold text-app-strong">{tracking.tracking_number}</span>
                                 )}
                                 {tracking.provider ? (
-                                  <span className="text-xs text-app-soft">via {formatStatusLabel(tracking.provider)}</span>
+                                  <span className="text-[10px] font-semibold text-app-soft uppercase tracking-wider">[{tracking.provider}]</span>
                                 ) : null}
                               </div>
                               <div className="relative shrink-0" data-tracking-menu-root>
                                 <button
                                   type="button"
-                                  className="btn-secondary h-10 w-10 p-0"
+                                  className="btn-secondary h-9 w-9 p-0 border-slate-200/80 hover:bg-slate-50 transition-all duration-150"
                                   aria-label="Tracking actions"
                                   onClick={() => setTrackingMenuId((current) => (current === tracking.id ? null : tracking.id))}
                                 >
-                                  <Ellipsis className="h-4 w-4" />
+                                  <Ellipsis className="h-4 w-4 text-app-soft" />
                                 </button>
                                 {trackingMenuId === tracking.id ? (
-                                  <div className="absolute right-0 top-[calc(100%+0.5rem)] z-20 min-w-[180px] rounded-2xl border border-app-line bg-white p-2 shadow-card">
+                                  <div className="absolute right-0 top-[calc(100%+0.5rem)] z-20 min-w-[180px] rounded-2xl border border-slate-100 bg-white/95 p-1.5 shadow-[0_12px_40px_rgba(99,102,241,0.08)] backdrop-blur-md animate-slide-up">
                                     <button
                                       type="button"
-                                      className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm text-app-strong transition hover:bg-slate-50"
+                                      className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-indigo-600"
                                       disabled={trackingActionId === tracking.id}
                                       onClick={() => {
                                         setTrackingMenuId(null)
                                         void handleRefreshTracking(tracking.id)
                                       }}
                                     >
-                                      Sync
-                                      <RefreshCw className={`h-4 w-4 ${trackingActionId === tracking.id ? 'animate-spin' : ''}`} />
+                                      Sync Provider
+                                      <RefreshCw className={`h-3.5 w-3.5 text-app-soft ${trackingActionId === tracking.id ? 'animate-spin' : ''}`} />
                                     </button>
                                     <button
                                       type="button"
-                                      className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm text-red-600 transition hover:bg-slate-50 hover:text-red-700"
+                                      className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-semibold text-red-600 transition hover:bg-red-50/50 hover:text-red-700"
                                       disabled={trackingActionId === tracking.id}
                                       onClick={() => {
                                         setTrackingMenuId(null)
                                         void handleDeleteTracking(tracking.id)
                                       }}
                                     >
-                                      Delete
-                                      <Trash2 className="h-4 w-4" />
+                                      Delete Tracking
+                                      <Trash2 className="h-3.5 w-3.5" />
                                     </button>
                                   </div>
                                 ) : null}
                               </div>
                             </div>
-                            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 border-t border-app-line pt-3 text-sm">
-                              <div className="min-w-[180px]">
-                                <span className="text-app-soft">Last checkpoint:</span>{' '}
-                                <span className="text-app-strong">{formatTimestamp(tracking.last_checkpoint_at)}</span>
+                            <div className="mt-3.5 flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-100 pt-3 text-[11px] font-medium text-app-soft">
+                              <div>
+                                Checkpoint: <span className="text-slate-700 font-semibold">{formatTimestamp(tracking.last_checkpoint_at)}</span>
                               </div>
-                              <div className="min-w-[180px]">
-                                <span className="text-app-soft">Added:</span>{' '}
-                                <span className="text-app-strong">{formatTimestamp(tracking.created_at)}</span>
+                              <div>
+                                Created: <span className="text-slate-700 font-semibold">{formatTimestamp(tracking.created_at)}</span>
                               </div>
-                              <div className="min-w-[180px]">
-                                <span className="text-app-soft">Source:</span>{' '}
-                                <span className="text-app-strong">
+                              <div>
+                                Carrier ID: <span className="text-slate-700 font-semibold">
                                   {tracking.carrier_name || tracking.carrier_slug || 'Carrier'}
                                   {tracking.provider_tracking_id ? (
-                                    <span className="ml-1 text-app-muted">#{tracking.provider_tracking_id}</span>
+                                    <span className="ml-1 text-indigo-600 font-bold">#{tracking.provider_tracking_id}</span>
                                   ) : null}
                                 </span>
                               </div>
                             </div>
                             {tracking.sync_error ? (
-                              <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                                Provider sync: {tracking.sync_error}
+                              <div className="mt-3 rounded-xl border border-red-100 bg-red-50/20 px-3 py-2.5 text-[10px] font-mono text-red-600 leading-relaxed break-all">
+                                PROVIDER SYNC EXCEPTION: {tracking.sync_error}
                               </div>
                             ) : null}
                             {tracking.wc_push_error ? (
-                              <div className="mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                                Woo sync: {tracking.wc_push_error}
+                              <div className="mt-2 rounded-xl border border-red-100 bg-red-50/20 px-3 py-2.5 text-[10px] font-mono text-red-600 leading-relaxed break-all">
+                                WOO PUSH FAILURE LOG: {tracking.wc_push_error}
                               </div>
                             ) : null}
                           </div>
@@ -934,42 +976,44 @@ export default function OrderDetailPage() {
                 )}
               </SectionCard>
 
+              {/* Payment Summary */}
               <SectionCard
                 title="Payment Summary"
+                className="border-slate-100/80 shadow-[0_4px_20px_rgba(99,102,241,0.01)] bg-white"
                 action={
                   <StatusChip
                     label={formatStatusLabel(order.payment_status || 'unknown')}
                     tone={paymentSummaryTone(order.payment_status || 'unknown')}
-                    className="px-3 py-1.5 text-xs"
+                    className="px-2.5 py-0.5 text-xs font-bold"
                   />
                 }
               >
-                <div className="space-y-2">
+                <div className="space-y-3 font-sans">
                   {[
-                    { label: 'Subtotal', amount: order.subtotal_amount },
-                    { label: 'Shipping', amount: order.shipping_amount },
-                    { label: 'Tax', amount: order.tax_amount },
-                    { label: 'Discount', amount: -order.discount_amount },
+                    { label: 'Subtotal items value', amount: order.subtotal_amount },
+                    { label: 'Shipping and delivery charge', amount: order.shipping_amount },
+                    { label: 'VAT / Tax capture', amount: order.tax_amount },
+                    { label: 'Campaign coupons & discounts', amount: -order.discount_amount },
                   ].map(({ label, amount }) => (
-                    <div key={label} className="flex items-center justify-between text-sm text-app-strong">
-                      <span className="text-app-muted">{label}</span>
-                      <span className={amount < 0 ? 'text-emerald-600' : ''}>{money(Math.abs(amount), order.currency)}{amount < 0 ? ' off' : ''}</span>
+                    <div key={label} className="flex items-center justify-between text-xs font-semibold text-slate-600">
+                      <span>{label}</span>
+                      <span className={`text-slate-800 font-semibold ${amount < 0 ? 'text-emerald-600' : ''}`}>{money(Math.abs(amount), order.currency)}{amount < 0 ? ' off' : ''}</span>
                     </div>
                   ))}
-                  {/* Amount due */}
+                  {/* Refund item if existing */}
                   {order.refund_amount > 0 ? (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-app-muted">Refunded</span>
-                      <span className="text-red-600">-{money(order.refund_amount, order.currency)}</span>
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="text-red-600">Total snapshot refund</span>
+                      <span className="text-red-600 font-bold">-{money(order.refund_amount, order.currency)}</span>
                     </div>
                   ) : null}
-                  <div className="border-t border-app-line pt-3">
-                    <div className="flex items-end justify-between gap-4">
-                      <div className="text-sm font-semibold text-app-strong">
-                        Amount due
+                  <div className="border-t border-slate-100 pt-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="text-xs font-bold uppercase tracking-wider text-app-soft">
+                        Amount Due Snapshot
                       </div>
                       <div className="text-right">
-                        <div className="text-lg font-bold tabular-nums text-app-strong">
+                        <div className="text-lg font-extrabold text-slate-800">
                           {money(amountDue, order.currency)}
                         </div>
                       </div>
@@ -978,28 +1022,25 @@ export default function OrderDetailPage() {
                 </div>
               </SectionCard>
 
-              <SectionCard title="Order Activity">
-                <div className="relative">
+              {/* Order Activity Timeline */}
+              <SectionCard title="Order Activity" className="border-slate-100/80 shadow-[0_4px_20px_rgba(99,102,241,0.01)] bg-white">
+                <div className="relative pl-2.5 space-y-4 border-l border-slate-100">
                   {activity.map((item, index) => (
                     <div
                       key={`${item.label}-${item.timestamp}`}
-                      className="relative grid grid-cols-[28px_minmax(0,1fr)] gap-3 pb-5 last:pb-0"
+                      className="relative grid grid-cols-[20px_minmax(0,1fr)] gap-3 items-start"
                     >
-                      <div className="flex flex-col items-center">
-                        <span className={`mt-1 h-3 w-3 rounded-full border-2 bg-white ${index === 0 ? 'border-indigo-500' : 'border-slate-300'}`} />
-                        {index < activity.length - 1 ? (
-                          <span className="mt-1 w-px flex-1 bg-slate-200" />
-                        ) : null}
-                      </div>
-                      <div className="min-w-0 rounded-lg border border-app-line bg-slate-50/70 px-3 py-2.5">
-                        <div className="text-sm font-semibold text-app-strong">{item.label}</div>
-                        <div className="mt-1 text-xs text-app-muted">
+                      <span className={`absolute left-[-15.5px] top-1.5 h-2.5 w-2.5 rounded-full border bg-white transition-all duration-200 ${index === 0 ? 'border-indigo-500 ring-4 ring-indigo-50' : 'border-slate-300'}`} />
+                      <div className="col-start-2 min-w-0 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50/80 transition-colors p-3">
+                        <div className="text-xs font-bold text-slate-800 font-sans">{item.label}</div>
+                        <div className="mt-1 text-[10px] text-app-soft font-mono font-medium">
                           {new Date(item.timestamp).toLocaleString([], {
                             month: 'short',
                             day: 'numeric',
                             year: 'numeric',
                             hour: 'numeric',
                             minute: '2-digit',
+                            hour12: true,
                           })}
                         </div>
                       </div>
@@ -1009,46 +1050,44 @@ export default function OrderDetailPage() {
               </SectionCard>
             </div>
 
-            <div className="space-y-5">
-              <SectionCard title="Order Info">
-                <div className="space-y-5">
-                  <div>
-                    <div className="text-sm font-medium text-app-muted">Contact info</div>
-                    <div className="mt-3 flex items-start gap-3">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-app-subtle font-semibold text-app-strong">
-                        {customerAvatarUrl ? (
-                          <img
-                            src={customerAvatarUrl}
-                            alt={customerName}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          getInitials(customerName, order.customer_email || order.contact?.email || '')
-                        )}
+            {/* Sidebar information grids */}
+            <div className="space-y-6">
+              <SectionCard title="Customer Info" className="border-slate-100/80 shadow-[0_4px_20px_rgba(99,102,241,0.01)] bg-white">
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3.5">
+                    {customerAvatarUrl ? (
+                      <img
+                        src={customerAvatarUrl}
+                        alt={customerName}
+                        className="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-indigo-50 shadow-inner"
+                      />
+                    ) : (
+                      <TextAvatar name={customerName} email={order.customer_email || order.contact?.email || ''} />
+                    )}
+                    <div className="min-w-0">
+                      <div className="text-sm font-bold text-app-strong font-sans">{customerName}</div>
+                      <div className="mt-0.5 text-xs text-app-soft truncate">
+                        {order.customer_email || order.contact?.email || 'No email registered'}
                       </div>
-                      <div className="min-w-0">
-                        <div className="text-base font-semibold text-app-strong">{customerName}</div>
-                        <div className="mt-0.5 text-sm text-app-muted">
-                          {order.customer_email || order.contact?.email || 'No email'}
+                      {order.customer_phone || order.contact?.phone ? (
+                        <div className="mt-1.5 text-[10px] text-indigo-600 bg-indigo-50/30 border border-indigo-100/30 rounded px-1.5 py-0.5 inline-block font-semibold">
+                          {order.customer_phone || order.contact?.phone}
                         </div>
-                        <div className="mt-0.5 text-xs text-app-soft">
-                          {order.customer_phone || order.contact?.phone || 'No phone'}
-                        </div>
-                      </div>
+                      ) : null}
                     </div>
                   </div>
 
-                  <div className="border-t border-app-line pt-3">
-                    <div className="text-sm font-medium text-app-muted">Delivery method</div>
-                    <div className="mt-1.5 text-sm text-app-strong">
-                      {order.delivery_method || '—'}
+                  <div className="border-t border-slate-100 pt-3">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-app-soft">Delivery Method</div>
+                    <div className="mt-1 text-xs font-bold text-slate-800 font-sans">
+                      {order.delivery_method || 'Standard Logistics Gateway'}
                     </div>
                   </div>
 
-                  <div className="border-t border-app-line pt-4">
+                  <div className="border-t border-slate-100 pt-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-wider text-app-soft">Shipping address</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-app-soft">Shipping Address</p>
                         <div className="mt-2 space-y-0.5">
                           <AddressBlock address={order.shipping_address} />
                         </div>
@@ -1057,13 +1096,13 @@ export default function OrderDetailPage() {
                     </div>
                   </div>
 
-                  <div className="border-t border-app-line pt-4">
+                  <div className="border-t border-slate-100 pt-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-app-soft">Billing address</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-app-soft">Billing Address</p>
                         <div className="mt-2 space-y-0.5">
                           {JSON.stringify(order.billing_address) === JSON.stringify(order.shipping_address) ? (
-                            <p className="text-sm text-app-muted">Same as shipping address</p>
+                            <p className="text-xs font-medium text-app-soft">Same as shipping address</p>
                           ) : (
                             <AddressBlock address={order.billing_address} showPhone />
                           )}
@@ -1074,44 +1113,49 @@ export default function OrderDetailPage() {
                 </div>
               </SectionCard>
 
-              <SectionCard title="Order Snapshot">
-                <DetailRow label="Client ID" value={order.client_id || '-'} />
-                <DetailRow label="Session ID" value={order.session_id || '-'} />
-                <DetailRow label="Woo customer" value={order.woo_customer_id || '-'} />
-                <DetailRow label="Paid at" value={formatTimestamp(order.paid_at_woo)} />
-                <DetailRow label="Completed at" value={formatTimestamp(order.completed_at_woo)} />
-                <DetailRow label="Synced at" value={formatTimestamp(order.synced_at)} />
+              {/* Order Sync Snapshot details */}
+              <SectionCard title="Order Sync Snapshot" className="border-slate-100/80 shadow-[0_4px_20px_rgba(99,102,241,0.01)] bg-white">
+                <div className="space-y-2.5 text-[11px]">
+                  <DetailRow label="Client ID" value={<span className="font-semibold text-slate-700 truncate max-w-[140px] block" title={order.client_id || undefined}>{order.client_id || '—'}</span>} />
+                  <DetailRow label="Session ID" value={<span className="font-semibold text-slate-700 truncate max-w-[140px] block" title={order.session_id || undefined}>{order.session_id || '—'}</span>} />
+                  <DetailRow label="Woo Customer ID" value={<span className="font-semibold text-slate-700">{order.woo_customer_id || '—'}</span>} />
+                  <DetailRow label="Paid At Woo" value={<span className="font-semibold text-slate-700">{order.paid_at_woo ? new Date(order.paid_at_woo).toLocaleDateString() : '—'}</span>} />
+                  <DetailRow label="Completed At Woo" value={<span className="font-semibold text-slate-700">{order.completed_at_woo ? new Date(order.completed_at_woo).toLocaleDateString() : '—'}</span>} />
+                  <DetailRow label="Synced Database" value={<span className="font-semibold text-slate-700">{order.synced_at ? new Date(order.synced_at).toLocaleDateString() : '—'}</span>} />
+                </div>
               </SectionCard>
 
-              <SectionCard title="Attribution">
+              {/* Attribution Grid Card */}
+              <SectionCard title="Campaign Attribution" className="border-slate-100/80 shadow-[0_4px_20px_rgba(99,102,241,0.01)] bg-white">
                 {Object.keys(order.attribution || {}).length === 0 ? (
                   <DetailNote
-                    icon={<ReceiptText className="h-4 w-4" />}
-                    title="No attribution data"
-                    body="Source and campaign metadata were not attached to this order snapshot."
+                    icon={<ReceiptText className="h-4 w-4 text-slate-400" />}
+                    title="No attribution metadata"
+                    body="Source and campaign variables were not attached to this order snapshot."
                   />
                 ) : (
-                  <div className="space-y-3">
-                    <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-4">
+                    <div className="grid gap-2.5 sm:grid-cols-2">
                       {(['source', 'medium', 'campaign', 'term', 'content', 'channel'] as string[])
                         .filter((key) => order.attribution[key] !== undefined && order.attribution[key] !== null && order.attribution[key] !== '')
                         .map((key) => (
-                          <div key={key} className="rounded-xl border border-app-line bg-slate-50 px-3 py-2.5">
-                            <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-app-soft">
+                          <div key={key} className="rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2">
+                            <div className="text-[9px] font-bold uppercase tracking-wider text-app-soft">
                               {key}
                             </div>
-                            <div className="mt-0.5 text-sm font-medium text-app-strong">
+                            <div className="mt-0.5 text-xs font-bold text-slate-800 font-sans truncate">
                               {String(order.attribution[key])}
                             </div>
                           </div>
                         ))}
                     </div>
                     {Object.keys(order.attribution).some((k) => !['source','medium','campaign','term','content','channel'].includes(k)) ? (
-                      <details className="rounded-xl border border-app-line">
-                        <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-app-muted hover:text-app-strong">
-                          Show full payload
+                      <details className="group rounded-xl border border-slate-200 bg-slate-900 border-slate-800 overflow-hidden">
+                        <summary className="cursor-pointer px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors flex items-center justify-between font-sans">
+                          <span>Attribution Schema</span>
+                          <ChevronDown className="h-3.5 w-3.5 text-slate-500 transition-transform duration-200 group-open:rotate-180" />
                         </summary>
-                        <pre className="overflow-x-auto px-3 pb-3 pt-1 text-xs text-app-strong">
+                        <pre className="overflow-x-auto p-4 pt-1 font-mono text-[10px] text-emerald-400 bg-slate-950 leading-relaxed border-t border-slate-900">
                           {JSON.stringify(order.attribution || {}, null, 2)}
                         </pre>
                       </details>
@@ -1120,93 +1164,100 @@ export default function OrderDetailPage() {
                 )}
               </SectionCard>
 
-              <SectionCard title="Quick Tools">
-                <div className="space-y-3">
+              {/* Quick Tools buttons */}
+              <SectionCard title="Quick Tools" className="border-slate-100/80 shadow-[0_4px_20px_rgba(99,102,241,0.01)] bg-white">
+                <div className="space-y-2.5 font-sans">
                   {order.contact && order.client_id ? (
                     <Link
                       href={`/dashboard/${siteId}/contacts/${order.client_id}`}
-                      className="btn-secondary w-full justify-between"
+                      className="btn-secondary w-full justify-between text-xs font-semibold h-10 border-slate-200/80 hover:bg-slate-50 hover:text-indigo-600 transition-all duration-150"
                     >
                       <span className="inline-flex items-center gap-2">
-                        <UserRound className="h-4 w-4" />
+                        <UserRound className="h-3.5 w-3.5 text-indigo-500" />
                         Open contact record
                       </span>
-                      <span>Available</span>
+                      <span className="font-mono text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 border border-slate-100 rounded">Available</span>
                     </Link>
                   ) : (
-                    <div className="btn-secondary w-full cursor-default justify-between opacity-70">
-                      <span className="inline-flex items-center gap-2">
-                        <UserRound className="h-4 w-4" />
+                    <div className="btn-secondary w-full cursor-not-allowed justify-between text-xs font-semibold h-10 border-slate-100 opacity-60">
+                      <span className="inline-flex items-center gap-2 text-slate-400">
+                        <UserRound className="h-3.5 w-3.5 text-slate-300" />
                         Open contact record
                       </span>
-                      <span>Missing</span>
+                      <span className="font-mono text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 border border-slate-100 rounded">Missing</span>
                     </div>
                   )}
                   <button
                     type="button"
-                    className="btn-secondary w-full justify-between"
+                    className="btn-secondary w-full justify-between text-xs font-semibold h-10 border-slate-200/80 hover:bg-slate-50 hover:text-indigo-600 transition-all duration-150"
                     onClick={() => handleCopy(renderAddress(order.shipping_address))}
                   >
                     <span className="inline-flex items-center gap-2">
-                      <Copy className="h-4 w-4" />
+                      <Copy className="h-3.5 w-3.5 text-indigo-500" />
                       Copy shipping address
                     </span>
-                    <span>Ready</span>
+                    <span className="font-mono text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 border border-slate-100 rounded">Ready</span>
                   </button>
-                  <div className="btn-secondary w-full cursor-default justify-between opacity-80">
-                    <span className="inline-flex items-center gap-2">
-                      <Clock3 className="h-4 w-4" />
-                      Last modified
+                  <div className="btn-secondary w-full cursor-default justify-between text-xs font-semibold h-10 border-slate-100 bg-slate-50/20 opacity-80">
+                    <span className="inline-flex items-center gap-2 text-slate-500">
+                      <Clock3 className="h-3.5 w-3.5 text-slate-400" />
+                      Last modified at
                     </span>
-                    <span>{formatTimestamp(order.modified_at_woo)}</span>
+                    <span className="font-mono text-[10px] font-bold text-slate-600">{order.modified_at_woo ? new Date(order.modified_at_woo).toLocaleDateString() : '—'}</span>
                   </div>
                 </div>
               </SectionCard>
             </div>
           </div>
         </div>
+
+        {/* Add Tracking Modal */}
         {trackingModalOpen ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
-            <form onSubmit={handleAddTracking} className="w-full max-w-lg rounded-xl border border-app-line bg-white p-5 shadow-card">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-base font-semibold text-app-strong">Add Tracking</h2>
-                <button type="button" className="btn-secondary h-9 w-9 p-0" onClick={() => setTrackingModalOpen(false)}>
-                  <X className="h-4 w-4" />
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-md px-4 transition-all duration-300">
+            <form onSubmit={handleAddTracking} className="w-full max-w-lg rounded-2xl border border-slate-100 bg-white/95 p-6 shadow-[0_24px_80px_rgba(99,102,241,0.15)] animate-slide-up">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2 text-indigo-600">
+                  <Truck className="h-5 w-5" />
+                  <h2 className="text-sm font-bold uppercase tracking-wider">Add Shipment Tracking</h2>
+                </div>
+                <button type="button" className="btn-secondary h-9 w-9 p-0 rounded-xl border-slate-200/80 hover:bg-slate-50 transition-colors" onClick={() => setTrackingModalOpen(false)}>
+                  <X className="h-4 w-4 text-app-soft" />
                 </button>
               </div>
-              <div className="mt-4 space-y-3">
+              <div className="mt-4 space-y-4">
                 <label className="block">
-                  <span className="text-sm font-medium text-app-muted">Tracking number</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-app-soft">Tracking number</span>
                   <input
-                    className="input mt-1"
+                    className="input mt-1.5 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-200 text-sm"
                     value={trackingForm.tracking_number}
                     onChange={(event) => setTrackingForm((value) => ({ ...value, tracking_number: event.target.value }))}
                     required
                     autoFocus
+                    placeholder="Enter air waybill tracking ID..."
                   />
                 </label>
                 <label className="block">
-                  <span className="text-sm font-medium text-app-muted">Carrier name</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-app-soft">Carrier name</span>
                   <input
-                    className="input mt-1"
+                    className="input mt-1.5 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-200 text-xs font-semibold"
                     value={trackingForm.carrier_name || ''}
                     onChange={(event) => setTrackingForm((value) => ({ ...value, carrier_name: event.target.value }))}
-                    placeholder="UPS, FedEx, DHL..."
+                    placeholder="UPS, FedEx, DHL, USPS..."
                   />
                 </label>
                 <label className="block">
-                  <span className="text-sm font-medium text-app-muted">Carrier slug</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-app-soft">Carrier slug</span>
                   <input
-                    className="input mt-1"
+                    className="input mt-1.5 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-200 text-xs"
                     value={trackingForm.carrier_slug || ''}
                     onChange={(event) => setTrackingForm((value) => ({ ...value, carrier_slug: event.target.value }))}
-                    placeholder="ups, fedex, dhl..."
+                    placeholder="ups, fedex, dhl, usps..."
                   />
                 </label>
                 <label className="block">
-                  <span className="text-sm font-medium text-app-muted">Tracking URL</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-app-soft">Tracking URL</span>
                   <input
-                    className="input mt-1"
+                    className="input mt-1.5 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-200 text-xs"
                     type="url"
                     value={trackingForm.tracking_url || ''}
                     onChange={(event) => setTrackingForm((value) => ({ ...value, tracking_url: event.target.value }))}
@@ -1214,12 +1265,12 @@ export default function OrderDetailPage() {
                   />
                 </label>
               </div>
-              <div className="mt-5 flex justify-end gap-2">
-                <button type="button" className="btn-secondary" onClick={() => setTrackingModalOpen(false)}>
+              <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+                <button type="button" className="btn-secondary text-xs font-semibold h-10 px-4 border-slate-200/80 hover:bg-slate-50 transition-colors" onClick={() => setTrackingModalOpen(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary" disabled={trackingSaving}>
-                  {trackingSaving ? 'Saving...' : 'Save tracking'}
+                <button type="submit" className="btn-primary text-xs font-semibold h-10 px-4 transition-all duration-200" disabled={trackingSaving}>
+                  {trackingSaving ? 'Saving snapshot...' : 'Save Tracking'}
                 </button>
               </div>
             </form>

@@ -87,38 +87,38 @@ export default function RefundsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-100">
-                    <th className="py-2 pr-4 text-left font-medium text-slate-500">Month</th>
-                    <th className="py-2 pr-4 text-right font-medium text-slate-500">Orders</th>
-                    <th className="py-2 pr-4 text-right font-medium text-slate-500">Refunds</th>
-                    <th className="py-2 pr-4 text-right font-medium text-slate-500">Refund Rate</th>
-                    <th className="py-2 text-right font-medium text-slate-500">Refunded Revenue</th>
+                  <tr className="border-b border-slate-200/40">
+                    <th className="py-3 pr-4 text-left font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">Month</th>
+                    <th className="py-3 pr-4 text-right font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">Orders</th>
+                    <th className="py-3 pr-4 text-right font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">Refunds</th>
+                    <th className="py-3 pr-4 text-right font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">Refund Rate</th>
+                    <th className="py-3 text-right font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">Refunded Revenue</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-slate-100/50">
                   {(data?.trend ?? []).map((row) => (
-                    <tr key={row.month} className="hover:bg-slate-50">
-                      <td className="py-2.5 pr-4 font-mono font-medium text-slate-700">{row.month}</td>
-                      <td className="py-2.5 pr-4 text-right text-slate-700">
+                    <tr key={row.month} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="py-3 pr-4 font-mono text-sm font-semibold text-app-strong">{row.month}</td>
+                      <td className="py-3 pr-4 text-right font-semibold tabular-nums text-app-strong">
                         {row.total_orders.toLocaleString()}
                       </td>
-                      <td className="py-2.5 pr-4 text-right text-slate-700">
+                      <td className="py-3 pr-4 text-right font-semibold tabular-nums text-app-strong">
                         {row.refunded_orders.toLocaleString()}
                       </td>
-                      <td className="py-2.5 pr-4 text-right">
+                      <td className="py-3 pr-4 text-right">
                         <span
-                          className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold ${
+                          className={`inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold tabular-nums shadow-sm ${
                             row.refund_rate > 10
-                              ? 'bg-red-50 text-red-700'
+                              ? 'bg-rose-500/[0.04] border border-rose-500/20 text-rose-600'
                               : row.refund_rate > 5
-                              ? 'bg-amber-50 text-amber-700'
-                              : 'bg-emerald-50 text-emerald-700'
+                              ? 'bg-amber-500/[0.04] border border-amber-500/20 text-amber-600'
+                              : 'bg-emerald-500/[0.04] border border-emerald-500/20 text-emerald-600'
                           }`}
                         >
                           {row.refund_rate.toFixed(1)}%
                         </span>
                       </td>
-                      <td className="py-2.5 text-right font-semibold text-red-600">
+                      <td className="py-3 text-right font-bold tabular-nums text-rose-600">
                         ${fmt(row.refunded_revenue)}
                       </td>
                     </tr>
@@ -132,26 +132,26 @@ export default function RefundsPage() {
         {/* Top refunded products */}
         {(data?.top_refunded_products?.length ?? 0) > 0 && (
           <SectionCard title="Top Refunded Products">
-            <div className="space-y-2">
+            <div className="space-y-3 max-w-3xl">
               {data!.top_refunded_products.map((p) => {
                 const pct = maxRefunds > 0 ? (p.refund_count / maxRefunds) * 100 : 0
                 return (
-                  <div key={p.product_name} className="flex items-center gap-3 py-1">
+                  <div key={p.product_name} className="flex items-center gap-4 py-1.5">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <span className="truncate text-sm font-medium text-slate-700">{p.product_name}</span>
-                        <span className="shrink-0 text-sm font-semibold text-red-600">
-                          {p.refund_count} refunds
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="truncate text-sm font-semibold text-app-strong">{p.product_name}</span>
+                        <span className="shrink-0 text-xs font-bold uppercase tracking-wider text-rose-600 bg-rose-500/[0.04] border border-rose-500/20 px-2 py-0.5 rounded-md">
+                          <span className="tabular-nums">{p.refund_count}</span> refunds
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-2 overflow-hidden rounded-full bg-slate-100 border border-slate-200/20">
                           <div
-                            className="h-1.5 rounded-full bg-red-400 transition-all duration-300"
+                            className="h-full rounded-full bg-gradient-to-r from-rose-500 to-orange-500 shadow-[0_0_8px_rgba(244,63,94,0.2)] transition-all duration-500"
                             style={{ width: `${Math.min(pct, 100)}%` }}
                           />
                         </div>
-                        <span className="shrink-0 text-xs text-slate-500">${fmt(p.refunded_amount)}</span>
+                        <span className="shrink-0 text-xs font-bold tabular-nums text-rose-600">${fmt(p.refunded_amount)}</span>
                       </div>
                     </div>
                   </div>

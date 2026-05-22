@@ -58,7 +58,7 @@ export default function AbandonmentPage() {
     {
       key: 'product_name',
       label: 'Product',
-      render: (r) => <span className="font-medium text-app-strong">{r.product_name || r.product_id}</span>,
+      render: (r) => <span className="font-semibold text-app-strong">{r.product_name || r.product_id}</span>,
     },
     {
       key: 'add_to_carts',
@@ -68,10 +68,10 @@ export default function AbandonmentPage() {
       render: (r) => {
         const pct = maxATC > 0 ? (r.add_to_carts / maxATC) * 100 : 0
         return (
-          <div className="min-w-[80px]">
-            <div className="text-right text-sm font-medium">{r.add_to_carts.toLocaleString()}</div>
-            <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-slate-100">
-              <div className="h-1 rounded-full bg-blue-500" style={{ width: `${Math.min(pct, 100)}%` }} />
+          <div className="min-w-[100px] flex items-center justify-end gap-3">
+            <span className="tabular-nums font-semibold text-app-strong text-right w-12">{r.add_to_carts.toLocaleString()}</span>
+            <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100 border border-slate-200/20 shrink-0">
+              <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 shadow-[0_0_6px_rgba(59,130,246,0.2)]" style={{ width: `${Math.min(pct, 100)}%` }} />
             </div>
           </div>
         )
@@ -83,7 +83,7 @@ export default function AbandonmentPage() {
       label: 'Purchases',
       align: 'right',
       sortable: true,
-      render: (r) => r.purchases.toLocaleString(),
+      render: (r) => <span className="tabular-nums font-medium text-app-strong">{r.purchases.toLocaleString()}</span>,
       sortValue: (r) => r.purchases,
     },
     {
@@ -91,7 +91,7 @@ export default function AbandonmentPage() {
       label: 'Abandoned',
       align: 'right',
       sortable: true,
-      render: (r) => <span className="font-semibold text-orange-600">{r.abandoned.toLocaleString()}</span>,
+      render: (r) => <span className="tabular-nums font-semibold text-amber-600">{r.abandoned.toLocaleString()}</span>,
       sortValue: (r) => r.abandoned,
     },
     {
@@ -101,8 +101,8 @@ export default function AbandonmentPage() {
       sortable: true,
       render: (r) => {
         const rate = r.abandon_rate
-        const color = rate > 70 ? 'text-red-600' : rate > 40 ? 'text-orange-600' : 'text-emerald-600'
-        return <span className={`font-semibold ${color}`}>{rate.toFixed(1)}%</span>
+        const color = rate > 70 ? 'text-rose-600' : rate > 40 ? 'text-amber-600' : 'text-emerald-600'
+        return <span className={`tabular-nums font-bold ${color}`}>{rate.toFixed(1)}%</span>
       },
       sortValue: (r) => r.abandon_rate,
     },
@@ -113,7 +113,7 @@ export default function AbandonmentPage() {
       sortable: true,
       render: (r) => {
         const lost = r.abandoned * aov
-        return <span className={lost > 0 ? 'font-medium text-red-600' : 'text-app-muted'}>${lost.toFixed(2)}</span>
+        return <span className={`tabular-nums font-bold ${lost > 0 ? 'text-rose-600' : 'text-app-soft'}`}>${lost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
       },
       sortValue: (r) => r.abandoned * aov,
     },
@@ -155,28 +155,39 @@ export default function AbandonmentPage() {
         {/* Funnel visual */}
         {data && data.cart_sessions > 0 && (
           <SectionCard title="Conversion Funnel">
-            <div className="space-y-3">
+            <div className="space-y-4 max-w-3xl">
               {[
-                { label: 'Added to Cart', value: data.cart_sessions, color: 'bg-blue-500' },
+                {
+                  label: 'Added to Cart',
+                  value: data.cart_sessions,
+                  colorClass: 'bg-gradient-to-r from-blue-500 to-indigo-500 shadow-[0_0_8px_rgba(59,130,246,0.25)]',
+                },
                 {
                   label: 'Purchased',
                   value: data.cart_sessions - data.abandoned_sessions,
-                  color: 'bg-emerald-500',
+                  colorClass: 'bg-gradient-to-r from-emerald-500 to-teal-500 shadow-[0_0_8px_rgba(16,185,129,0.25)]',
                 },
-                { label: 'Abandoned', value: data.abandoned_sessions, color: 'bg-red-400' },
+                {
+                  label: 'Abandoned',
+                  value: data.abandoned_sessions,
+                  colorClass: 'bg-gradient-to-r from-rose-500 to-orange-500 shadow-[0_0_8px_rgba(244,63,94,0.25)]',
+                },
               ].map((step) => {
                 const pct = data.cart_sessions > 0 ? (step.value / data.cart_sessions) * 100 : 0
                 return (
-                  <div key={step.label} className="flex items-center gap-3">
-                    <div className="w-32 shrink-0 text-sm text-slate-600">{step.label}</div>
-                    <div className="flex-1 overflow-hidden rounded-full bg-slate-100 h-4">
+                  <div key={step.label} className="flex items-center gap-3 py-1">
+                    <div className="w-32 shrink-0 text-xs font-bold uppercase tracking-wider text-app-strong">{step.label}</div>
+                    <div className="flex-1 overflow-hidden rounded-full bg-slate-100 border border-slate-200/20 h-2.5">
                       <div
-                        className={`h-4 rounded-full ${step.color} transition-all duration-500`}
+                        className={`h-full rounded-full ${step.colorClass} transition-all duration-500`}
                         style={{ width: `${Math.min(pct, 100)}%` }}
                       />
                     </div>
-                    <div className="w-28 text-right text-sm font-semibold text-slate-800">
-                      {step.value.toLocaleString()} ({pct.toFixed(1)}%)
+                    <div className="w-36 text-right text-sm font-semibold text-app-strong shrink-0">
+                      <span className="tabular-nums font-bold">{step.value.toLocaleString()}</span>
+                      <span className="ml-1.5 text-xs text-app-muted font-normal">
+                        (<span className="tabular-nums font-semibold">{pct.toFixed(1)}%</span>)
+                      </span>
                     </div>
                   </div>
                 )

@@ -94,14 +94,17 @@ export default function BotsPage() {
 
       <AnalyticsPageContent>
         {summary.botShare > 20 && (
-          <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-5 py-3">
-            <span className="mt-0.5 text-lg">⚠️</span>
+          <div className="flex items-center gap-3 rounded-xl border border-rose-500/20 bg-rose-500/[0.03] backdrop-blur-sm px-5 py-3.5">
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+            </span>
             <div>
-              <p className="text-sm font-bold text-red-800">
-                High Bot Activity Detected: {summary.botShare.toFixed(1)}% of events flagged as suspicious
+              <p className="text-sm font-bold text-rose-900 leading-normal">
+                High Bot Activity Detected: <span className="tabular-nums">{summary.botShare.toFixed(1)}%</span> of events flagged as suspicious
               </p>
-              <p className="text-xs text-red-700">
-                This is above the recommended threshold. Consider reviewing your traffic sources and implementing stricter bot filtering.
+              <p className="text-xs text-rose-700/80 leading-normal mt-0.5">
+                This is above the safe threshold. Consider reviewing your traffic sources and implementing stricter bot filtering rules.
               </p>
             </div>
           </div>
@@ -128,27 +131,25 @@ export default function BotsPage() {
         </MetricGrid>
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-        <SectionCard
-          title="Traffic Split"
-        >
+        <SectionCard title="Traffic Split">
           <div className="space-y-4">
-            <div className="overflow-hidden rounded-full bg-slate-100">
-              <div className="flex h-4 w-full">
-                <div className="bg-amber-400" style={{ width: `${summary.botShare}%` }} />
-                <div className="bg-emerald-400" style={{ width: `${100 - summary.botShare}%` }} />
+            <div className="overflow-hidden rounded-full bg-slate-100 border border-slate-200/20 h-3">
+              <div className="flex h-full w-full">
+                <div className="bg-gradient-to-r from-amber-400 to-orange-500 shadow-[0_0_8px_rgba(245,158,11,0.2)]" style={{ width: `${summary.botShare}%` }} />
+                <div className="bg-gradient-to-r from-emerald-400 to-teal-500 shadow-[0_0_8px_rgba(16,185,129,0.2)]" style={{ width: `${100 - summary.botShare}%` }} />
               </div>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                <div className="text-sm font-semibold text-amber-800">Bot report</div>
-                <p className="mt-2 text-sm text-amber-700">
-                  {summary.botShare.toFixed(1)}% of scored events were flagged as suspicious in the selected period.
+              <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.03] backdrop-blur-sm p-4">
+                <div className="text-xs font-bold uppercase tracking-wider text-amber-800">Bot Report</div>
+                <p className="mt-2 text-sm text-amber-900 font-medium leading-relaxed">
+                  <span className="tabular-nums font-bold text-amber-700">{summary.botShare.toFixed(1)}%</span> of scored events were flagged as suspicious in the selected period.
                 </p>
               </div>
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                <div className="text-sm font-semibold text-emerald-800">Likely human traffic</div>
-                <p className="mt-2 text-sm text-emerald-700">
-                  {(100 - summary.botShare).toFixed(1)}% of events remained in the human bucket and continue into standard analytics views.
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.03] backdrop-blur-sm p-4">
+                <div className="text-xs font-bold uppercase tracking-wider text-emerald-800">Likely Human Traffic</div>
+                <p className="mt-2 text-sm text-emerald-900 font-medium leading-relaxed">
+                  <span className="tabular-nums font-bold text-emerald-700">{(100 - summary.botShare).toFixed(1)}%</span> of events remained in standard analytics views.
                 </p>
               </div>
             </div>
@@ -164,12 +165,12 @@ export default function BotsPage() {
               {bots.top_bot_reasons.map((reason) => (
                 <div key={reason.reason} className="space-y-2">
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-sm font-medium text-app-strong">{reason.reason}</span>
-                    <span className="text-sm font-semibold text-app-strong">{reason.count.toLocaleString()}</span>
+                    <span className="text-sm font-semibold text-app-strong">{reason.reason}</span>
+                    <span className="text-sm font-bold tabular-nums text-app-strong">{reason.count.toLocaleString()}</span>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-amber-100">
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-100 border border-slate-200/20">
                     <div
-                      className="h-full rounded-full bg-amber-400"
+                      className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 shadow-[0_0_6px_rgba(245,158,11,0.2)] transition-all duration-500"
                       style={{ width: `${summary.botEvents > 0 ? (reason.count / summary.botEvents) * 100 : 0}%` }}
                     />
                   </div>
@@ -214,23 +215,27 @@ export default function BotsPage() {
             <table className="min-w-full">
               <thead className="table-header">
                 <tr>
-                  <TableHeaderCell>Session</TableHeaderCell>
-                  <TableHeaderCell>Fingerprint</TableHeaderCell>
-                  <TableHeaderCell align="right">Events</TableHeaderCell>
-                  <TableHeaderCell align="right">Bot Score</TableHeaderCell>
+                  <TableHeaderCell className="font-mono text-[10px] uppercase tracking-wider text-slate-400 font-bold">Session</TableHeaderCell>
+                  <TableHeaderCell className="font-mono text-[10px] uppercase tracking-wider text-slate-400 font-bold">Fingerprint</TableHeaderCell>
+                  <TableHeaderCell align="right" className="font-mono text-[10px] uppercase tracking-wider text-slate-400 font-bold">Events</TableHeaderCell>
+                  <TableHeaderCell align="right" className="font-mono text-[10px] uppercase tracking-wider text-slate-400 font-bold">Bot Score</TableHeaderCell>
                 </tr>
               </thead>
               <tbody className="table-body">
                 {bots.top_bot_sessions.map((session) => (
-                  <tr key={`${session.session_id}-${session.ip_hash}`} className="table-row">
+                  <tr key={`${session.session_id}-${session.ip_hash}`} className="table-row border-l-2 border-l-transparent hover:border-l-indigo-500 hover:bg-indigo-500/[0.01] transition-all duration-150">
                     <td className="table-cell">
-                      <div className="font-medium text-app-strong">{session.session_id || 'Unknown session'}</div>
-                      <div className="mt-1 text-xs text-app-muted">{session.user_agent || 'No user agent'}</div>
+                      <div className="font-mono text-xs font-semibold text-app-strong truncate max-w-[200px]" title={session.session_id || ''}>
+                        {session.session_id || 'Unknown session'}
+                      </div>
+                      <div className="mt-1 text-[11px] text-app-muted truncate max-w-[320px]" title={session.user_agent || ''}>
+                        {session.user_agent || 'No user agent'}
+                      </div>
                     </td>
-                    <td className="table-cell text-xs text-app-muted">{session.ip_hash || '-'}</td>
-                    <td className="table-cell text-right">{session.event_count.toLocaleString()}</td>
+                    <td className="table-cell font-mono text-xs text-app-muted">{session.ip_hash || '-'}</td>
+                    <td className="table-cell text-right font-semibold tabular-nums text-sm text-app-strong">{session.event_count.toLocaleString()}</td>
                     <td className="table-cell text-right">
-                      <StatusChip label={session.bot_score.toString()} tone={session.bot_score >= 90 ? 'danger' : 'warn'} className="justify-center" />
+                      <StatusChip label={session.bot_score.toString()} tone={session.bot_score >= 90 ? 'danger' : 'warn'} className="justify-end font-mono tabular-nums" />
                     </td>
                   </tr>
                 ))}

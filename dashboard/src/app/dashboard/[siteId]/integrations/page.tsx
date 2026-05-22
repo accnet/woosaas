@@ -49,12 +49,12 @@ function ActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled || loading}
-      className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-app-strong hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+      className="inline-flex items-center gap-2 rounded-xl border border-slate-200/60 bg-white px-3.5 py-2 text-xs font-semibold text-app-strong shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
     >
       {loading ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
       ) : (
-        <Icon className="h-4 w-4" />
+        <Icon className="h-3.5 w-3.5 text-indigo-500" />
       )}
       {label}
     </button>
@@ -217,36 +217,47 @@ export default function IntegrationsPage() {
         controls={
           <button
             type="button"
+            className="btn-secondary gap-2 transition-all duration-150 hover:-translate-y-0.5"
             onClick={() => void loadIntegration()}
-            className="icon-btn"
             title="Refresh"
           >
             <RefreshCw className="h-4 w-4" />
+            Refresh
           </button>
         }
       />
       <AnalyticsPageContent>
         {actionMsg && (
-          <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm text-blue-800">
-            {actionMsg}
+          <div className="mb-4 flex items-center gap-3 rounded-xl border border-indigo-500/20 bg-indigo-500/[0.03] backdrop-blur-sm px-5 py-3">
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+            </span>
+            <p className="text-sm font-semibold text-indigo-900 leading-normal">{actionMsg}</p>
           </div>
         )}
 
         {/* Connection */}
-        <SectionCard title="ShopBase Connection" className="mb-4">
+        <SectionCard
+          title="ShopBase Connection"
+          className="mb-4 card-glass border-slate-200/50 hover:border-indigo-500/20 shadow-sm hover:shadow-md transition-all duration-200"
+        >
           <DetailRow label="Platform" value="ShopBase" />
           <DetailRow
             label="Status"
-            value={integration.status}
+            value={<span className="font-mono text-xs uppercase font-bold">{integration.status}</span>}
             tone={connectionTone(integration.status)}
           />
-          <DetailRow label="Shop Domain" value={integration.shop_domain || '—'} />
+          <DetailRow
+            label="Shop Domain"
+            value={<span className="font-mono text-xs text-app-strong">{integration.shop_domain || '—'}</span>}
+          />
         </SectionCard>
 
         {/* Tracking Script */}
         <SectionCard
           title="Tracking Script"
-          className="mb-4"
+          className="mb-4 card-glass border-slate-200/50 hover:border-indigo-500/20 shadow-sm hover:shadow-md transition-all duration-200"
           action={
             <ActionButton
               label="Install Script"
@@ -258,29 +269,50 @@ export default function IntegrationsPage() {
         >
           <DetailRow
             label="Status"
-            value={script?.installed ? 'Installed' : script?.reason === 'permission_required' ? 'Permission required' : 'Missing'}
+            value={
+              <span className="font-mono text-xs font-semibold">
+                {script?.installed ? 'Installed' : script?.reason === 'permission_required' ? 'Permission required' : 'Missing'}
+              </span>
+            }
             tone={script?.installed ? 'good' : script?.reason === 'permission_required' ? 'warn' : 'neutral'}
           />
-          {script?.src && <DetailRow label="Script URL" value={script.src} />}
-          {script?.script_tag_id ? <DetailRow label="Script Tag ID" value={String(script.script_tag_id)} /> : null}
-          <p className="text-sm text-app-muted">
+          {script?.src && (
+            <DetailRow
+              label="Script URL"
+              value={
+                <span className="font-mono text-[11px] text-app-muted truncate max-w-[240px] inline-block" title={script.src}>
+                  {script.src}
+                </span>
+              }
+            />
+          )}
+          {script?.script_tag_id ? (
+            <DetailRow
+              label="Script Tag ID"
+              value={<span className="font-mono text-xs tabular-nums text-app-strong">{String(script.script_tag_id)}</span>}
+            />
+          ) : null}
+          <p className="text-xs font-medium text-app-muted leading-relaxed mt-4">
             Install the Woosaas tracking script on your ShopBase store automatically via Script
             Tags. Click "Install Script" to add or verify the script.
           </p>
           {manualSnippet && (
-            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <div className="mb-2 text-sm font-medium text-amber-900">Manual snippet</div>
-              <div className="flex items-start gap-2">
-                <code className="min-w-0 flex-1 break-all rounded-md bg-white px-2 py-1.5 text-xs text-amber-900">
+            <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/[0.02] backdrop-blur-sm p-4">
+              <div className="mb-2 text-xs font-bold uppercase tracking-wider text-amber-800">Manual Snippet installation</div>
+              <div className="flex items-start gap-3 bg-slate-900 rounded-xl p-3.5 border border-slate-800">
+                <pre className="min-w-0 flex-1 overflow-x-auto whitespace-pre-wrap font-mono text-xs text-slate-300 select-all leading-relaxed">
                   {manualSnippet}
-                </code>
+                </pre>
                 <button
                   type="button"
-                  className="icon-button"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-all duration-150 active:scale-95"
                   title="Copy snippet"
-                  onClick={() => navigator.clipboard?.writeText(manualSnippet)}
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(manualSnippet)
+                    setActionMsg('Snippet copied to clipboard.')
+                  }}
                 >
-                  <Copy className="h-4 w-4" />
+                  <Copy className="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
@@ -290,7 +322,7 @@ export default function IntegrationsPage() {
         {/* Webhooks */}
         <SectionCard
           title="Webhooks"
-          className="mb-4"
+          className="mb-4 card-glass border-slate-200/50 hover:border-indigo-500/20 shadow-sm hover:shadow-md transition-all duration-200"
           action={
             <ActionButton
               label="Register Webhooks"
@@ -303,10 +335,10 @@ export default function IntegrationsPage() {
           {sync && (
             <DetailRow
               label="Last Webhook"
-              value={formatDateTime(sync.last_webhook_at)}
+              value={<span className="font-mono text-xs tabular-nums font-semibold">{formatDateTime(sync.last_webhook_at)}</span>}
             />
           )}
-          <p className="mt-2 text-sm text-app-muted">
+          <p className="text-xs font-medium text-app-muted leading-relaxed mt-4">
             Register required webhook topics on your ShopBase store so order events are delivered in
             real time.
           </p>
@@ -316,6 +348,7 @@ export default function IntegrationsPage() {
         {sync && (
           <SectionCard
             title="Order Sync / Backfill"
+            className="card-glass border-slate-200/50 hover:border-indigo-500/20 shadow-sm hover:shadow-md transition-all duration-200"
             action={
               <ActionButton
                 label={sync.status === 'running' ? 'Running…' : 'Start Backfill'}
@@ -328,26 +361,33 @@ export default function IntegrationsPage() {
           >
             <DetailRow
               label="Sync Status"
-              value={sync.status}
+              value={<span className="font-mono text-xs uppercase font-bold">{sync.status}</span>}
               tone={syncTone(sync.status)}
             />
             <DetailRow
               label="Last Success"
-              value={formatDateTime(sync.last_success_at)}
+              value={<span className="font-mono text-xs tabular-nums font-medium">{formatDateTime(sync.last_success_at)}</span>}
             />
             <DetailRow
               label="Backfill Completed"
-              value={formatDateTime(sync.backfill_completed_at)}
+              value={<span className="font-mono text-xs tabular-nums font-medium">{formatDateTime(sync.backfill_completed_at)}</span>}
             />
             <DetailRow
               label="Last Order Synced"
-              value={formatDateTime(sync.last_order_updated_at)}
+              value={<span className="font-mono text-xs tabular-nums font-medium">{formatDateTime(sync.last_order_updated_at)}</span>}
             />
             {sync.last_error && (
-              <DetailRow label="Last Error" value={sync.last_error} tone="warn" />
+              <DetailRow
+                label="Last Error"
+                value={<span className="font-mono text-xs text-rose-600 font-semibold">{sync.last_error}</span>}
+                tone="warn"
+              />
             )}
             {sync.last_error_at && (
-              <DetailRow label="Error At" value={formatDateTime(sync.last_error_at)} />
+              <DetailRow
+                label="Error At"
+                value={<span className="font-mono text-xs tabular-nums text-rose-600 font-medium">{formatDateTime(sync.last_error_at)}</span>}
+              />
             )}
           </SectionCard>
         )}

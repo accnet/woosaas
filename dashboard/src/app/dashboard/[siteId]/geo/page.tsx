@@ -51,7 +51,7 @@ export default function GeoPage() {
     {
       key: 'country',
       label: 'Country',
-      render: (r) => <span className="font-medium text-app-strong">{r.country}</span>,
+      render: (r) => <span className="font-semibold text-app-strong">{r.country}</span>,
     },
     {
       key: 'sessions',
@@ -61,10 +61,10 @@ export default function GeoPage() {
       render: (r) => {
         const pct = totalSessions > 0 ? (r.sessions / totalSessions) * 100 : 0
         return (
-          <div className="min-w-[80px]">
-            <div className="text-right text-sm font-medium">{r.sessions.toLocaleString()}</div>
-            <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-slate-100">
-              <div className="h-1 rounded-full bg-blue-500" style={{ width: `${Math.min(pct, 100)}%` }} />
+          <div className="min-w-[100px]">
+            <div className="text-right text-sm font-semibold tabular-nums text-app-strong">{r.sessions.toLocaleString()}</div>
+            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100/80 border border-slate-200/30">
+              <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.25)]" style={{ width: `${Math.min(pct, 100)}%` }} />
             </div>
           </div>
         )
@@ -76,7 +76,7 @@ export default function GeoPage() {
       label: 'Users',
       align: 'right',
       sortable: true,
-      render: (r) => r.users.toLocaleString(),
+      render: (r) => <span className="tabular-nums font-medium text-app-strong">{r.users.toLocaleString()}</span>,
       sortValue: (r) => r.users,
     },
     {
@@ -84,7 +84,7 @@ export default function GeoPage() {
       label: 'Purchases',
       align: 'right',
       sortable: true,
-      render: (r) => r.conversions.toLocaleString(),
+      render: (r) => <span className="tabular-nums font-medium">{r.conversions.toLocaleString()}</span>,
       sortValue: (r) => r.conversions,
     },
     {
@@ -92,7 +92,7 @@ export default function GeoPage() {
       label: 'Conv. Rate',
       align: 'right',
       sortable: true,
-      render: (r) => `${r.conversion_rate.toFixed(2)}%`,
+      render: (r) => <span className="tabular-nums font-semibold text-indigo-600">{r.conversion_rate.toFixed(2)}%</span>,
       sortValue: (r) => r.conversion_rate,
     },
     {
@@ -103,12 +103,12 @@ export default function GeoPage() {
       render: (r) => {
         const pct = totalRevenue > 0 ? (r.revenue / totalRevenue) * 100 : 0
         return (
-          <div className="min-w-[80px]">
-            <div className="text-right text-sm font-semibold text-emerald-700">
+          <div className="min-w-[100px]">
+            <div className="text-right text-sm font-semibold tabular-nums text-emerald-600">
               ${r.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-slate-100">
-              <div className="h-1 rounded-full bg-emerald-500" style={{ width: `${Math.min(pct, 100)}%` }} />
+            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100/80 border border-slate-200/30">
+              <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 shadow-[0_0_8px_rgba(16,185,129,0.25)]" style={{ width: `${Math.min(pct, 100)}%` }} />
             </div>
           </div>
         )
@@ -122,7 +122,7 @@ export default function GeoPage() {
       sortable: true,
       render: (r) => {
         const aov = r.conversions > 0 ? r.revenue / r.conversions : 0
-        return <span className={aov > 0 ? 'text-sm font-medium' : 'text-app-muted'}>${aov.toFixed(2)}</span>
+        return <span className={`tabular-nums font-medium ${aov > 0 ? 'text-app-strong' : 'text-app-soft'}`}>${aov.toFixed(2)}</span>
       },
       sortValue: (r) => r.conversions > 0 ? r.revenue / r.conversions : 0,
     },
@@ -156,32 +156,32 @@ export default function GeoPage() {
         {data.length > 0 && (
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <SectionCard title="Top 5 by Sessions">
-              <div className="space-y-2">
+              <div className="space-y-3 py-1">
                 {topBySessions.map((r) => {
                   const pct = totalSessions > 0 ? (r.sessions / totalSessions) * 100 : 0
                   return (
-                    <div key={r.country} className="flex items-center gap-3 py-1">
-                      <div className="w-28 shrink-0 text-sm font-medium text-app-strong truncate">{r.country}</div>
-                      <div className="flex-1 overflow-hidden rounded-full bg-slate-100 h-2">
-                        <div className="h-2 rounded-full bg-blue-500" style={{ width: `${Math.min(pct, 100)}%` }} />
+                    <div key={r.country} className="flex items-center gap-3 py-0.5">
+                      <div className="w-28 shrink-0 text-sm font-semibold text-app-strong truncate">{r.country}</div>
+                      <div className="flex-1 overflow-hidden rounded-full bg-slate-100/80 border border-slate-200/30 h-2">
+                        <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.25)]" style={{ width: `${Math.min(pct, 100)}%` }} />
                       </div>
-                      <div className="w-20 shrink-0 text-right text-sm font-semibold">{r.sessions.toLocaleString()}</div>
+                      <div className="w-20 shrink-0 text-right text-sm font-bold tabular-nums text-app-strong">{r.sessions.toLocaleString()}</div>
                     </div>
                   )
                 })}
               </div>
             </SectionCard>
             <SectionCard title="Top 5 by Revenue">
-              <div className="space-y-2">
+              <div className="space-y-3 py-1">
                 {topByRevenue.map((r) => {
                   const pct = totalRevenue > 0 ? (r.revenue / totalRevenue) * 100 : 0
                   return (
-                    <div key={r.country} className="flex items-center gap-3 py-1">
-                      <div className="w-28 shrink-0 text-sm font-medium text-app-strong truncate">{r.country}</div>
-                      <div className="flex-1 overflow-hidden rounded-full bg-slate-100 h-2">
-                        <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${Math.min(pct, 100)}%` }} />
+                    <div key={r.country} className="flex items-center gap-3 py-0.5">
+                      <div className="w-28 shrink-0 text-sm font-semibold text-app-strong truncate">{r.country}</div>
+                      <div className="flex-1 overflow-hidden rounded-full bg-slate-100/80 border border-slate-200/30 h-2">
+                        <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 shadow-[0_0_8px_rgba(16,185,129,0.25)]" style={{ width: `${Math.min(pct, 100)}%` }} />
                       </div>
-                      <div className="w-24 shrink-0 text-right text-sm font-semibold text-emerald-700">${r.revenue.toFixed(0)}</div>
+                      <div className="w-24 shrink-0 text-right text-sm font-bold tabular-nums text-emerald-600">${r.revenue.toFixed(0)}</div>
                     </div>
                   )
                 })}

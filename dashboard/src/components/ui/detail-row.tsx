@@ -1,10 +1,12 @@
+import React from 'react'
+
 export function DetailRow({
   label,
   value,
   tone = 'neutral',
 }: {
   label: string
-  value: string
+  value: React.ReactNode
   tone?: 'neutral' | 'good' | 'warn'
 }) {
   const toneClass = {

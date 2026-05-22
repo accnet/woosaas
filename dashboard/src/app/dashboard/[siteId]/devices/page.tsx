@@ -65,7 +65,7 @@ export default function DevicesPage() {
     {
       key: 'name',
       label: 'Name',
-      render: (r) => <span className="font-medium text-app-strong">{r.name}</span>,
+      render: (r) => <span className="font-semibold text-app-strong">{r.name}</span>,
     },
     {
       key: 'sessions',
@@ -75,10 +75,10 @@ export default function DevicesPage() {
       render: (r) => {
         const pct = totalSessions > 0 ? (r.sessions / totalSessions) * 100 : 0
         return (
-          <div className="min-w-[80px]">
-            <div className="text-right text-sm font-medium">{r.sessions.toLocaleString()}</div>
-            <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-slate-100">
-              <div className="h-1 rounded-full bg-blue-500" style={{ width: `${Math.min(pct, 100)}%` }} />
+          <div className="min-w-[100px]">
+            <div className="text-right text-sm font-semibold tabular-nums text-app-strong">{r.sessions.toLocaleString()}</div>
+            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100/80 border border-slate-200/30">
+              <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.25)]" style={{ width: `${Math.min(pct, 100)}%` }} />
             </div>
           </div>
         )
@@ -90,7 +90,7 @@ export default function DevicesPage() {
       label: 'Purchases',
       align: 'right',
       sortable: true,
-      render: (r) => r.conversions.toLocaleString(),
+      render: (r) => <span className="tabular-nums font-medium">{r.conversions.toLocaleString()}</span>,
       sortValue: (r) => r.conversions,
     },
     {
@@ -98,7 +98,7 @@ export default function DevicesPage() {
       label: 'Conv. Rate',
       align: 'right',
       sortable: true,
-      render: (r) => `${r.conversion_rate.toFixed(2)}%`,
+      render: (r) => <span className="tabular-nums font-semibold text-indigo-600">{r.conversion_rate.toFixed(2)}%</span>,
       sortValue: (r) => r.conversion_rate,
     },
     {
@@ -108,7 +108,7 @@ export default function DevicesPage() {
       sortable: true,
       render: (r) => {
         const rps = r.sessions > 0 ? r.revenue / r.sessions : 0
-        return <span className={rps > 0 ? 'font-medium text-emerald-700' : 'text-app-muted'}>${rps.toFixed(2)}</span>
+        return <span className={`tabular-nums font-medium ${rps > 0 ? 'text-emerald-600' : 'text-app-soft'}`}>${rps.toFixed(2)}</span>
       },
       sortValue: (r) => r.sessions > 0 ? r.revenue / r.sessions : 0,
     },
@@ -120,12 +120,12 @@ export default function DevicesPage() {
       render: (r) => {
         const pct = totalRevenue > 0 ? (r.revenue / totalRevenue) * 100 : 0
         return (
-          <div className="min-w-[80px]">
-            <div className="text-right text-sm font-semibold text-emerald-700">
+          <div className="min-w-[100px]">
+            <div className="text-right text-sm font-semibold tabular-nums text-emerald-600">
               ${r.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-slate-100">
-              <div className="h-1 rounded-full bg-emerald-500" style={{ width: `${Math.min(pct, 100)}%` }} />
+            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100/80 border border-slate-200/30">
+              <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 shadow-[0_0_8px_rgba(16,185,129,0.25)]" style={{ width: `${Math.min(pct, 100)}%` }} />
             </div>
           </div>
         )
@@ -159,15 +159,15 @@ export default function DevicesPage() {
 
         <SectionCard title="Breakdown">
           {/* Tabs */}
-          <div className="mb-4 flex gap-1 rounded-lg bg-slate-100 p-1 w-fit">
+          <div className="mb-4 flex gap-1 rounded-xl bg-slate-100/80 border border-slate-200/40 p-1 w-fit backdrop-blur-sm">
             {TABS.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                className={`rounded-lg px-4 py-1.5 text-xs font-bold tracking-wide uppercase transition-all duration-200 ${
                   activeTab === tab.key
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/50'
+                    : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
                 {tab.label}

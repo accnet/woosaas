@@ -129,17 +129,17 @@ export default function ExportsPage() {
               </div>
             </div>
 
-            <div className="flex items-start gap-3 rounded-lg border border-blue-100 bg-blue-50 p-4">
-              <Download className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
-              <p className="text-sm text-blue-700">
-                <span className="font-semibold">{EXPORT_LABELS[exportType]}</span> export for the{' '}
-                <span className="font-semibold">{dateRange}</span> range — CSV is generated on demand and
+            <div className="flex items-start gap-3 rounded-xl border border-indigo-500/20 bg-indigo-500/[0.03] backdrop-blur-sm p-4">
+              <Download className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600 animate-pulse" />
+              <p className="text-sm text-indigo-950 font-medium leading-relaxed">
+                <span className="font-bold text-indigo-900">{EXPORT_LABELS[exportType]}</span> export for the{' '}
+                <span className="font-bold text-indigo-900">{dateRange}</span> range — CSV is generated on demand and
                 available for download immediately.
               </p>
             </div>
 
             <div className="flex justify-end">
-              <button type="submit" disabled={loading} className="btn-primary gap-2">
+              <button type="submit" disabled={loading} className="btn-primary gap-2 transition-all duration-150 hover:-translate-y-0.5">
                 <Download className="h-4 w-4" />
                 {loading ? 'Preparing...' : 'Create Export'}
               </button>
@@ -154,7 +154,7 @@ export default function ExportsPage() {
           {recentExports.length > 0 ? (
             <div className="space-y-3">
               {recentExports.map((item) => (
-                <div key={item.id} className="rounded-lg border border-app-line bg-white px-4 py-4">
+                <div key={item.id} className="rounded-xl border border-slate-200/50 bg-white/60 p-4 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-150">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -162,18 +162,18 @@ export default function ExportsPage() {
                         <StatusChip label={item.range} tone="neutral" />
                         <StatusChip label={item.status} tone={item.status === 'ready' ? 'good' : 'neutral'} />
                       </div>
-                      <div className="mt-2 text-sm text-app-muted">
-                        Prepared {new Date(item.createdAt).toLocaleString()}
+                      <div className="mt-2.5 text-xs font-semibold text-app-muted">
+                        Prepared: <span className="font-mono text-app-strong tabular-nums">{new Date(item.createdAt).toLocaleString()}</span>
                       </div>
                     </div>
                     <a
                       href={item.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="btn-primary gap-2"
+                      className="btn-primary gap-2 py-2 text-xs transition-all duration-150 hover:-translate-y-0.5"
                       onClick={() => markDownloaded(item.id)}
                     >
-                      <Download className="h-4 w-4" />
+                      <Download className="h-3.5 w-3.5" />
                       Download CSV
                     </a>
                   </div>

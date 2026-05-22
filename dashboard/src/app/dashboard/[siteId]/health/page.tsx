@@ -124,16 +124,28 @@ export default function HealthPage() {
         title: 'Collection',
         description: 'Event intake freshness and stream readiness.',
         tone: collectionTone,
-        icon: <DatabaseZap className="h-4 w-4" />,
+        icon: <DatabaseZap className="h-4.5 w-4.5" />,
         summary: health.last_processed_at
           ? `Last processed ${formatAge(health.last_processed_age_seconds)}`
           : 'No processed events yet',
         checks: [
-          { label: 'Input stream', value: health.stream, tone: 'neutral' as const },
-          { label: 'Stream length', value: health.stream_length.toLocaleString(), tone: 'neutral' as const },
+          {
+            label: 'Input stream',
+            value: <span className="font-mono text-xs text-app-strong">{health.stream}</span>,
+            tone: 'neutral' as const,
+          },
+          {
+            label: 'Stream length',
+            value: <span className="font-mono text-xs tabular-nums font-semibold">{health.stream_length.toLocaleString()}</span>,
+            tone: 'neutral' as const,
+          },
           {
             label: 'Last processed age',
-            value: health.last_processed_at ? formatAge(health.last_processed_age_seconds) : 'N/A',
+            value: (
+              <span className="font-mono text-xs tabular-nums font-semibold">
+                {health.last_processed_at ? formatAge(health.last_processed_age_seconds) : 'N/A'}
+              </span>
+            ),
             tone: detailToneToRowTone(collectionTone),
           },
         ],
@@ -142,22 +154,26 @@ export default function HealthPage() {
         title: 'Processing',
         description: 'Workers, backlog, and queue pressure.',
         tone: processingTone,
-        icon: <Users className="h-4 w-4" />,
+        icon: <Users className="h-4.5 w-4.5" />,
         summary: `${health.consumer_count.toLocaleString()} consumers with ${health.queue_depth.toLocaleString()} queued items`,
         checks: [
           {
             label: 'Consumer group',
-            value: health.consumer_group,
+            value: <span className="font-mono text-xs text-app-strong">{health.consumer_group}</span>,
             tone: 'neutral' as const,
           },
           {
             label: 'Consumers',
-            value: health.consumer_count.toLocaleString(),
+            value: <span className="font-mono text-xs tabular-nums font-semibold">{health.consumer_count.toLocaleString()}</span>,
             tone: detailToneToRowTone(processingTone),
           },
           {
             label: 'Pending / Lag',
-            value: `${health.pending.toLocaleString()} / ${health.lag.toLocaleString()}`,
+            value: (
+              <span className="font-mono text-xs tabular-nums font-semibold">
+                {health.pending.toLocaleString()} / {health.lag.toLocaleString()}
+              </span>
+            ),
             tone: detailToneToRowTone(processingTone),
           },
         ],
@@ -166,7 +182,7 @@ export default function HealthPage() {
         title: 'Delivery',
         description: 'Downstream delivery quality and dead-letter risk.',
         tone: deliveryTone,
-        icon: <PackageCheck className="h-4 w-4" />,
+        icon: <PackageCheck className="h-4.5 w-4.5" />,
         summary:
           health.dead_letter_length > 0
             ? `${health.dead_letter_length.toLocaleString()} dead-letter events need review`
@@ -174,17 +190,25 @@ export default function HealthPage() {
         checks: [
           {
             label: 'Dead stream',
-            value: health.dead_stream,
+            value: <span className="font-mono text-xs text-app-strong">{health.dead_stream}</span>,
             tone: 'neutral' as const,
           },
           {
             label: 'Dead-letter length',
-            value: health.dead_letter_length.toLocaleString(),
+            value: (
+              <span className={`font-mono text-xs tabular-nums font-semibold ${health.dead_letter_length > 0 ? 'text-rose-600' : ''}`}>
+                {health.dead_letter_length.toLocaleString()}
+              </span>
+            ),
             tone: detailToneToRowTone(deliveryTone),
           },
           {
             label: 'Last delivered ID',
-            value: health.last_delivered_id || 'N/A',
+            value: (
+              <span className="font-mono text-[11px] font-medium text-app-muted truncate max-w-[130px] inline-block" title={health.last_delivered_id || ''}>
+                {health.last_delivered_id || 'N/A'}
+              </span>
+            ),
             tone: 'neutral' as const,
           },
         ],
@@ -193,22 +217,22 @@ export default function HealthPage() {
         title: 'Verification',
         description: 'Operator-facing interpretation of current state.',
         tone: verificationTone,
-        icon: <ShieldCheck className="h-4 w-4" />,
+        icon: <ShieldCheck className="h-4.5 w-4.5" />,
         summary: health.message,
         checks: [
           {
             label: 'Pipeline status',
-            value: health.status,
+            value: <span className="font-mono text-xs uppercase font-bold">{health.status}</span>,
             tone: detailToneToRowTone(verificationTone),
           },
           {
             label: 'Last processed at',
-            value: formatDateTime(health.last_processed_at),
+            value: <span className="font-mono text-xs tabular-nums font-medium">{formatDateTime(health.last_processed_at)}</span>,
             tone: 'neutral' as const,
           },
           {
             label: 'Last checked at',
-            value: formatDateTime(health.checked_at),
+            value: <span className="font-mono text-xs tabular-nums font-medium">{formatDateTime(health.checked_at)}</span>,
             tone: 'neutral' as const,
           },
         ],
@@ -261,18 +285,39 @@ export default function HealthPage() {
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {groups.map((group) => (
-            <div key={group.title} className="card px-5 py-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-app-subtle text-app-strong">
+            <div key={group.title} className="card-glass border-slate-200/50 hover:border-indigo-500/20 shadow-sm hover:shadow-md transition-all duration-200 px-5 py-4 hover:-translate-y-0.5">
+              <div className="flex items-center justify-between mb-3.5">
+                <div className="flex items-center gap-2.5">
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors duration-150 ${
+                    group.tone === 'good' ? 'bg-emerald-500/10 text-emerald-600' :
+                    group.tone === 'warn' ? 'bg-amber-500/10 text-amber-600' :
+                    group.tone === 'danger' ? 'bg-rose-500/10 text-rose-600 animate-pulse' :
+                    'bg-slate-500/10 text-slate-600'
+                  }`}>
                     {group.icon}
                   </div>
                   <div className="text-sm font-semibold text-app-strong">{group.title}</div>
                 </div>
-                <StatusChip label={group.tone} tone={group.tone} />
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                      group.tone === 'good' ? 'bg-emerald-400' :
+                      group.tone === 'warn' ? 'bg-amber-400' :
+                      group.tone === 'danger' ? 'bg-rose-400' :
+                      'bg-slate-400'
+                    }`}></span>
+                    <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                      group.tone === 'good' ? 'bg-emerald-500' :
+                      group.tone === 'warn' ? 'bg-amber-500' :
+                      group.tone === 'danger' ? 'bg-rose-500' :
+                      'bg-slate-500'
+                    }`}></span>
+                  </span>
+                  <StatusChip label={group.tone} tone={group.tone} />
+                </div>
               </div>
-              <p className="text-xs text-app-muted mb-4">{group.summary}</p>
-              <div className="space-y-2">
+              <p className="text-xs font-medium text-app-muted leading-relaxed mb-4">{group.summary}</p>
+              <div className="space-y-1">
                 {group.checks.map((check) => (
                   <DetailRow key={check.label} label={check.label} value={check.value} tone={check.tone} />
                 ))}

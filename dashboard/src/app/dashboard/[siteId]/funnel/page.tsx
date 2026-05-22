@@ -41,17 +41,17 @@ function FunnelBar({
   const dropOff = 100 - retainedFromPrevious
 
   return (
-    <div className="flex items-center gap-3 border-b border-slate-50 px-4 py-3 hover:bg-slate-50/50 last:border-0">
-      <div className="w-28 shrink-0 text-xs font-medium text-app-muted sm:w-32">{label}</div>
-      <div className="h-5 flex-1 overflow-hidden rounded-sm bg-app-subtle">
+    <div className="flex items-center gap-3 border-b border-slate-200/40 px-4 py-3 hover:bg-slate-50/50 last:border-0 transition-colors">
+      <div className="w-28 shrink-0 text-xs font-semibold text-app-strong sm:w-32">{label}</div>
+      <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100 border border-slate-200/20">
         <div
-          className="h-full rounded-sm bg-indigo-500/70 transition-all duration-500"
+          className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 shadow-[0_0_8px_rgba(139,92,246,0.25)] transition-all duration-500"
           style={{ width: `${barWidth}%` }}
         />
       </div>
-      <div className="w-20 shrink-0 text-right text-sm font-semibold tabular-nums text-app-strong">{count.toLocaleString()}</div>
-      <div className={`w-16 shrink-0 text-right text-xs tabular-nums ${dropOff > 40 && label !== 'Pageviews' ? 'font-medium text-red-600' : 'text-app-muted'}`}>
-        {retainedFromPrevious.toFixed(0)}%
+      <div className="w-24 shrink-0 text-right text-sm font-bold tabular-nums text-app-strong">{count.toLocaleString()}</div>
+      <div className={`w-20 shrink-0 text-right text-sm font-semibold tabular-nums ${dropOff > 40 && label !== 'Pageviews' ? 'text-rose-600' : 'text-indigo-600'}`}>
+        {retainedFromPrevious.toFixed(1)}%
       </div>
     </div>
   )
@@ -289,64 +289,73 @@ export default function FunnelPage() {
             </SectionCard>
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-              <SectionCard
-                title="Step Totals"
-              >
+              <SectionCard title="Step Totals">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   {steps.map((step) => (
-                    <div key={step.label} className="rounded-lg border border-app-line bg-white p-4">
-                      <div className="text-sm font-medium text-app-muted">{step.label}</div>
-                      <div className="mt-2 text-2xl font-semibold text-app-strong">
+                    <div key={step.label} className="rounded-xl border border-slate-200/50 bg-white/60 backdrop-blur-sm p-4 shadow-sm transition-all hover:shadow-md hover:border-slate-300/60">
+                      <div className="text-xs font-semibold uppercase tracking-wider text-app-muted">{step.label}</div>
+                      <div className="mt-2 text-2xl font-bold tabular-nums text-app-strong">
                         {step.count.toLocaleString()}
                       </div>
-                      <div className="mt-3 flex items-center gap-2 text-xs text-app-muted">
-                        <ArrowDown className="h-3.5 w-3.5" />
-                        {step.retainedFromPrevious.toFixed(1)}% from previous step
+                      <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-app-muted">
+                        <ArrowDown className="h-3.5 w-3.5 text-indigo-500" />
+                        <span className="tabular-nums font-semibold text-indigo-600">{step.retainedFromPrevious.toFixed(1)}%</span> from previous step
                       </div>
                     </div>
                   ))}
                 </div>
               </SectionCard>
 
-              <SectionCard
-                title="Bottleneck Analysis"
-              >
+              <SectionCard title="Bottleneck Analysis">
                 <div className="space-y-4">
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-sm font-semibold text-amber-800">Primary bottleneck</div>
+                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.03] backdrop-blur-sm p-4">
+                    <div className="flex items-center justify-between gap-3 border-b border-amber-500/10 pb-2 mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                        </span>
+                        <div className="text-xs font-bold uppercase tracking-wider text-amber-800">Primary bottleneck</div>
+                      </div>
                       <StatusChip
                         label={funnelSummary.weakestStep?.label || 'None'}
                         tone={funnelSummary.weakestStep ? 'warn' : 'good'}
                       />
                     </div>
-                    <p className="mt-2 text-sm text-amber-700">
+                    <p className="text-sm leading-relaxed text-amber-900 font-medium">
                       {getBottleneckNarrative(funnelSummary.weakestStep?.label || '')}
                     </p>
                   </div>
+
                   {overview?.aov && overview.aov > 0 && (
-                    <div className="rounded-lg border border-red-100 bg-red-50 p-4">
-                      <div className="text-sm font-semibold text-red-800">Estimated revenue lost at checkout</div>
-                      <div className="mt-1 text-2xl font-bold text-red-700">
-                        ${((funnel.checkouts - funnel.purchases) * overview.aov).toFixed(2)}
+                    <div className="rounded-xl border border-rose-500/20 bg-rose-500/[0.03] backdrop-blur-sm p-4">
+                      <div className="flex items-center gap-2 border-b border-rose-500/10 pb-2 mb-2">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                        </span>
+                        <div className="text-xs font-bold uppercase tracking-wider text-rose-800">Estimated revenue leakage</div>
                       </div>
-                      <p className="mt-1 text-xs text-red-600">
-                        {(funnel.checkouts - funnel.purchases).toLocaleString()} checkout sessions × ${overview.aov.toFixed(2)} AOV
+                      <div className="text-2xl font-black tabular-nums text-rose-600">
+                        ${((funnel.checkouts - funnel.purchases) * overview.aov).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <p className="mt-1 text-xs text-rose-700/80 leading-relaxed">
+                        <span className="tabular-nums font-semibold text-rose-700">{(funnel.checkouts - funnel.purchases).toLocaleString()}</span> checkout drops × <span className="tabular-nums font-semibold text-rose-700">${overview.aov.toFixed(2)}</span> AOV
                       </p>
                     </div>
                   )}
-                  <div className="rounded-lg border border-app-line bg-app-panel p-4">
-                    <div className="text-sm font-semibold text-app-strong">Purchase completion</div>
-                    <p className="mt-2 text-sm text-app-muted">
-                      {funnel.purchase_rate.toFixed(1)}% of checkout starts become purchases in the selected
-                      period.
+
+                  <div className="rounded-xl border border-slate-200/40 bg-slate-50/50 p-4">
+                    <div className="text-xs font-bold uppercase tracking-wider text-app-strong">Purchase completion</div>
+                    <p className="mt-1 text-sm text-app-muted leading-relaxed">
+                      <span className="tabular-nums font-bold text-indigo-600">{funnel.purchase_rate.toFixed(1)}%</span> of checkout starts become purchases in the selected period.
                     </p>
                   </div>
-                  <div className="rounded-lg border border-app-line bg-app-panel p-4">
-                    <div className="text-sm font-semibold text-app-strong">Overall throughput</div>
-                    <p className="mt-2 text-sm text-app-muted">
-                      {funnelSummary.purchaseRetention.toFixed(1)}% of entry pageviews make it all the way to
-                      purchase.
+
+                  <div className="rounded-xl border border-slate-200/40 bg-slate-50/50 p-4">
+                    <div className="text-xs font-bold uppercase tracking-wider text-app-strong">Overall throughput</div>
+                    <p className="mt-1 text-sm text-app-muted leading-relaxed">
+                      <span className="tabular-nums font-bold text-emerald-600">{funnelSummary.purchaseRetention.toFixed(1)}%</span> of entry pageviews make it all the way to purchase.
                     </p>
                   </div>
                 </div>

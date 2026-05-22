@@ -70,23 +70,23 @@ export default function CampaignsPage() {
     {
       key: 'campaign',
       label: 'Campaign',
-      render: (c) => <span className="truncate max-w-[200px] block font-medium text-app-strong" title={c.campaign || '(none)'}>{c.campaign || '(none)'}</span>,
+      render: (c) => <span className="truncate max-w-[200px] block font-semibold text-app-strong" title={c.campaign || '(none)'}>{c.campaign || '(none)'}</span>,
     },
     {
       key: 'source_medium',
       label: 'Source / Medium',
       render: (c) => (
         <div>
-          <div className="font-medium text-app-strong">{c.source || '(direct)'}</div>
+          <div className="font-semibold text-app-strong">{c.source || '(direct)'}</div>
           <div className="mt-0.5 text-xs text-app-muted">{c.medium || '(none)'}</div>
         </div>
       ),
     },
-    { key: 'sessions', label: 'Sessions', align: 'right', sortable: true, render: (c) => c.sessions.toLocaleString(), sortValue: (c) => c.sessions },
-    { key: 'conversions', label: 'Conversions', align: 'right', sortable: true, render: (c) => c.conversions.toLocaleString(), sortValue: (c) => c.conversions },
-    { key: 'conversion_rate', label: 'Conv. Rate', align: 'right', sortable: true, render: (c) => `${c.conversion_rate.toFixed(2)}%`, sortValue: (c) => c.conversion_rate },
-    { key: 'revenue', label: 'Revenue', align: 'right', sortable: true, render: (c) => <span className="font-medium">${c.revenue.toFixed(2)}</span>, sortValue: (c) => c.revenue },
-    { key: 'revenue_per_session', label: 'Rev / Session', align: 'right', sortable: true, render: (c) => `$${c.revenue_per_session.toFixed(2)}`, sortValue: (c) => c.revenue_per_session },
+    { key: 'sessions', label: 'Sessions', align: 'right', sortable: true, render: (c) => <span className="tabular-nums font-semibold text-app-strong">{c.sessions.toLocaleString()}</span>, sortValue: (c) => c.sessions },
+    { key: 'conversions', label: 'Conversions', align: 'right', sortable: true, render: (c) => <span className="tabular-nums font-semibold text-app-strong">{c.conversions.toLocaleString()}</span>, sortValue: (c) => c.conversions },
+    { key: 'conversion_rate', label: 'Conv. Rate', align: 'right', sortable: true, render: (c) => <span className="tabular-nums font-semibold text-indigo-600">{c.conversion_rate.toFixed(2)}%</span>, sortValue: (c) => c.conversion_rate },
+    { key: 'revenue', label: 'Revenue', align: 'right', sortable: true, render: (c) => <span className="font-semibold tabular-nums text-emerald-600">${c.revenue.toFixed(2)}</span>, sortValue: (c) => c.revenue },
+    { key: 'revenue_per_session', label: 'Rev / Session', align: 'right', sortable: true, render: (c) => <span className={`tabular-nums font-medium ${c.revenue_per_session > 0 ? 'text-emerald-600' : 'text-app-soft'}`}>${c.revenue_per_session.toFixed(2)}</span>, sortValue: (c) => c.revenue_per_session },
     {
       key: 'signal_coverage',
       label: 'Signal Coverage',
@@ -149,11 +149,17 @@ export default function CampaignsPage() {
 
         <div>
           {totals.topCampaign && (
-            <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">Top Campaign by Revenue</p>
-              <p className="mt-1 text-base font-bold text-emerald-900">{totals.topCampaign.campaign || '(none)'}</p>
-              <p className="mt-0.5 text-sm text-emerald-700">
-                ${totals.topCampaign.revenue.toFixed(2)} revenue &middot; {totals.topCampaign.sessions.toLocaleString()} sessions
+            <div className="mb-4 card-glass border border-emerald-500/20 bg-emerald-500/[0.03] px-5 py-4">
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="relative h-2 w-2 shrink-0">
+                  <div className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <div className="absolute inset-0 rounded-full bg-emerald-500" />
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 font-mono">Top Campaign by Revenue</span>
+              </div>
+              <p className="text-base font-bold text-emerald-950">{totals.topCampaign.campaign || '(none)'}</p>
+              <p className="mt-1 text-sm text-emerald-800/90 font-medium">
+                <span className="tabular-nums font-semibold text-emerald-700">${totals.topCampaign.revenue.toFixed(2)}</span> revenue &middot; <span className="tabular-nums font-semibold text-emerald-700">{totals.topCampaign.sessions.toLocaleString()}</span> sessions
                 {totals.topCampaign.source ? ` · via ${totals.topCampaign.source}` : ''}
               </p>
             </div>
