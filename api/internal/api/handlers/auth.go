@@ -25,17 +25,41 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	user, member, token, err := h.svc.Register(c.Request.Context(), req.Email, req.Password, req.Name)
+	user, member, err := h.svc.Register(c.Request.Context(), req.Email, req.Password, req.Name)
 	if err != nil {
 		if err.Error() == "email already registered" {
 			c.JSON(http.StatusConflict, gin.H{"error": "Email already registered"})
+			return
+		}
+		if err.Error() == "activation email is not configured" {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Activation email is not configured"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, models.AuthResponse{
+	c.JSON(http.StatusCreated, models.RegisterResponse{
+		Email:     member.Email,
+		Message:   "Account created. Check your email to activate your account.",
+		EmailSent: user != nil,
+	})
+}
+
+func (h *AuthHandler) Activate(c *gin.Context) {
+	var req models.ActivateAccountRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, member, token, err := h.svc.Activate(c.Request.Context(), req.Token)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired activation link"})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.AuthResponse{
 		Token:   token,
 		User:    *user,
 		Account: *user,
@@ -53,6 +77,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	user, member, token, err := h.svc.Login(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
+		if err.Error() == "email activation required" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Activate your account from the email we sent before signing in"})
+			return
+		}
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}

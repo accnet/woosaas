@@ -52,6 +52,7 @@ type Config struct {
 	IntegrationEncryptionKey string // 32-byte key, base64-encoded
 	TrackerBaseURL           string // e.g. https://app.woosaas.com
 	APIBaseURL               string // public API URL for webhook callbacks
+	AppBaseURL               string // public frontend URL for user-facing links
 }
 
 func Load() *Config {
@@ -95,6 +96,7 @@ func Load() *Config {
 		IntegrationEncryptionKey: getEnv("INTEGRATION_ENCRYPTION_KEY", ""),
 		TrackerBaseURL:           getEnv("TRACKER_BASE_URL", "https://app.woosaas.com"),
 		APIBaseURL:               getEnv("API_BASE_URL", "http://localhost:8080"),
+		AppBaseURL:               getEnv("APP_BASE_URL", "http://localhost:3000"),
 	}
 }
 

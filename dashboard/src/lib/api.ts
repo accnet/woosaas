@@ -5,6 +5,7 @@ import type {
   APIKeyResponse,
   AbandonmentStats,
   AuthResponse,
+  RegisterResponse,
   BillingUsage,
   BillingProfile,
   BotReportResponse,
@@ -108,9 +109,11 @@ api.interceptors.response.use(
 // Auth API
 export const authApi = {
   register: (name: string, email: string, password: string) =>
-    api.post<AuthResponse>('/api/v1/auth/register', { email, password, name }),
+    api.post<RegisterResponse>('/api/v1/auth/register', { email, password, name }),
   login: (email: string, password: string) =>
     api.post<AuthResponse>('/api/v1/auth/login', { email, password }),
+  activate: (token: string) =>
+    api.post<AuthResponse>('/api/v1/auth/activate', { token }),
   me: () => api.get<User>('/api/v1/me'),
 }
 

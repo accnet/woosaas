@@ -623,69 +623,6 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
-          {progress ? (
-            <SectionCard title="Order Progress">
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <StatusChip
-                    label={formatStatusLabel(progress.currentStatus || 'unknown')}
-                    tone={lifecycleTone(progress.currentStatus || 'unknown')}
-                  />
-                  {progress.latestTracking ? (
-                    <span className="text-sm text-app-muted">
-                      Latest tracking update: {formatTimestamp(progress.latestTracking.last_checkpoint_at || progress.latestTracking.updated_at)}
-                    </span>
-                  ) : (
-                    <span className="text-sm text-app-muted">No carrier checkpoint yet.</span>
-                  )}
-                </div>
-
-                {progress.isException ? (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                    This order is currently in an exception state. Review the latest tracking note and shipment status before taking action.
-                  </div>
-                ) : null}
-
-                <div className="grid gap-3 xl:grid-cols-5">
-                  {progress.steps.map((step, index) => (
-                    <div key={step.key} className="relative rounded-lg border border-app-line bg-slate-50/70 px-3 py-2.5 text-center">
-                      {index < progress.steps.length - 1 ? (
-                        <span className="absolute left-full top-6 z-0 hidden h-0.5 w-3 -translate-y-1/2 rounded-full bg-slate-200 xl:block">
-                          <span
-                            className={`block h-full rounded-full ${
-                              step.state === 'done'
-                                ? 'w-full bg-emerald-300'
-                                : step.state === 'current'
-                                  ? 'w-1/2 bg-indigo-300'
-                                  : 'w-0 bg-transparent'
-                            }`}
-                          />
-                        </span>
-                      ) : null}
-                      <div className="flex items-center justify-center gap-2">
-                        <span
-                          className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
-                            step.state === 'done'
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : step.state === 'current'
-                                ? 'bg-indigo-100 text-indigo-700'
-                                : 'bg-slate-200 text-slate-500'
-                          }`}
-                        >
-                          <ProgressStepIcon stepKey={step.key} state={step.state} />
-                        </span>
-                        <span className="text-sm font-semibold leading-tight text-app-strong">{step.label}</span>
-                      </div>
-                      <div className="mt-1.5 text-xs text-app-muted">
-                        {step.timestamp ? formatTimestamp(step.timestamp) : step.state === 'pending' ? 'Pending' : 'Not recorded'}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </SectionCard>
-          ) : null}
-
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.8fr)]">
             <div className="space-y-5">
               <SectionCard
@@ -804,6 +741,69 @@ export default function OrderDetailPage() {
                   </div>
                 )}
               </SectionCard>
+
+              {progress ? (
+                <SectionCard title="Order Progress">
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusChip
+                        label={formatStatusLabel(progress.currentStatus || 'unknown')}
+                        tone={lifecycleTone(progress.currentStatus || 'unknown')}
+                      />
+                      {progress.latestTracking ? (
+                        <span className="text-sm text-app-muted">
+                          Latest tracking update: {formatTimestamp(progress.latestTracking.last_checkpoint_at || progress.latestTracking.updated_at)}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-app-muted">No carrier checkpoint yet.</span>
+                      )}
+                    </div>
+
+                    {progress.isException ? (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                        This order is currently in an exception state. Review the latest tracking note and shipment status before taking action.
+                      </div>
+                    ) : null}
+
+                    <div className="grid gap-3 xl:grid-cols-5">
+                      {progress.steps.map((step, index) => (
+                        <div key={step.key} className="relative rounded-lg border border-app-line bg-slate-50/70 px-3 py-2.5 text-center">
+                          {index < progress.steps.length - 1 ? (
+                            <span className="absolute left-full top-6 z-0 hidden h-0.5 w-3 -translate-y-1/2 rounded-full bg-slate-200 xl:block">
+                              <span
+                                className={`block h-full rounded-full ${
+                                  step.state === 'done'
+                                    ? 'w-full bg-emerald-300'
+                                    : step.state === 'current'
+                                      ? 'w-1/2 bg-indigo-300'
+                                      : 'w-0 bg-transparent'
+                                }`}
+                              />
+                            </span>
+                          ) : null}
+                          <div className="flex items-center justify-center gap-2">
+                            <span
+                              className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
+                                step.state === 'done'
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : step.state === 'current'
+                                    ? 'bg-indigo-100 text-indigo-700'
+                                    : 'bg-slate-200 text-slate-500'
+                              }`}
+                            >
+                              <ProgressStepIcon stepKey={step.key} state={step.state} />
+                            </span>
+                            <span className="text-sm font-semibold leading-tight text-app-strong">{step.label}</span>
+                          </div>
+                          <div className="mt-1.5 text-xs text-app-muted">
+                            {step.timestamp ? formatTimestamp(step.timestamp) : step.state === 'pending' ? 'Pending' : 'Not recorded'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </SectionCard>
+              ) : null}
 
               <SectionCard
                 title="Shipment Tracking"
@@ -979,46 +979,32 @@ export default function OrderDetailPage() {
               </SectionCard>
 
               <SectionCard title="Order Activity">
-                <div className="space-y-5">
-                  <div className="rounded-xl border border-app-line bg-slate-50/60 p-4">
-                    <label className="block text-sm font-medium text-app-strong">
-                      Internal note
-                    </label>
-                    <p className="mt-0.5 text-xs text-app-muted">Your customer will not see this.</p>
-                    <textarea
-                      className="mt-3 min-h-[80px] w-full rounded-xl border border-app-line bg-white px-3 py-2 text-sm text-app-strong outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                      placeholder="Add a note…"
-                    />
-                  </div>
-
-                  <div className="space-y-0">
-                    {activity.map((item, index) => (
-                      <div
-                        key={`${item.label}-${item.timestamp}`}
-                        className="relative grid grid-cols-[20px_minmax(0,1fr)] gap-3 pb-4 pl-0 last:pb-0"
-                      >
-                        {/* Timeline spine */}
-                        <div className="flex flex-col items-center">
-                          <span className="mt-1 h-3 w-3 rounded-full border-2 border-indigo-400 bg-white" />
-                          {index < activity.length - 1 ? (
-                            <span className="mt-1 w-px flex-1 bg-slate-200" />
-                          ) : null}
-                        </div>
-                        {/* Content */}
-                        <div className="min-w-0 pb-1">
-                          <div className="text-sm font-medium text-app-strong">{item.label}</div>
-                          <div className="mt-0.5 text-xs text-app-muted">
-                            {new Date(item.timestamp).toLocaleString([], {
-                              month: 'short',
-                              day: 'numeric',
-                              hour: 'numeric',
-                              minute: '2-digit',
-                            })}
-                          </div>
+                <div className="relative">
+                  {activity.map((item, index) => (
+                    <div
+                      key={`${item.label}-${item.timestamp}`}
+                      className="relative grid grid-cols-[28px_minmax(0,1fr)] gap-3 pb-5 last:pb-0"
+                    >
+                      <div className="flex flex-col items-center">
+                        <span className={`mt-1 h-3 w-3 rounded-full border-2 bg-white ${index === 0 ? 'border-indigo-500' : 'border-slate-300'}`} />
+                        {index < activity.length - 1 ? (
+                          <span className="mt-1 w-px flex-1 bg-slate-200" />
+                        ) : null}
+                      </div>
+                      <div className="min-w-0 rounded-lg border border-app-line bg-slate-50/70 px-3 py-2.5">
+                        <div className="text-sm font-semibold text-app-strong">{item.label}</div>
+                        <div className="mt-1 text-xs text-app-muted">
+                          {new Date(item.timestamp).toLocaleString([], {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          })}
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               </SectionCard>
             </div>

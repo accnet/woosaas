@@ -171,6 +171,12 @@ export interface AuthResponse {
   member?: UserMember
 }
 
+export interface RegisterResponse {
+  email: string
+  message: string
+  email_sent: boolean
+}
+
 export interface BillingUsage {
   plan: {
     id: string

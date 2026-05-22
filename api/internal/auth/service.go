@@ -2,8 +2,11 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/accnet/woosaas/api/pkg/models"
 )
@@ -20,41 +23,81 @@ type userRepository interface {
 	UpdateMemberProfile(ctx context.Context, memberID, fullName string) (*models.UserMember, error)
 	UpdatePassword(ctx context.Context, id, passwordHash string) error
 	UpdateMemberPassword(ctx context.Context, memberID, passwordHash string) error
+	CreateEmailActivationToken(ctx context.Context, memberID, token string, expiresAt time.Time) error
+	ActivateMemberByToken(ctx context.Context, token string) (*models.UserMember, *models.User, error)
+	DeleteAccount(ctx context.Context, userID string) error
+}
+
+type activationEmailSender interface {
+	IsConfigured(ctx context.Context) error
+	SendActivationEmail(ctx context.Context, toEmail, name, token string) error
 }
 
 // Service encapsulates authentication business logic.
 type Service struct {
-	users      userRepository
-	jwtManager *JWTManager
+	users           userRepository
+	jwtManager      *JWTManager
+	activationEmail activationEmailSender
 }
 
-func NewService(users userRepository, jwtManager *JWTManager) *Service {
-	return &Service{users: users, jwtManager: jwtManager}
+func NewService(users userRepository, jwtManager *JWTManager, activationEmail activationEmailSender) *Service {
+	return &Service{users: users, jwtManager: jwtManager, activationEmail: activationEmail}
 }
 
-// Register creates a new user and returns the user and a signed JWT.
-func (s *Service) Register(ctx context.Context, email, password, name string) (*models.User, *models.UserMember, string, error) {
+// Register creates a pending account and sends an activation email.
+func (s *Service) Register(ctx context.Context, email, password, name string) (*models.User, *models.UserMember, error) {
+	if s.activationEmail == nil {
+		return nil, nil, fmt.Errorf("activation email is not configured")
+	}
+	if err := s.activationEmail.IsConfigured(ctx); err != nil {
+		return nil, nil, fmt.Errorf("activation email is not configured")
+	}
+
 	existingMember, _, _ := s.users.GetMemberByEmailWithAccount(ctx, email)
 	if existingMember != nil {
-		return nil, nil, "", fmt.Errorf("email already registered")
+		return nil, nil, fmt.Errorf("email already registered")
 	}
 
 	passwordHash, err := HashPassword(password)
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("failed to process password")
+		return nil, nil, fmt.Errorf("failed to process password")
 	}
 
 	user, member, err := s.users.CreateAccountWithOwner(ctx, email, passwordHash, name)
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("failed to create user")
+		return nil, nil, fmt.Errorf("failed to create user")
 	}
 
-	token, err := s.jwtManager.GenerateTenantToken(user.ID, member.ID, member.Email, member.Role)
+	token, err := generateActivationToken()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate activation token")
+	}
+	if err := s.users.CreateEmailActivationToken(ctx, member.ID, token, time.Now().Add(24*time.Hour)); err != nil {
+		return nil, nil, fmt.Errorf("failed to create activation token")
+	}
+
+	if err := s.activationEmail.SendActivationEmail(ctx, member.Email, member.FullName, token); err != nil {
+		_ = s.users.DeleteAccount(ctx, user.ID)
+		return nil, nil, fmt.Errorf("failed to send activation email")
+	}
+
+	return user, member, nil
+}
+
+func (s *Service) Activate(ctx context.Context, token string) (*models.User, *models.UserMember, string, error) {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return nil, nil, "", fmt.Errorf("activation token is required")
+	}
+	member, user, err := s.users.ActivateMemberByToken(ctx, token)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("invalid or expired activation token")
+	}
+	jwtToken, err := s.jwtManager.GenerateTenantToken(user.ID, member.ID, member.Email, member.Role)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("failed to generate token")
 	}
-
-	return user, member, token, nil
+	return user, member, jwtToken, nil
 }
 
 // Login validates credentials and returns the user and a signed JWT.
@@ -65,6 +108,9 @@ func (s *Service) Login(ctx context.Context, email, password string) (*models.Us
 	}
 
 	if user.Status != "active" || member.Status != "active" {
+		if member.Status == "pending_activation" {
+			return nil, nil, "", fmt.Errorf("email activation required")
+		}
 		return nil, nil, "", fmt.Errorf("invalid credentials")
 	}
 
@@ -78,6 +124,14 @@ func (s *Service) Login(ctx context.Context, email, password string) (*models.Us
 	}
 
 	return user, member, token, nil
+}
+
+func generateActivationToken() (string, error) {
+	token := make([]byte, 32)
+	if _, err := rand.Read(token); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(token), nil
 }
 
 // GetUser returns a user by ID.

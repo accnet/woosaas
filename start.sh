@@ -13,6 +13,7 @@ fi
 
 API_URL="${API_URL:-http://localhost:8080}"
 WP_PLUGIN_PATH="${WP_PLUGIN_PATH:-/var/www/site1.local/wp-content/plugins/plugin}"
+DASHBOARD_DEV_PORT="${DASHBOARD_DEV_PORT:-${DASHBOARD_PORT:-3001}}"
 
 need() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -60,9 +61,22 @@ start() {
   echo "Plugin:    ${WP_PLUGIN_PATH}"
 }
 
+dev() {
+  need npm
+  export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-$API_URL}"
+  echo "Starting dashboard dev server..."
+  echo "Dashboard: http://localhost:${DASHBOARD_DEV_PORT}"
+  echo "API:       ${NEXT_PUBLIC_API_URL}"
+  cd "$ROOT_DIR/dashboard"
+  npm run dev -- -p "$DASHBOARD_DEV_PORT"
+}
+
 case "${1:-start}" in
   start)
     start
+    ;;
+  dev)
+    dev
     ;;
   sync-plugin)
     check_plugin
@@ -86,7 +100,7 @@ case "${1:-start}" in
     docker compose --env-file .env ps
     ;;
   *)
-    echo "Usage: $0 [start|sync-plugin|migrate|smoke|seed|stop|logs|ps]" >&2
+    echo "Usage: $0 [start|dev|sync-plugin|migrate|smoke|seed|stop|logs|ps]" >&2
     exit 1
     ;;
 esac

@@ -19,16 +19,17 @@ type User struct {
 
 // UserMember represents a human login attached to a tenant account.
 type UserMember struct {
-	ID           string     `json:"id" db:"id"`
-	UserID       string     `json:"user_id" db:"user_id"`
-	Email        string     `json:"email" db:"email"`
-	PasswordHash string     `json:"-" db:"password_hash"`
-	FullName     string     `json:"full_name" db:"full_name"`
-	Role         string     `json:"role" db:"role"`
-	Status       string     `json:"status" db:"status"`
-	LastLoginAt  *time.Time `json:"last_login_at,omitempty" db:"last_login_at"`
-	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at" db:"updated_at"`
+	ID              string     `json:"id" db:"id"`
+	UserID          string     `json:"user_id" db:"user_id"`
+	Email           string     `json:"email" db:"email"`
+	PasswordHash    string     `json:"-" db:"password_hash"`
+	FullName        string     `json:"full_name" db:"full_name"`
+	Role            string     `json:"role" db:"role"`
+	Status          string     `json:"status" db:"status"`
+	LastLoginAt     *time.Time `json:"last_login_at,omitempty" db:"last_login_at"`
+	EmailVerifiedAt *time.Time `json:"email_verified_at,omitempty" db:"email_verified_at"`
+	CreatedAt       time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // Site represents a tracked website
@@ -182,6 +183,10 @@ type LoginRequest struct {
 	Password string `json:"password" validate:"required"`
 }
 
+type ActivateAccountRequest struct {
+	Token string `json:"token" validate:"required"`
+}
+
 type UpdateProfileRequest struct {
 	Name string `json:"name" validate:"required,min=1,max=255"`
 }
@@ -197,6 +202,12 @@ type AuthResponse struct {
 	User    User       `json:"user"`
 	Account User       `json:"account"`
 	Member  UserMember `json:"member"`
+}
+
+type RegisterResponse struct {
+	Email     string `json:"email"`
+	Message   string `json:"message"`
+	EmailSent bool   `json:"email_sent"`
 }
 
 // CreateSiteRequest for creating a new site

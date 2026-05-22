@@ -19,13 +19,6 @@ WITH ranked AS (
         ) AS rn
     FROM export_templates
     WHERE site_id IS NOT NULL
-),
-default_candidate AS (
-    SELECT name, description, columns, is_system
-    FROM export_templates
-    WHERE site_id IS NOT NULL AND is_default = TRUE
-    ORDER BY is_system ASC, created_at ASC, id ASC
-    LIMIT 1
 )
 INSERT INTO export_templates (
     id,
@@ -45,20 +38,7 @@ SELECT
     ranked.description,
     ranked.columns,
     ranked.is_system,
-    CASE
-        WHEN EXISTS (
-            SELECT 1
-            FROM default_candidate
-            WHERE default_candidate.name = ranked.name
-              AND default_candidate.description = ranked.description
-              AND default_candidate.columns = ranked.columns
-              AND default_candidate.is_system = ranked.is_system
-        ) THEN TRUE
-        WHEN NOT EXISTS (SELECT 1 FROM default_candidate)
-             AND ranked.is_system = TRUE
-             AND ranked.name = 'Default' THEN TRUE
-        ELSE FALSE
-    END,
+    FALSE,
     NOW(),
     NOW()
 FROM ranked
@@ -72,6 +52,37 @@ WHERE ranked.rn = 1
         AND existing.columns = ranked.columns
         AND existing.is_system = ranked.is_system
   );
+
+WITH default_candidate AS (
+    SELECT name, description, columns, is_system
+    FROM export_templates
+    WHERE site_id IS NOT NULL AND is_default = TRUE
+    ORDER BY is_system ASC, created_at ASC, id ASC
+    LIMIT 1
+)
+UPDATE export_templates
+SET is_default = TRUE, updated_at = NOW()
+WHERE id = (
+    SELECT t.id
+    FROM export_templates t
+    LEFT JOIN default_candidate dc ON dc.name = t.name
+                                   AND dc.description = t.description
+                                   AND dc.columns = t.columns
+                                   AND dc.is_system = t.is_system
+    WHERE t.site_id IS NULL
+    ORDER BY
+        (dc.name IS NOT NULL) DESC,
+        (t.is_system = TRUE AND t.name = 'Default') DESC,
+        t.is_system DESC,
+        t.created_at ASC,
+        t.id ASC
+    LIMIT 1
+)
+AND NOT EXISTS (
+    SELECT 1
+    FROM export_templates
+    WHERE site_id IS NULL AND is_default = TRUE
+);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_export_templates_global_default
     ON export_templates ((1))

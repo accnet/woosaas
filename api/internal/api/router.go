@@ -9,6 +9,7 @@ import (
 	"github.com/accnet/woosaas/api/internal/billing"
 	"github.com/accnet/woosaas/api/internal/config"
 	"github.com/accnet/woosaas/api/internal/customers"
+	"github.com/accnet/woosaas/api/internal/email"
 	"github.com/accnet/woosaas/api/internal/export"
 	"github.com/accnet/woosaas/api/internal/ingest"
 	"github.com/accnet/woosaas/api/internal/observability"
@@ -74,6 +75,7 @@ func NewRouter(
 	billingSvc := billing.NewBillingServiceWithDB(pg)
 
 	encKey, _ := handlers.LoadEncryptionKey(cfg.IntegrationEncryptionKey)
+	emailSvc := email.NewService(pg, encKey, cfg.AppBaseURL)
 
 	return &Router{
 		engine:     engine,
@@ -81,7 +83,7 @@ func NewRouter(
 		repo:       repo,
 		ch:         ch,
 		jwtManager: jwtManager,
-		authSvc:    auth.NewService(userRepo, jwtManager),
+		authSvc:    auth.NewService(userRepo, jwtManager, emailSvc),
 		// M3: pass allowed origins for proper CORS validation
 		mw:              middleware.NewMiddleware(jwtManager, userRepo, redisClient, allowedOrigins),
 		redisClient:     redisClient,
@@ -201,6 +203,7 @@ func (r *Router) registerAuthRoutes(v1 *gin.RouterGroup, authHandler *handlers.A
 	{
 		authGroup.POST("/register", authHandler.Register)
 		authGroup.POST("/login", authHandler.Login)
+		authGroup.POST("/activate", authHandler.Activate)
 	}
 }
 

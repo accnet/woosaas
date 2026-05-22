@@ -2,6 +2,8 @@ package users
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -76,13 +78,13 @@ func (r *Repository) CreateAccountWithOwner(ctx context.Context, email, password
 		PasswordHash: passwordHash,
 		FullName:     name,
 		Role:         "owner",
-		Status:       "active",
+		Status:       "pending_activation",
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO users_members (id, user_id, email, password_hash, full_name, role, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, 'owner', 'active', $6, $7)
+		VALUES ($1, $2, $3, $4, $5, 'owner', 'pending_activation', $6, $7)
 	`, member.ID, member.UserID, member.Email, member.PasswordHash, member.FullName, member.CreatedAt, member.UpdatedAt); err != nil {
 		return nil, nil, fmt.Errorf("failed to create account owner: %w", err)
 	}
@@ -135,7 +137,7 @@ func (r *Repository) GetMemberByEmailWithAccount(ctx context.Context, email stri
 	err := r.db.QueryRow(ctx, `
 		SELECT
 			um.id, um.user_id, um.email, COALESCE(um.password_hash, ''), COALESCE(um.full_name, ''),
-			um.role, um.status, um.last_login_at, um.created_at, um.updated_at,
+			um.role, um.status, um.last_login_at, um.email_verified_at, um.created_at, um.updated_at,
 			u.id, u.email, u.password_hash, u.name, COALESCE(u.status, 'active'), u.deleted_at, u.created_at, u.updated_at
 		FROM users_members um
 		INNER JOIN users u ON u.id = um.user_id
@@ -143,7 +145,7 @@ func (r *Repository) GetMemberByEmailWithAccount(ctx context.Context, email stri
 		  AND u.deleted_at IS NULL
 	`, strings.TrimSpace(email)).Scan(
 		&member.ID, &member.UserID, &member.Email, &member.PasswordHash, &member.FullName,
-		&member.Role, &member.Status, &member.LastLoginAt, &member.CreatedAt, &member.UpdatedAt,
+		&member.Role, &member.Status, &member.LastLoginAt, &member.EmailVerifiedAt, &member.CreatedAt, &member.UpdatedAt,
 		&account.ID, &account.Email, &account.PasswordHash, &account.Name, &account.Status, &account.DeletedAt, &account.CreatedAt, &account.UpdatedAt,
 	)
 	if err != nil {
@@ -158,7 +160,7 @@ func (r *Repository) GetMemberByIDWithAccount(ctx context.Context, memberID stri
 	err := r.db.QueryRow(ctx, `
 		SELECT
 			um.id, um.user_id, um.email, COALESCE(um.password_hash, ''), COALESCE(um.full_name, ''),
-			um.role, um.status, um.last_login_at, um.created_at, um.updated_at,
+			um.role, um.status, um.last_login_at, um.email_verified_at, um.created_at, um.updated_at,
 			u.id, u.email, u.password_hash, u.name, COALESCE(u.status, 'active'), u.deleted_at, u.created_at, u.updated_at
 		FROM users_members um
 		INNER JOIN users u ON u.id = um.user_id
@@ -166,7 +168,7 @@ func (r *Repository) GetMemberByIDWithAccount(ctx context.Context, memberID stri
 		  AND u.deleted_at IS NULL
 	`, memberID).Scan(
 		&member.ID, &member.UserID, &member.Email, &member.PasswordHash, &member.FullName,
-		&member.Role, &member.Status, &member.LastLoginAt, &member.CreatedAt, &member.UpdatedAt,
+		&member.Role, &member.Status, &member.LastLoginAt, &member.EmailVerifiedAt, &member.CreatedAt, &member.UpdatedAt,
 		&account.ID, &account.Email, &account.PasswordHash, &account.Name, &account.Status, &account.DeletedAt, &account.CreatedAt, &account.UpdatedAt,
 	)
 	if err != nil {
@@ -195,15 +197,83 @@ func (r *Repository) UpdateMemberProfile(ctx context.Context, memberID, fullName
 		UPDATE users_members
 		SET full_name = $2, updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, user_id, email, COALESCE(password_hash, ''), COALESCE(full_name, ''), role, status, last_login_at, created_at, updated_at
+		RETURNING id, user_id, email, COALESCE(password_hash, ''), COALESCE(full_name, ''), role, status, last_login_at, email_verified_at, created_at, updated_at
 	`, memberID, fullName).Scan(
 		&member.ID, &member.UserID, &member.Email, &member.PasswordHash, &member.FullName,
-		&member.Role, &member.Status, &member.LastLoginAt, &member.CreatedAt, &member.UpdatedAt,
+		&member.Role, &member.Status, &member.LastLoginAt, &member.EmailVerifiedAt, &member.CreatedAt, &member.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
 	return &member, nil
+}
+
+func (r *Repository) CreateEmailActivationToken(ctx context.Context, memberID, token string, expiresAt time.Time) error {
+	hash := hashActivationToken(token)
+	_, err := r.db.Exec(ctx, `
+		INSERT INTO email_activation_tokens (member_id, token_hash, expires_at)
+		VALUES ($1, $2, $3)
+	`, memberID, hash, expiresAt)
+	return err
+}
+
+func (r *Repository) ActivateMemberByToken(ctx context.Context, token string) (*models.UserMember, *models.User, error) {
+	hash := hashActivationToken(token)
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return nil, nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	var memberID string
+	if err := tx.QueryRow(ctx, `
+		UPDATE email_activation_tokens
+		SET used_at = NOW()
+		WHERE token_hash = $1
+		  AND used_at IS NULL
+		  AND expires_at > NOW()
+		RETURNING member_id
+	`, hash).Scan(&memberID); err != nil {
+		return nil, nil, err
+	}
+
+	var member models.UserMember
+	var account models.User
+	if err := tx.QueryRow(ctx, `
+		UPDATE users_members um
+		SET status = 'active',
+			email_verified_at = COALESCE(email_verified_at, NOW()),
+			updated_at = NOW()
+		FROM users u
+		WHERE um.id = $1
+		  AND u.id = um.user_id
+		  AND u.deleted_at IS NULL
+		RETURNING
+			um.id, um.user_id, um.email, COALESCE(um.password_hash, ''), COALESCE(um.full_name, ''),
+			um.role, um.status, um.last_login_at, um.email_verified_at, um.created_at, um.updated_at,
+			u.id, u.email, u.password_hash, u.name, COALESCE(u.status, 'active'), u.deleted_at, u.created_at, u.updated_at
+	`, memberID).Scan(
+		&member.ID, &member.UserID, &member.Email, &member.PasswordHash, &member.FullName,
+		&member.Role, &member.Status, &member.LastLoginAt, &member.EmailVerifiedAt, &member.CreatedAt, &member.UpdatedAt,
+		&account.ID, &account.Email, &account.PasswordHash, &account.Name, &account.Status, &account.DeletedAt, &account.CreatedAt, &account.UpdatedAt,
+	); err != nil {
+		return nil, nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, nil, err
+	}
+	return &member, &account, nil
+}
+
+func (r *Repository) DeleteAccount(ctx context.Context, userID string) error {
+	_, err := r.db.Exec(ctx, `DELETE FROM users WHERE id = $1`, userID)
+	return err
+}
+
+func hashActivationToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
 }
 
 func (r *Repository) UpdatePassword(ctx context.Context, id, passwordHash string) error {
