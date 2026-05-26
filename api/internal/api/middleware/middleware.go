@@ -65,9 +65,29 @@ func (m *Middleware) CORS() gin.HandlerFunc {
 			if _, ok := m.allowedOrigins[origin]; ok {
 				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
 				c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+				// Known origin: handle preflight here and stop the chain.
+				if c.Request.Method == "OPTIONS" {
+					c.AbortWithStatus(http.StatusNoContent)
+					return
+				}
 			}
-			// Unrecognised origins get no ACAO header — browser blocks the request
+			// Unrecognised origins: do not abort OPTIONS so that route-group
+			// middleware (e.g. PublicCORS on /collect) can handle it instead.
 		}
+
+		c.Next()
+	}
+}
+
+// PublicCORS is used on ingest-only endpoints (/collect, etc.) that must
+// accept requests from any origin. Auth is handled by X-Api-Key / api_key
+// query param — no cookies or credentials are involved, so ACAO "*" is
+// valid per the CORS spec.
+func (m *Middleware) PublicCORS() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Api-Key")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(http.StatusNoContent)

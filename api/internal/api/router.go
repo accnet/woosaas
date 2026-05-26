@@ -85,18 +85,24 @@ func NewRouter(
 		jwtManager: jwtManager,
 		authSvc:    auth.NewService(userRepo, jwtManager, emailSvc),
 		// M3: pass allowed origins for proper CORS validation
-		mw:              middleware.NewMiddleware(jwtManager, userRepo, redisClient, allowedOrigins),
-		redisClient:     redisClient,
-		collector:       ingest.NewCollector(redisClient),
-		orderSvc:        orders.NewService(orderQueue, orderRepo),
-		settingsRepo:    appsettings.NewRepository(pg),
-		templateRepo:    export.NewTemplateRepository(pg),
-		stats:           analytics.NewStatsWithCache(ch, redisClient),
-		bots:            analytics.NewBots(ch),
-		exports:         export.NewService(ch),
-		customers:       customers.NewService(ch),
-		onlineUsers:     realtime.NewOnlineUsers(redisClient),
-		shopbaseHandler: handlers.NewShopBaseHandler(repo, encKey, cfg.TrackerBaseURL, cfg.APIBaseURL),
+		mw:           middleware.NewMiddleware(jwtManager, userRepo, redisClient, allowedOrigins),
+		redisClient:  redisClient,
+		collector:    ingest.NewCollector(redisClient),
+		orderSvc:     orders.NewService(orderQueue, orderRepo),
+		settingsRepo: appsettings.NewRepository(pg),
+		templateRepo: export.NewTemplateRepository(pg),
+		stats:        analytics.NewStatsWithCache(ch, redisClient),
+		bots:         analytics.NewBots(ch),
+		exports:      export.NewService(ch),
+		customers:    customers.NewService(ch),
+		onlineUsers:  realtime.NewOnlineUsers(redisClient),
+		shopbaseHandler: handlers.NewShopBaseHandler(
+			repo,
+			encKey,
+			cfg.TrackerBaseURL,
+			cfg.APIBaseURL,
+			cfg.AllowInsecurePublicURLs,
+		),
 		shopbaseWebhook: handlers.NewShopBaseWebhookHandler(repo, redisClient, encKey),
 		shipmentTracking: handlers.NewShipmentTrackingHandler(
 			shipment_tracking.NewService(shipmentRepo, repo, encKey),
@@ -177,6 +183,7 @@ func (r *Router) registerHealthRoute() {
 
 func (r *Router) registerCollectRoutes(v1 *gin.RouterGroup) {
 	collect := v1.Group("/collect")
+	collect.Use(r.mw.PublicCORS())
 	collect.Use(r.mw.APIKeyAuth(r.repo))
 	collect.Use(r.mw.RateLimit())
 	{
