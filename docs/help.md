@@ -19,6 +19,7 @@ Password: Admin123!
 Notes:
 
 - The tenant dashboard account is used by `./start.sh seed`.
+- `./start.sh seed` now bootstraps the platform admin account first in base mode.
 - The platform admin login is separate from the tenant login, even if the default credentials are the same.
 
 ## Local URLs
@@ -89,6 +90,7 @@ Use helper script for the base stack:
 ```bash
 ./start.sh start
 ./start.sh dev
+./start.sh bootstrap-platform-admin
 ./start.sh stop
 ./start.sh logs api
 ./start.sh ps
@@ -137,6 +139,13 @@ Seed command:
 ./start.sh seed
 ```
 
+What `seed` does in base mode:
+
+- bootstraps the platform admin account
+- logs into the tenant dashboard API
+- resolves the target site
+- sends synthetic analytics events
+
 Default tenant account used by seed:
 
 ```text
@@ -144,10 +153,24 @@ Email: admin@woosaas.com
 Password: Admin123!
 ```
 
+Default platform admin account bootstrapped by seed:
+
+```text
+Email: admin@woosaas.com
+Password: Admin123!
+Role: owner
+```
+
 Override seed login:
 
 ```bash
 DASHBOARD_EMAIL=john@woosaas.com DASHBOARD_PASSWORD='Admin123!' ./start.sh seed
+```
+
+Bootstrap the platform admin account only:
+
+```bash
+./start.sh bootstrap-platform-admin
 ```
 
 ## Production Notes

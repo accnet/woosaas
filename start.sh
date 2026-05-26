@@ -32,6 +32,10 @@ DASHBOARD_URL="${DASHBOARD_URL:-${APP_BASE_URL:-http://localhost:3000}}"
 WP_PLUGIN_PATH="${WP_PLUGIN_PATH:-/var/www/site1.local/wp-content/plugins/plugin}"
 DASHBOARD_DEV_PORT="${DASHBOARD_DEV_PORT:-${DASHBOARD_PORT:-3001}}"
 DASHBOARD_DEV_PUBLIC_URL="${DASHBOARD_DEV_PUBLIC_URL:-http://localhost:${DASHBOARD_DEV_PORT}}"
+PLATFORM_ADMIN_EMAIL="${PLATFORM_ADMIN_EMAIL:-admin@woosaas.com}"
+PLATFORM_ADMIN_PASSWORD="${PLATFORM_ADMIN_PASSWORD:-Admin123!}"
+PLATFORM_ADMIN_NAME="${PLATFORM_ADMIN_NAME:-Platform Admin}"
+PLATFORM_ADMIN_ROLE="${PLATFORM_ADMIN_ROLE:-owner}"
 
 need() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -130,11 +134,27 @@ run_migrate() {
   compose --profile tools run --rm migrate
 }
 
+bootstrap_platform_admin() {
+  need docker
+
+  if [[ "$MODE" == "prod" ]]; then
+    echo "Platform admin bootstrap is disabled in prod mode via start.sh" >&2
+    exit 1
+  fi
+
+  compose run --rm api ./platform-admin-bootstrap \
+    -email "$PLATFORM_ADMIN_EMAIL" \
+    -password "$PLATFORM_ADMIN_PASSWORD" \
+    -name "$PLATFORM_ADMIN_NAME" \
+    -role "$PLATFORM_ADMIN_ROLE"
+}
+
 run_smoke() {
   API_URL="$API_URL" ./scripts/smoke.sh
 }
 
 run_seed() {
+  bootstrap_platform_admin
   API_URL="$API_URL" WP_PATH="${WP_PATH%/wp-content/plugins/plugin}" ./scripts/seed-dev-data.sh
 }
 
@@ -155,7 +175,7 @@ ps_stack() {
 
 usage() {
   cat <<EOF
-Usage: $0 [start|dev|sync-plugin|migrate|smoke|seed|stop|logs|ps]
+Usage: $0 [start|dev|sync-plugin|bootstrap-platform-admin|migrate|smoke|seed|stop|logs|ps]
 
 Environment selection:
   WOOSAAS_MODE=base  Uses ${BASE_COMPOSE_FILE} + ${BASE_ENV_FILE} (default)
@@ -164,6 +184,7 @@ Environment selection:
 Examples:
   ./start.sh start
   ./start.sh dev
+  ./start.sh bootstrap-platform-admin
   WOOSAAS_MODE=prod ./start.sh start
   WOOSAAS_MODE=prod ./start.sh logs api
 EOF
@@ -178,6 +199,9 @@ case "$COMMAND" in
     ;;
   sync-plugin)
     check_plugin
+    ;;
+  bootstrap-platform-admin)
+    bootstrap_platform_admin
     ;;
   migrate)
     run_migrate
