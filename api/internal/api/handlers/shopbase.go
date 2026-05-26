@@ -36,19 +36,26 @@ var requiredWebhookTopics = []string{
 
 // ShopBaseHandler handles ShopBase integration API endpoints.
 type ShopBaseHandler struct {
-	repo           sites.SiteRepository
-	encryptionKey  []byte
-	trackerBaseURL string
-	apiBaseURL     string
+	repo                    sites.SiteRepository
+	encryptionKey           []byte
+	trackerBaseURL          string
+	apiBaseURL              string
+	allowInsecurePublicURLs bool
 }
 
 // NewShopBaseHandler creates a new ShopBaseHandler.
-func NewShopBaseHandler(repo sites.SiteRepository, encryptionKey []byte, trackerBaseURL, apiBaseURL string) *ShopBaseHandler {
+func NewShopBaseHandler(
+	repo sites.SiteRepository,
+	encryptionKey []byte,
+	trackerBaseURL, apiBaseURL string,
+	allowInsecurePublicURLs bool,
+) *ShopBaseHandler {
 	return &ShopBaseHandler{
-		repo:           repo,
-		encryptionKey:  encryptionKey,
-		trackerBaseURL: trackerBaseURL,
-		apiBaseURL:     apiBaseURL,
+		repo:                    repo,
+		encryptionKey:           encryptionKey,
+		trackerBaseURL:          trackerBaseURL,
+		apiBaseURL:              apiBaseURL,
+		allowInsecurePublicURLs: allowInsecurePublicURLs,
 	}
 }
 
@@ -377,7 +384,7 @@ func (h *ShopBaseHandler) trackerURL(c *gin.Context, siteID string, createKey bo
 		return "", fmt.Errorf("TRACKER_BASE_URL must be an absolute URL")
 	}
 	host := parsedBase.Hostname()
-	if parsedBase.Scheme != "https" && host != "localhost" && host != "127.0.0.1" && host != "::1" {
+	if parsedBase.Scheme != "https" && host != "localhost" && host != "127.0.0.1" && host != "::1" && !h.allowInsecurePublicURLs {
 		return "", fmt.Errorf("TRACKER_BASE_URL must use HTTPS outside local development")
 	}
 	apiKey, err := h.trackingAPIKey(c, siteID, createKey)
@@ -405,7 +412,7 @@ func (h *ShopBaseHandler) collectURL() (string, error) {
 		return "", fmt.Errorf("API_BASE_URL must be an absolute URL")
 	}
 	host := parsedBase.Hostname()
-	if parsedBase.Scheme != "https" && host != "localhost" && host != "127.0.0.1" && host != "::1" {
+	if parsedBase.Scheme != "https" && host != "localhost" && host != "127.0.0.1" && host != "::1" && !h.allowInsecurePublicURLs {
 		return "", fmt.Errorf("API_BASE_URL must use HTTPS outside local development")
 	}
 	return base + "/api/v1/collect", nil

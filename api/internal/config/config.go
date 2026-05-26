@@ -46,7 +46,8 @@ type Config struct {
 	WorkerMaxRetries    int
 
 	// Security
-	IPHashSalt string
+	IPHashSalt              string
+	AllowInsecurePublicURLs bool
 
 	// ShopBase / integrations
 	IntegrationEncryptionKey string // 32-byte key, base64-encoded
@@ -91,7 +92,8 @@ func Load() *Config {
 		WorkerFlushInterval: time.Duration(getEnvInt("WORKER_FLUSH_INTERVAL", 2)) * time.Second,
 		WorkerMaxRetries:    getEnvInt("WORKER_MAX_RETRIES", 3),
 
-		IPHashSalt: getEnv("IP_HASH_SALT", "woosaas-salt-default"),
+		IPHashSalt:              getEnv("IP_HASH_SALT", "woosaas-salt-default"),
+		AllowInsecurePublicURLs: getEnvBool("ALLOW_INSECURE_PUBLIC_URLS", false),
 
 		IntegrationEncryptionKey: getEnv("INTEGRATION_ENCRYPTION_KEY", ""),
 		TrackerBaseURL:           getEnv("TRACKER_BASE_URL", "https://app.woosaas.com"),

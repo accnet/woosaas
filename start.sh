@@ -14,6 +14,7 @@ fi
 API_URL="${API_URL:-http://localhost:8080}"
 WP_PLUGIN_PATH="${WP_PLUGIN_PATH:-/var/www/site1.local/wp-content/plugins/plugin}"
 DASHBOARD_DEV_PORT="${DASHBOARD_DEV_PORT:-${DASHBOARD_PORT:-3001}}"
+DASHBOARD_DEV_PUBLIC_URL="${DASHBOARD_DEV_PUBLIC_URL:-http://localhost:${DASHBOARD_DEV_PORT}}"
 
 need() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -65,7 +66,7 @@ dev() {
   need npm
   export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-$API_URL}"
   echo "Starting dashboard dev server..."
-  echo "Dashboard: http://localhost:${DASHBOARD_DEV_PORT}"
+  echo "Dashboard: ${DASHBOARD_DEV_PUBLIC_URL}"
   echo "API:       ${NEXT_PUBLIC_API_URL}"
   cd "$ROOT_DIR/dashboard"
   npm run dev -- -p "$DASHBOARD_DEV_PORT"
