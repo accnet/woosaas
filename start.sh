@@ -4,14 +4,31 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
-if [ -f .env ]; then
+MODE="${WOOSAAS_MODE:-base}"
+COMMAND="${1:-start}"
+
+BASE_COMPOSE_FILE="docker-compose.yml"
+PROD_COMPOSE_FILE="docker-compose.prod.yml"
+BASE_ENV_FILE=".env"
+PROD_ENV_FILE=".env.prod"
+
+COMPOSE_FILE="$BASE_COMPOSE_FILE"
+ENV_FILE="$BASE_ENV_FILE"
+
+if [[ "$MODE" == "prod" ]]; then
+  COMPOSE_FILE="$PROD_COMPOSE_FILE"
+  ENV_FILE="$PROD_ENV_FILE"
+fi
+
+if [[ -f "$ENV_FILE" ]]; then
   set -a
-  # shellcheck disable=SC1091
-  source .env
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
   set +a
 fi
 
-API_URL="${API_URL:-http://localhost:8080}"
+API_URL="${API_URL:-${API_BASE_URL:-http://localhost:8080}}"
+DASHBOARD_URL="${DASHBOARD_URL:-${APP_BASE_URL:-http://localhost:3000}}"
 WP_PLUGIN_PATH="${WP_PLUGIN_PATH:-/var/www/site1.local/wp-content/plugins/plugin}"
 DASHBOARD_DEV_PORT="${DASHBOARD_DEV_PORT:-${DASHBOARD_PORT:-3001}}"
 DASHBOARD_DEV_PUBLIC_URL="${DASHBOARD_DEV_PUBLIC_URL:-http://localhost:${DASHBOARD_DEV_PORT}}"
@@ -21,6 +38,10 @@ need() {
     echo "Missing required command: $1" >&2
     exit 1
   fi
+}
+
+compose() {
+  docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
 }
 
 wait_for_health() {
@@ -48,60 +69,136 @@ check_plugin() {
   echo "Using plugin at ${WP_PLUGIN_PATH}"
 }
 
-start() {
+show_runtime() {
+  echo "Mode:      ${MODE}"
+  echo "Compose:   ${COMPOSE_FILE}"
+  echo "Env file:  ${ENV_FILE}"
+  echo "API:       ${API_URL}"
+  echo "Dashboard: ${DASHBOARD_URL}"
+}
+
+start_base() {
   need docker
   need curl
-  docker compose --env-file .env up -d --build
-  docker compose --env-file .env --profile tools run --rm migrate
+  compose up -d --build
+  compose --profile tools run --rm migrate
   check_plugin
   wait_for_health
   echo ""
-  echo "Woosaas dev environment is ready"
-  echo "API:       ${API_URL}"
-  echo "Dashboard: ${DASHBOARD_URL:-http://localhost:3000}"
+  echo "Woosaas environment is ready"
+  show_runtime
   echo "Plugin:    ${WP_PLUGIN_PATH}"
 }
 
-dev() {
+start_prod() {
+  need docker
+  need curl
+  compose up -d --build
+  compose --profile tools run --rm migrate
+  wait_for_health
+  echo ""
+  echo "Woosaas production environment is ready"
+  show_runtime
+}
+
+start_stack() {
+  if [[ "$MODE" == "prod" ]]; then
+    start_prod
+  else
+    start_base
+  fi
+}
+
+start_dashboard_dev() {
+  if [[ "$MODE" == "prod" ]]; then
+    echo "Dashboard dev server is only available in base mode" >&2
+    exit 1
+  fi
+
   need npm
   export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-$API_URL}"
   echo "Starting dashboard dev server..."
+  echo "Mode:      ${MODE}"
   echo "Dashboard: ${DASHBOARD_DEV_PUBLIC_URL}"
   echo "API:       ${NEXT_PUBLIC_API_URL}"
   cd "$ROOT_DIR/dashboard"
   npm run dev -- -p "$DASHBOARD_DEV_PORT"
 }
 
-case "${1:-start}" in
+run_migrate() {
+  need docker
+  compose --profile tools run --rm migrate
+}
+
+run_smoke() {
+  API_URL="$API_URL" ./scripts/smoke.sh
+}
+
+run_seed() {
+  API_URL="$API_URL" WP_PATH="${WP_PATH%/wp-content/plugins/plugin}" ./scripts/seed-dev-data.sh
+}
+
+stop_stack() {
+  need docker
+  compose down
+}
+
+logs_stack() {
+  need docker
+  compose logs -f "${@:2}"
+}
+
+ps_stack() {
+  need docker
+  compose ps
+}
+
+usage() {
+  cat <<EOF
+Usage: $0 [start|dev|sync-plugin|migrate|smoke|seed|stop|logs|ps]
+
+Environment selection:
+  WOOSAAS_MODE=base  Uses ${BASE_COMPOSE_FILE} + ${BASE_ENV_FILE} (default)
+  WOOSAAS_MODE=prod  Uses ${PROD_COMPOSE_FILE} + ${PROD_ENV_FILE}
+
+Examples:
+  ./start.sh start
+  ./start.sh dev
+  WOOSAAS_MODE=prod ./start.sh start
+  WOOSAAS_MODE=prod ./start.sh logs api
+EOF
+}
+
+case "$COMMAND" in
   start)
-    start
+    start_stack
     ;;
   dev)
-    dev
+    start_dashboard_dev
     ;;
   sync-plugin)
     check_plugin
     ;;
   migrate)
-    docker compose --env-file .env --profile tools run --rm migrate
+    run_migrate
     ;;
   smoke)
-    API_URL="$API_URL" ./scripts/smoke.sh
+    run_smoke
     ;;
   seed)
-    API_URL="$API_URL" WP_PATH="${WP_PATH%/wp-content/plugins/plugin}" ./scripts/seed-dev-data.sh
+    run_seed
     ;;
   stop)
-    docker compose --env-file .env down
+    stop_stack
     ;;
   logs)
-    docker compose --env-file .env logs -f "${@:2}"
+    logs_stack "$@"
     ;;
   ps)
-    docker compose --env-file .env ps
+    ps_stack
     ;;
   *)
-    echo "Usage: $0 [start|dev|sync-plugin|migrate|smoke|seed|stop|logs|ps]" >&2
+    usage >&2
     exit 1
     ;;
 esac
