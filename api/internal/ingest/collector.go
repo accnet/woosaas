@@ -12,13 +12,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/accnet/woosaas/api/internal/bot"
+	"github.com/accnet/woosaas/api/internal/observability"
+	"github.com/accnet/woosaas/api/pkg/models"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/mssola/useragent"
 	"github.com/redis/go-redis/v9"
-	"github.com/accnet/woosaas/api/internal/bot"
-	"github.com/accnet/woosaas/api/internal/observability"
-	"github.com/accnet/woosaas/api/pkg/models"
 )
 
 // ipHashSalt is loaded once from env to avoid hardcoded secrets.
@@ -44,6 +44,13 @@ type Collector struct {
 	scorer    *bot.Scorer
 }
 
+type RequestMetadata struct {
+	ClientIP string
+	IPHash   string
+	Country  string
+	City     string
+}
+
 func NewCollector(redisClient *redis.Client) *Collector {
 	v := validator.New()
 	return &Collector{
@@ -61,7 +68,7 @@ func (c *Collector) ValidateEvent(event *models.Event) error {
 }
 
 // CollectEvent processes and queues a single event
-func (c *Collector) CollectEvent(ctx context.Context, siteID string, event *models.Event, ipHash string) error {
+func (c *Collector) CollectEvent(ctx context.Context, siteID string, event *models.Event, meta RequestMetadata) error {
 	if event.EventID == "" {
 		event.EventID = uuid.New().String()
 	}
@@ -72,20 +79,8 @@ func (c *Collector) CollectEvent(ctx context.Context, siteID string, event *mode
 		return fmt.Errorf("validation error: %w", err)
 	}
 
-	// Parse user agent
-	if event.UserAgent != "" {
-		ua := useragent.New(event.UserAgent)
-		event.Browser, event.OS = ua.Browser()
-		if ua.Bot() {
-			event.BotScore = 100
-			event.BotReason = "user_agent_bot"
-		}
-	}
-
-	// Set IP hash
-	event.IPHash = ipHash
-
-	c.scoreBot(ctx, event)
+	c.enrichEvent(event, meta)
+	c.scoreBot(ctx, event, meta.ClientIP)
 
 	// Serialize event
 	eventJSON, err := json.Marshal(event)
@@ -119,7 +114,7 @@ func (c *Collector) CollectEvent(ctx context.Context, siteID string, event *mode
 }
 
 // CollectBatch processes and queues multiple events
-func (c *Collector) CollectBatch(ctx context.Context, siteID string, events []models.Event, ipHash string) ([]models.EventResponse, error) {
+func (c *Collector) CollectBatch(ctx context.Context, siteID string, events []models.Event, meta RequestMetadata) ([]models.EventResponse, error) {
 	responses := make([]models.EventResponse, 0, len(events))
 	now := time.Now()
 
@@ -137,20 +132,8 @@ func (c *Collector) CollectBatch(ctx context.Context, siteID string, events []mo
 			continue
 		}
 
-		// Parse user agent
-		if event.UserAgent != "" {
-			ua := useragent.New(event.UserAgent)
-			event.Browser, event.OS = ua.Browser()
-			if ua.Bot() {
-				event.BotScore = 100
-				event.BotReason = "user_agent_bot"
-			}
-		}
-
-		// Set IP hash
-		event.IPHash = ipHash
-
-		c.scoreBot(ctx, event)
+		c.enrichEvent(event, meta)
+		c.scoreBot(ctx, event, meta.ClientIP)
 
 		// Ensure event ID
 		if event.EventID == "" {
@@ -217,11 +200,11 @@ func (c *Collector) updateRealtime(ctx context.Context, siteID string, event *mo
 	c.redis.ZRemRangeByScore(ctx, key, "-inf", fmt.Sprintf("%f", cutoff))
 }
 
-func (c *Collector) scoreBot(ctx context.Context, event *models.Event) {
+func (c *Collector) scoreBot(ctx context.Context, event *models.Event, clientIP string) {
 	if c.scorer == nil {
 		return
 	}
-	score, reasons := c.scorer.Score(ctx, event)
+	score, reasons := c.scorer.Score(ctx, event, clientIP)
 	if score > event.BotScore {
 		event.BotScore = score
 	}
@@ -234,6 +217,60 @@ func (c *Collector) scoreBot(ctx context.Context, event *models.Event) {
 		}
 	}
 	observability.RecordBotScore(float64(event.BotScore))
+}
+
+func (c *Collector) enrichEvent(event *models.Event, meta RequestMetadata) {
+	if meta.IPHash != "" && event.IPHash == "" {
+		event.IPHash = meta.IPHash
+	}
+	if meta.Country != "" && event.Country == "" {
+		event.Country = meta.Country
+	}
+	if meta.City != "" && event.City == "" {
+		event.City = meta.City
+	}
+	if event.UserAgent == "" {
+		return
+	}
+
+	ua := useragent.New(event.UserAgent)
+	browserName, browserVersion := ua.Browser()
+	if event.Browser == "" {
+		event.Browser = browserName
+	}
+	if event.BrowserVersion == "" {
+		event.BrowserVersion = browserVersion
+	}
+	if event.OS == "" {
+		event.OS = ua.OS()
+	}
+	if event.DeviceType == "" {
+		event.DeviceType = detectDeviceType(ua, event.UserAgent)
+	}
+	if ua.Bot() {
+		event.BotScore = 100
+		event.BotReason = "user_agent_bot"
+	}
+}
+
+func detectDeviceType(ua *useragent.UserAgent, rawUA string) string {
+	lowered := strings.ToLower(rawUA)
+	switch {
+	case ua.Bot():
+		return "bot"
+	case strings.Contains(lowered, "ipad"),
+		strings.Contains(lowered, "tablet"),
+		strings.Contains(lowered, "kindle"),
+		strings.Contains(lowered, "silk"),
+		strings.Contains(lowered, "playbook"),
+		strings.Contains(lowered, "sm-t"),
+		strings.Contains(lowered, "tab"):
+		return "tablet"
+	case ua.Mobile():
+		return "mobile"
+	default:
+		return "desktop"
+	}
 }
 
 // Deduplicate checks if a single event has already been processed.

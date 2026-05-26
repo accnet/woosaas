@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/alicebob/miniredis/v2"
-	"github.com/redis/go-redis/v9"
 	"github.com/accnet/woosaas/api/pkg/models"
+	"github.com/alicebob/miniredis/v2"
+	"github.com/mssola/useragent"
+	"github.com/redis/go-redis/v9"
 )
 
 func TestValidateEventRequiresPurchaseFields(t *testing.T) {
@@ -69,5 +70,46 @@ func TestDeduplicateReturnsTrueOnSecondSeenEvent(t *testing.T) {
 	}
 	if !duplicate {
 		t.Fatal("expected second event occurrence to be duplicate")
+	}
+}
+
+func TestEnrichEventMapsBrowserVersionOSAndDevice(t *testing.T) {
+	collector := NewCollector(redis.NewClient(&redis.Options{Addr: "127.0.0.1:0"}))
+	event := &models.Event{
+		UserAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+	}
+
+	collector.enrichEvent(event, RequestMetadata{
+		IPHash:   "hashed-ip",
+		Country:  "US",
+		City:     "New York",
+		ClientIP: "8.8.8.8",
+	})
+
+	if event.Browser == "" {
+		t.Fatal("expected Browser to be set")
+	}
+	if event.BrowserVersion == "" {
+		t.Fatal("expected BrowserVersion to be set")
+	}
+	if event.OS == "" {
+		t.Fatal("expected OS to be set")
+	}
+	if event.DeviceType != "mobile" {
+		t.Fatalf("expected DeviceType=mobile, got %q", event.DeviceType)
+	}
+	if event.Country != "US" || event.City != "New York" {
+		t.Fatalf("expected geo fields to be enriched, got country=%q city=%q", event.Country, event.City)
+	}
+	if event.IPHash != "hashed-ip" {
+		t.Fatalf("expected IPHash to be set, got %q", event.IPHash)
+	}
+}
+
+func TestDetectDeviceTypeRecognizesTablet(t *testing.T) {
+	rawUA := "Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
+	ua := useragent.New(rawUA)
+	if got := detectDeviceType(ua, rawUA); got != "tablet" {
+		t.Fatalf("expected tablet, got %q", got)
 	}
 }

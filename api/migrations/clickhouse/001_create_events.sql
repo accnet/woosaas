@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS woosaas.analytics_events (
 
     device_type    LowCardinality(String),
     browser        LowCardinality(String),
+    browser_version LowCardinality(String),
     os             LowCardinality(String),
     country        LowCardinality(String),
     city           String,

@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -41,6 +42,9 @@ func (h *CollectHandler) CollectEvent(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if strings.TrimSpace(event.UserAgent) == "" {
+		event.UserAgent = c.Request.UserAgent()
+	}
 
 	if err := h.collector.ValidateEvent(&event); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -48,7 +52,12 @@ func (h *CollectHandler) CollectEvent(c *gin.Context) {
 	}
 
 	// Get IP hash for privacy
-	ipHash := ingest.HashIP(c.ClientIP())
+	meta := ingest.RequestMetadata{
+		ClientIP: c.ClientIP(),
+		IPHash:   ingest.HashIP(c.ClientIP()),
+		Country:  requestCountry(c),
+		City:     requestCity(c),
+	}
 
 	// Check for duplicate
 	isDup, err := h.collector.Deduplicate(c.Request.Context(), siteID, event.EventID)
@@ -66,7 +75,7 @@ func (h *CollectHandler) CollectEvent(c *gin.Context) {
 	}
 
 	// Process event
-	if err := h.collector.CollectEvent(c.Request.Context(), siteID, &event, ipHash); err != nil {
+	if err := h.collector.CollectEvent(c.Request.Context(), siteID, &event, meta); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -101,7 +110,12 @@ func (h *CollectHandler) CollectBatch(c *gin.Context) {
 	}
 
 	// Get IP hash for privacy
-	ipHash := ingest.HashIP(c.ClientIP())
+	meta := ingest.RequestMetadata{
+		ClientIP: c.ClientIP(),
+		IPHash:   ingest.HashIP(c.ClientIP()),
+		Country:  requestCountry(c),
+		City:     requestCity(c),
+	}
 
 	queuedEvents := make([]models.Event, 0, len(req.Events))
 	queuedIndexes := make([]int, 0, len(req.Events))
@@ -115,6 +129,9 @@ func (h *CollectHandler) CollectBatch(c *gin.Context) {
 
 	for i := range req.Events {
 		event := req.Events[i]
+		if strings.TrimSpace(event.UserAgent) == "" {
+			event.UserAgent = c.Request.UserAgent()
+		}
 		if err := h.collector.ValidateEvent(&event); err != nil {
 			responses[i] = models.EventResponse{
 				EventID:    event.EventID,
@@ -150,7 +167,7 @@ func (h *CollectHandler) CollectBatch(c *gin.Context) {
 
 	// Process batch
 	if len(queuedEvents) > 0 {
-		batchResponses, err := h.collector.CollectBatch(c.Request.Context(), siteID, queuedEvents, ipHash)
+		batchResponses, err := h.collector.CollectBatch(c.Request.Context(), siteID, queuedEvents, meta)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -170,6 +187,51 @@ func (h *CollectHandler) CollectBatch(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"events": responses,
 	})
+}
+
+func requestCountry(c *gin.Context) string {
+	for _, header := range []string{
+		"CF-IPCountry",
+		"CloudFront-Viewer-Country",
+		"X-Country-Code",
+		"X-Country",
+		"X-Geo-Country",
+	} {
+		value := strings.TrimSpace(c.GetHeader(header))
+		if value != "" && !strings.EqualFold(value, "XX") {
+			return strings.ToUpper(value)
+		}
+	}
+	if isPrivateOrLoopbackIP(c.ClientIP()) {
+		return "LOCAL"
+	}
+	return ""
+}
+
+func requestCity(c *gin.Context) string {
+	for _, header := range []string{
+		"X-City",
+		"X-Geo-City",
+		"CloudFront-Viewer-City",
+		"X-Appengine-City",
+	} {
+		value := strings.TrimSpace(c.GetHeader(header))
+		if value != "" {
+			return value
+		}
+	}
+	if isPrivateOrLoopbackIP(c.ClientIP()) {
+		return "Local"
+	}
+	return ""
+}
+
+func isPrivateOrLoopbackIP(value string) bool {
+	addr, err := netip.ParseAddr(strings.TrimSpace(value))
+	if err != nil {
+		return false
+	}
+	return addr.IsPrivate() || addr.IsLoopback()
 }
 
 func (h *CollectHandler) checkEventQuota(c *gin.Context, count int) bool {

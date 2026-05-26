@@ -230,7 +230,7 @@ func (c *Consumer) bridgeAnalyticsPurchase(ctx context.Context, item queuedOrder
 	if duplicate {
 		return c.orders.MarkAnalyticsPurchaseTracked(ctx, item.siteID, item.order.SourcePlatform, item.order.WooOrderID)
 	}
-	if err := c.collector.CollectEvent(ctx, item.siteID, event, ""); err != nil {
+	if err := c.collector.CollectEvent(ctx, item.siteID, event, ingest.RequestMetadata{}); err != nil {
 		return err
 	}
 	return c.orders.MarkAnalyticsPurchaseTracked(ctx, item.siteID, item.order.SourcePlatform, item.order.WooOrderID)
@@ -300,7 +300,7 @@ func (b *eventBatchWriter) flush(ctx context.Context, maxRetries int) error {
 		INSERT INTO analytics_events (
 			event_time, site_id, event_id, event_name, client_id, session_id, user_id,
 			url, path, referrer, source, medium, campaign, term, content, gclid, fbclid,
-			ttclid, msclkid, device_type, browser, os, country, city, ip_hash, user_agent,
+			ttclid, msclkid, device_type, browser, browser_version, os, country, city, ip_hash, user_agent,
 			order_id, product_id, product_name, quantity, revenue, currency, items_json,
 			properties_json, bot_score, bot_reason
 		)
@@ -341,6 +341,7 @@ func (b *eventBatchWriter) flush(ctx context.Context, maxRetries int) error {
 			attribution.MSCLKID,
 			event.DeviceType,
 			event.Browser,
+			event.BrowserVersion,
 			event.OS,
 			event.Country,
 			event.City,

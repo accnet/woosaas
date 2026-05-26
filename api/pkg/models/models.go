@@ -128,14 +128,15 @@ type Event struct {
 
 	Attribution *Attribution `json:"attribution,omitempty"`
 
-	UserID     string `json:"user_id,omitempty"`
-	DeviceType string `json:"device_type,omitempty"`
-	Browser    string `json:"browser,omitempty"`
-	OS         string `json:"os,omitempty"`
-	Country    string `json:"country,omitempty"`
-	City       string `json:"city,omitempty"`
-	UserAgent  string `json:"user_agent,omitempty"`
-	IPHash     string `json:"ip_hash,omitempty"`
+	UserID         string `json:"user_id,omitempty"`
+	DeviceType     string `json:"device_type,omitempty"`
+	Browser        string `json:"browser,omitempty"`
+	BrowserVersion string `json:"browser_version,omitempty"`
+	OS             string `json:"os,omitempty"`
+	Country        string `json:"country,omitempty"`
+	City           string `json:"city,omitempty"`
+	UserAgent      string `json:"user_agent,omitempty"`
+	IPHash         string `json:"ip_hash,omitempty"`
 
 	OrderID     string                 `json:"order_id,omitempty"`
 	ProductID   string                 `json:"product_id,omitempty"`

@@ -384,7 +384,12 @@ func (h *SitesHandler) SendDebugEvent(c *gin.Context) {
 	}
 
 	event := buildDebugEvent(req.EventName)
-	if err := h.collector.CollectEvent(c.Request.Context(), siteID, &event, ingest.HashIP("dashboard-debug")); err != nil {
+	if err := h.collector.CollectEvent(c.Request.Context(), siteID, &event, ingest.RequestMetadata{
+		ClientIP: "127.0.0.1",
+		IPHash:   ingest.HashIP("dashboard-debug"),
+		Country:  "LOCAL",
+		City:     "Local",
+	}); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

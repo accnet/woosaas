@@ -2,12 +2,13 @@ package bot
 
 import (
 	"context"
+	"net/netip"
 	"regexp"
 	"strings"
 	"time"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/accnet/woosaas/api/pkg/models"
+	"github.com/redis/go-redis/v9"
 )
 
 // Scorer handles bot detection
@@ -40,7 +41,7 @@ func NewScorer(redis *redis.Client) *Scorer {
 }
 
 // Score returns bot score (0-100) based on signals
-func (s *Scorer) Score(ctx context.Context, event *models.Event) (int, []string) {
+func (s *Scorer) Score(ctx context.Context, event *models.Event, clientIP string) (int, []string) {
 	var score int
 	var reasons []string
 
@@ -62,10 +63,10 @@ func (s *Scorer) Score(ctx context.Context, event *models.Event) (int, []string)
 		reasons = append(reasons, "empty_user_agent")
 	}
 
-	// Check for known bot IP ranges
-	if event.IPHash != "" {
+	// Check for known bot IP ranges using the raw client IP before hashing.
+	if clientIP != "" && !isPrivateOrLoopbackIP(clientIP) {
 		for _, pattern := range s.ipPatterns {
-			if pattern.MatchString(event.IPHash) {
+			if pattern.MatchString(clientIP) {
 				score += 20
 				reasons = append(reasons, "datacenter_ip")
 				break
@@ -92,6 +93,14 @@ func (s *Scorer) Score(ctx context.Context, event *models.Event) (int, []string)
 	}
 
 	return score, reasons
+}
+
+func isPrivateOrLoopbackIP(value string) bool {
+	addr, err := netip.ParseAddr(strings.TrimSpace(value))
+	if err != nil {
+		return false
+	}
+	return addr.IsPrivate() || addr.IsLoopback()
 }
 
 // IsBot returns true if bot_score >= threshold

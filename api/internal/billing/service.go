@@ -64,9 +64,9 @@ var Plans = []Plan{
 		PriceCents:         0,
 		Interval:           "monthly",
 		EventLimit:         10000,
-		SiteLimit:          1,
-		TrackingOrderLimit: 0,
-		Features:           []string{"basic_analytics"},
+		SiteLimit:          5,
+		TrackingOrderLimit: 1000,
+		Features:           []string{"basic_analytics", "all_analytics", "email_support", "priority_support", "api_access", "realtime", "order_tracking_api"},
 	},
 	{
 		ID:                 "starter",
