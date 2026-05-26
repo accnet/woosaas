@@ -188,6 +188,9 @@ func (r *Router) registerCollectRoutes(v1 *gin.RouterGroup) {
 	collect.Use(r.mw.RateLimit())
 	{
 		collectHandler := handlers.NewCollectHandler(r.collector, r.repo, r.redisClient, r.billingSvc)
+		collect.OPTIONS("", func(c *gin.Context) {})
+		collect.OPTIONS("/batch", func(c *gin.Context) {})
+		collect.OPTIONS("/verify", func(c *gin.Context) {})
 		collect.POST("", collectHandler.CollectEvent)
 		collect.POST("/batch", collectHandler.CollectBatch)
 		collect.GET("/verify", collectHandler.Verify)

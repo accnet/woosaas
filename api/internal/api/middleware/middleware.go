@@ -54,6 +54,11 @@ func NewMiddleware(jwtManager *auth.JWTManager, tenantAuth tenantAuthValidator, 
 // rejected by all modern browsers — this version fixes that.
 func (m *Middleware) CORS() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if isPublicIngestPath(c.Request.URL.Path) {
+			c.Next()
+			return
+		}
+
 		origin := strings.TrimRight(c.GetHeader("Origin"), "/")
 
 		// Always vary on Origin so CDNs/proxies don't cache the wrong header
@@ -96,6 +101,13 @@ func (m *Middleware) PublicCORS() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+func isPublicIngestPath(path string) bool {
+	return path == "/api/v1/collect" ||
+		path == "/api/v1/collect/" ||
+		path == "/api/v1/collect/batch" ||
+		path == "/api/v1/collect/verify"
 }
 
 // JWTAuth validates Bearer tokens and sets user_id / email in the context.
