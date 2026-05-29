@@ -188,6 +188,21 @@ Before real deployment, update at least:
 - `INTEGRATION_ENCRYPTION_KEY`
 - database and ClickHouse passwords
 
+On first deploy, `docker compose up -d --build` now also runs `platform-admin-bootstrap`.
+It creates or updates the platform admin account from env:
+
+```text
+PLATFORM_ADMIN_EMAIL
+PLATFORM_ADMIN_PASSWORD
+PLATFORM_ADMIN_NAME
+PLATFORM_ADMIN_ROLE
+```
+
+The bootstrap is idempotent:
+
+- first deploy: creates the account
+- later deploys: updates password/name/role for the same email
+
 Recommended production shape:
 
 - reverse proxy with HTTPS in front

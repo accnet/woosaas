@@ -198,6 +198,39 @@ services:
       - api
     restart: unless-stopped
 
+  platform-admin-bootstrap:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+      target: api
+      network: host
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-woosaas_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-woosaas}
+      PLATFORM_ADMIN_EMAIL: ${PLATFORM_ADMIN_EMAIL:-admin@woosaas.com}
+      PLATFORM_ADMIN_PASSWORD: ${PLATFORM_ADMIN_PASSWORD:-Admin123!}
+      PLATFORM_ADMIN_NAME: ${PLATFORM_ADMIN_NAME:-Platform Admin}
+      PLATFORM_ADMIN_ROLE: ${PLATFORM_ADMIN_ROLE:-owner}
+    command:
+      - ./platform-admin-bootstrap
+      - -email
+      - ${PLATFORM_ADMIN_EMAIL:-admin@woosaas.com}
+      - -password
+      - ${PLATFORM_ADMIN_PASSWORD:-Admin123!}
+      - -name
+      - ${PLATFORM_ADMIN_NAME:-Platform Admin}
+      - -role
+      - ${PLATFORM_ADMIN_ROLE:-owner}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
 volumes:
   postgres_data:
   clickhouse_data:
