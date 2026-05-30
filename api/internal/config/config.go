@@ -49,6 +49,12 @@ type Config struct {
 	IPHashSalt              string
 	AllowInsecurePublicURLs bool
 
+	// Platform admin bootstrap
+	PlatformAdminEmail    string
+	PlatformAdminPassword string
+	PlatformAdminName     string
+	PlatformAdminRole     string
+
 	// ShopBase / integrations
 	IntegrationEncryptionKey string // 32-byte key, base64-encoded
 	TrackerBaseURL           string // e.g. https://app.woosaas.com
@@ -94,6 +100,10 @@ func Load() *Config {
 
 		IPHashSalt:              getEnv("IP_HASH_SALT", "woosaas-salt-default"),
 		AllowInsecurePublicURLs: getEnvBool("ALLOW_INSECURE_PUBLIC_URLS", false),
+		PlatformAdminEmail:      getEnv("PLATFORM_ADMIN_EMAIL", "admin@woosaas.com"),
+		PlatformAdminPassword:   getEnv("PLATFORM_ADMIN_PASSWORD", "Admin123!"),
+		PlatformAdminName:       getEnv("PLATFORM_ADMIN_NAME", "Platform Admin"),
+		PlatformAdminRole:       getEnv("PLATFORM_ADMIN_ROLE", "owner"),
 
 		IntegrationEncryptionKey: getEnv("INTEGRATION_ENCRYPTION_KEY", ""),
 		TrackerBaseURL:           getEnv("TRACKER_BASE_URL", "https://app.woosaas.com"),

@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { LogIn, RefreshCw, Users } from 'lucide-react'
-import { AdminPageHeader, AdminPanel, AdminStatusBadge, ReasonDialog } from '@/components/admin/admin-ui'
+import { ArrowUpRight, Ban, LogIn, RefreshCw, ShieldAlert, Users } from 'lucide-react'
+import { AdminPageHeader, AdminPanel, AdminSectionIntro, AdminStatusBadge, ReasonDialog } from '@/components/admin/admin-ui'
 import { adminApi, type AdminPlan, type AdminUserRow, getAdminToken } from '@/lib/admin/api'
 import { getApiErrorMessage } from '@/lib/api'
 
@@ -118,6 +118,9 @@ export default function AdminUsersPage() {
   }
 
   const activeUsers = users.filter((user) => user.status === 'active').length
+  const suspendedUsers = users.filter((user) => user.status === 'suspended').length
+  const disabledUsers = users.filter((user) => user.status === 'disabled').length
+  const uniquePlans = new Set(users.map((user) => user.plan_id).filter(Boolean)).size
 
   const statusTone = (status: string) => {
     if (status === 'active') return 'success'
@@ -129,71 +132,120 @@ export default function AdminUsersPage() {
     <>
       <AdminPageHeader
         title="Users"
-        description="Tenant accounts, status, plan, and support access."
+        description="Accounts and access control lists."
         action={
-        <button onClick={() => void load()} className="btn-secondary gap-2">
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </button>
+          <button onClick={() => void load()} className="admin-btn-secondary gap-2 px-4 py-2.5 text-xs" disabled={!!busy}>
+            <RefreshCw className="h-3.5 w-3.5" />
+            Refresh List
+          </button>
         }
       />
 
-      {error ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
+      {error ? <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <SummaryCard label="Accounts" value={users.length.toLocaleString()} icon={<Users className="h-4 w-4" />} />
-        <SummaryCard label="Active" value={activeUsers.toLocaleString()} />
-        <SummaryCard label="Plans" value={plans.length.toLocaleString()} />
+      <div className="grid gap-4 lg:grid-cols-4">
+        <SummaryCard
+          label="Total Accounts"
+          value={users.length.toLocaleString()}
+          icon={<Users className="h-4 w-4" />}
+        />
+        <SummaryCard
+          label="Active Tenants"
+          value={activeUsers.toLocaleString()}
+          tone="success"
+          icon={<Users className="h-4 w-4" />}
+        />
+        <SummaryCard
+          label="Restricted Access"
+          value={(suspendedUsers + disabledUsers).toLocaleString()}
+          hint={`${suspendedUsers} suspended · ${disabledUsers} disabled`}
+          tone={suspendedUsers + disabledUsers > 0 ? 'warning' : 'neutral'}
+          icon={<Ban className="h-4 w-4" />}
+        />
+        <SummaryCard
+          label="Plan Spread"
+          value={uniquePlans.toLocaleString()}
+          icon={<ShieldAlert className="h-4 w-4" />}
+        />
       </div>
 
-      <AdminPanel>
+      <AdminPanel className="p-6">
+        <div className="mb-6 flex flex-col gap-4 border-b border-slate-200/50 pb-5 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-700">
+              <Users className="h-5 w-5" />
+            </div>
+            <AdminSectionIntro
+              eyebrow="Access Control"
+              title="Tenant Access Control"
+              description="Manage user scopes, plans, and impersonate tenant sessions."
+            />
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left text-sm">
-          <thead className="border-b border-app-border text-app-muted">
-            <tr>
-              <th className="px-4 py-3 font-medium">Account</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Plan</th>
-              <th className="px-4 py-3 font-medium">Created</th>
-              <th className="px-4 py-3 text-right font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((user) => (
-              <tr key={user.id} className="border-b border-app-border last:border-0">
-                <td className="px-4 py-3">
-                  <div className="font-medium text-app-primary">{user.name || user.email}</div>
-                  <div className="text-app-muted">{user.email}</div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                  <AdminStatusBadge label={user.status} tone={statusTone(user.status)} />
-                  <select className="select min-w-32" value={user.status} disabled={busy === user.id} onChange={(event) => void updateStatus(user, event.target.value)}>
-                    {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
-                  </select>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <select className="select min-w-28" value={user.plan_id} disabled={busy === user.id} onChange={(event) => void updatePlan(user, event.target.value)}>
-                    {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}</option>)}
-                  </select>
-                </td>
-                <td className="px-4 py-3 text-app-muted">{new Date(user.created_at).toLocaleDateString()}</td>
-                <td className="px-4 py-3 text-right">
-                  <button className="btn-secondary gap-2 text-xs" disabled={busy === user.id} onClick={() => void impersonate(user)}>
-                    <LogIn className="h-3.5 w-3.5" />
-                    Impersonate
-                  </button>
-                </td>
+          <table className="w-full min-w-[920px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-200/60 pb-3">
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-400/90">Account Information</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-400/90">Status</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-400/90">Plan Quota</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-400/90">Registration Date</th>
+                <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-400/90">Operational Actions</th>
               </tr>
-            ))}
-            {users.length === 0 ? (
-              <tr>
-                <td className="px-4 py-8 text-center text-app-muted" colSpan={5}>No users found.</td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {users.map((user) => (
+                <tr key={user.id} className="group hover:bg-slate-50/40 transition-colors">
+                  <td className="px-4 py-4">
+                    <div className="space-y-1">
+                      <div className="font-semibold text-slate-900">{user.name || user.email}</div>
+                      <div className="text-xs text-slate-500">{user.email}</div>
+                      <div className="inline-flex rounded-lg border border-slate-100 bg-slate-50 px-2 py-0.5 font-mono text-[10px] text-slate-400">
+                        ID: {user.id}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="flex flex-col gap-2">
+                      <div>
+                        <AdminStatusBadge label={user.status} tone={statusTone(user.status)} />
+                      </div>
+                      <select className="admin-select-premium !py-1.5 !px-3 !pr-8 min-w-32 text-xs" value={user.status} disabled={busy === user.id} onChange={(event) => void updateStatus(user, event.target.value)}>
+                        {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
+                      </select>
+                    </div>
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="space-y-1.5">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Assigned plan</div>
+                      <select className="admin-select-premium !py-1.5 !px-3 !pr-8 min-w-36 text-xs" value={user.plan_id} disabled={busy === user.id} onChange={(event) => void updatePlan(user, event.target.value)}>
+                        {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}</option>)}
+                      </select>
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 text-slate-500">
+                    <div className="font-medium text-slate-700">{new Date(user.created_at).toLocaleDateString()}</div>
+                    <div className="mt-0.5 text-xs text-slate-400">{new Date(user.created_at).toLocaleTimeString()}</div>
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <div className="flex justify-end">
+                      <button className="admin-btn-secondary gap-1.5 px-3 py-2 text-xs" disabled={busy === user.id} onClick={() => void impersonate(user)}>
+                        <LogIn className="h-3.5 w-3.5" />
+                        Impersonate
+                        <ArrowUpRight className="h-3.5 w-3.5 text-slate-400" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {users.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-8 text-center text-slate-400" colSpan={5}>No users found.</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
         </div>
       </AdminPanel>
       <ReasonDialog
@@ -212,16 +264,40 @@ export default function AdminUsersPage() {
   )
 }
 
-function SummaryCard({ label, value, icon }: { label: string; value: string; icon?: ReactNode }) {
+function SummaryCard({
+  label,
+  value,
+  hint,
+  icon,
+  tone = 'neutral',
+}: {
+  label: string
+  value: string
+  hint?: string
+  icon?: ReactNode
+  tone?: 'neutral' | 'success' | 'warning'
+}) {
+  const toneClasses = {
+    neutral: 'from-slate-500/5 to-slate-600/5 hover:border-slate-300',
+    success: 'from-emerald-500/5 to-teal-500/5 hover:border-emerald-500/30 text-emerald-950',
+    warning: 'from-amber-500/5 to-orange-500/5 hover:border-amber-500/30 text-amber-950',
+  }
+  const iconColor = {
+    neutral: 'bg-slate-500/10 text-slate-600',
+    success: 'bg-emerald-500/10 text-emerald-600',
+    warning: 'bg-amber-500/10 text-amber-600',
+  }
+
   return (
-    <AdminPanel className="p-4">
-      <div className="flex items-center justify-between">
+    <div className={`card-admin-glass bg-gradient-to-br ${toneClasses[tone]} p-5 hover:-translate-y-1 transition-all duration-300`}>
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-sm text-app-muted">{label}</div>
-          <div className="mt-1 text-2xl font-semibold text-app-primary">{value}</div>
+          <div className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</div>
+          <div className="mt-2 font-admin-title text-3xl font-extrabold tracking-tight text-slate-900">{value}</div>
+          {hint ? <div className="mt-2 text-xs font-semibold text-slate-500">{hint}</div> : null}
         </div>
-        {icon ? <div className="flex h-9 w-9 items-center justify-center rounded-md bg-app-bg text-app-accent">{icon}</div> : null}
+        {icon ? <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${iconColor[tone]}`}>{icon}</div> : null}
       </div>
-    </AdminPanel>
+    </div>
   )
 }

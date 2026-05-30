@@ -147,6 +147,7 @@ func (r *Router) registerPlatformAdminRoutes() {
 	protected.Use(adminHandler.AuthRequired())
 	{
 		protected.GET("/me", adminHandler.Me)
+		protected.PUT("/me/password", adminHandler.ChangePassword)
 		protected.GET("/users", adminHandler.ListUsers)
 		protected.PUT("/users/:user_id/status", adminHandler.UpdateUserStatus)
 		protected.PUT("/users/:user_id/plan", adminHandler.UpdateUserPlan)

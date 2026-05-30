@@ -11,6 +11,7 @@ import (
 
 	"github.com/accnet/woosaas/api/internal/api"
 	"github.com/accnet/woosaas/api/internal/auth"
+	"github.com/accnet/woosaas/api/internal/bootstrap"
 	"github.com/accnet/woosaas/api/internal/config"
 	"github.com/accnet/woosaas/api/internal/database"
 	"github.com/accnet/woosaas/api/internal/observability"
@@ -26,6 +27,10 @@ func main() {
 		log.Fatalf("Failed to connect to PostgreSQL: %v", err)
 	}
 	defer pg.Close()
+
+	if err := bootstrap.EnsurePlatformAdmin(context.Background(), pg, cfg); err != nil {
+		log.Fatalf("Failed to ensure platform admin: %v", err)
+	}
 
 	ch, err := database.NewClickHouseDB(cfg)
 	if err != nil {

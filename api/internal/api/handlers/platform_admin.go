@@ -29,6 +29,11 @@ type platformAdminLoginRequest struct {
 	Password string `json:"password"`
 }
 
+type platformAdminChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
 func (h *PlatformAdminHandler) Login(c *gin.Context) {
 	var req platformAdminLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -59,6 +64,57 @@ func (h *PlatformAdminHandler) Me(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"admin": admin})
+}
+
+func (h *PlatformAdminHandler) ChangePassword(c *gin.Context) {
+	var req platformAdminChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	currentPassword := strings.TrimSpace(req.CurrentPassword)
+	newPassword := strings.TrimSpace(req.NewPassword)
+	if currentPassword == "" || newPassword == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Current password and new password are required"})
+		return
+	}
+	if len(newPassword) < 8 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "New password must be at least 8 characters"})
+		return
+	}
+
+	admin, err := h.getAdminByID(c, c.GetString("platform_admin_id"))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
+	if !auth.CheckPassword(currentPassword, admin.PasswordHash) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Current password is incorrect"})
+		return
+	}
+	if auth.CheckPassword(newPassword, admin.PasswordHash) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "New password must be different from current password"})
+		return
+	}
+
+	hash, err := auth.HashPassword(newPassword)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		return
+	}
+	if _, err := h.db.Exec(c.Request.Context(), `
+		UPDATE platform_admin_users
+		SET password_hash = $2,
+			updated_at = NOW()
+		WHERE id = $1
+	`, admin.ID, hash); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update password"})
+		return
+	}
+
+	h.audit(c, "change_password", "platform_admin_user", admin.ID, "self-service password change")
+	c.JSON(http.StatusOK, gin.H{"message": "Password updated"})
 }
 
 func (h *PlatformAdminHandler) AuthRequired() gin.HandlerFunc {

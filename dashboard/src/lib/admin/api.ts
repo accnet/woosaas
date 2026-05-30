@@ -56,6 +56,14 @@ export interface AdminSMTPSettings {
   has_password: boolean
 }
 
+export interface AdminMe {
+  id: string
+  email: string
+  full_name: string
+  role: string
+  status: string
+}
+
 export function getAdminToken() {
   if (typeof window === 'undefined') return ''
   return localStorage.getItem(ADMIN_TOKEN_KEY) || ''
@@ -75,7 +83,9 @@ function adminHeaders() {
 
 export const adminApi = {
   login: (email: string, password: string) => api.post('/api/admin/v1/auth/login', { email, password }),
-  me: () => api.get('/api/admin/v1/me', { headers: adminHeaders() }),
+  me: () => api.get<{ admin: AdminMe }>('/api/admin/v1/me', { headers: adminHeaders() }),
+  changePassword: (current_password: string, new_password: string) =>
+    api.put('/api/admin/v1/me/password', { current_password, new_password }, { headers: adminHeaders() }),
   users: () => api.get<{ users: AdminUserRow[] }>('/api/admin/v1/users', { headers: adminHeaders() }),
   updateUserStatus: (userId: string, status: string, reason: string) =>
     api.put(`/api/admin/v1/users/${userId}/status`, { status, reason }, { headers: adminHeaders() }),

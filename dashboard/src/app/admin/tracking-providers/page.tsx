@@ -1,9 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { Activity, Save } from 'lucide-react'
-import { AdminPageHeader, AdminPanel, AdminStatusBadge, ReasonDialog } from '@/components/admin/admin-ui'
+import { Activity, Link2, RefreshCw, Save, Webhook } from 'lucide-react'
+import { AdminPageHeader, AdminPanel, AdminSectionIntro, AdminStatusBadge, ReasonDialog } from '@/components/admin/admin-ui'
 import { adminApi, type AdminTrackingProvider, getAdminToken } from '@/lib/admin/api'
 import { getApiErrorMessage } from '@/lib/api'
 
@@ -101,74 +102,142 @@ export default function AdminTrackingProvidersPage() {
     setReason('')
   }
 
+  const enabledProviders = providers.filter((provider) => provider.enabled).length
+  const webhookProviders = providers.filter((provider) => provider.supports_webhooks).length
+  const configuredSecrets = providers.filter((provider) => provider.has_api_key || provider.has_webhook_secret).length
+
   return (
     <>
-      <AdminPageHeader title="Tracking Providers" description="System-level provider availability and webhook-first tracking configuration." />
-      {error ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      <AdminPageHeader
+        title="Tracking Providers"
+        description="Configure outbound package tracking carriers and API credentials."
+        action={
+          <button className="admin-btn-secondary gap-2 px-4 py-2.5 text-xs" onClick={() => void load()} disabled={!!busy}>
+            <RefreshCw className="h-3.5 w-3.5" />
+            Refresh Carriers
+          </button>
+        }
+      />
+      {error ? <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+
+      <div className="grid gap-4 lg:grid-cols-4">
+        <ProviderMetricCard
+          label="Supported Providers"
+          value={providers.length.toString()}
+          icon={<Activity className="h-4 w-4" />}
+        />
+        <ProviderMetricCard
+          label="Active Carriers"
+          value={enabledProviders.toString()}
+          tone="success"
+          icon={<Activity className="h-4 w-4" />}
+        />
+        <ProviderMetricCard
+          label="Webhooks Ready"
+          value={webhookProviders.toString()}
+          icon={<Webhook className="h-4 w-4" />}
+        />
+        <ProviderMetricCard
+          label="Encrypted Secrets"
+          value={configuredSecrets.toString()}
+          icon={<Link2 className="h-4 w-4" />}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         {providers.map((provider) => (
-          <AdminPanel key={provider.id} className="p-4">
-            <div className="space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-app-bg text-app-accent">
-                  <Activity className="h-4 w-4" />
+          <AdminPanel key={provider.id} className="p-6">
+            <div className="space-y-6">
+              <div className="flex items-start justify-between gap-3 border-b border-slate-200/50 pb-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-700">
+                    <Activity className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="font-admin-title text-base font-bold text-slate-900">{provider.display_name}</div>
+                    <div className="text-xs text-slate-400">{provider.id}</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-lg font-semibold text-app-primary">{provider.display_name}</div>
-                  <div className="text-sm text-app-muted">{provider.id}</div>
+                <div className="flex flex-wrap gap-1.5">
+                  <AdminStatusBadge label={provider.enabled ? 'enabled' : 'disabled'} tone={provider.enabled ? 'success' : 'danger'} />
+                  <AdminStatusBadge label={provider.supports_webhooks ? 'webhooks' : 'manual'} tone={provider.supports_webhooks ? 'neutral' : 'warning'} />
                 </div>
               </div>
-              <AdminStatusBadge label={provider.enabled ? 'enabled' : 'disabled'} tone={provider.enabled ? 'success' : 'danger'} />
-            </div>
-            {provider.id === 'trackingmore' ? (
-              <div className="space-y-3 rounded-md border border-app-border bg-app-bg p-3">
-                <div className="grid gap-3">
-                  <label className="block space-y-1">
-                    <span className="text-xs font-medium text-app-muted">Base URL</span>
-                    <input
-                      className="input"
-                      value={trackingMoreForm.base_url}
-                      onChange={(event) => setTrackingMoreForm((value) => ({ ...value, base_url: event.target.value }))}
-                      placeholder="https://api.trackingmore.com/v2"
-                    />
-                  </label>
-                  <label className="block space-y-1">
-                    <span className="text-xs font-medium text-app-muted">API key {provider.has_api_key ? '(configured)' : ''}</span>
-                    <input
-                      className="input"
-                      value={trackingMoreForm.api_key}
-                      onChange={(event) => setTrackingMoreForm((value) => ({ ...value, api_key: event.target.value }))}
-                      placeholder={provider.has_api_key ? 'Leave blank to keep current key' : 'TrackingMore API key'}
-                    />
-                  </label>
-                  <label className="block space-y-1">
-                    <span className="text-xs font-medium text-app-muted">Webhook secret {provider.has_webhook_secret ? '(configured)' : ''}</span>
-                    <input
-                      className="input"
-                      value={trackingMoreForm.webhook_secret}
-                      onChange={(event) => setTrackingMoreForm((value) => ({ ...value, webhook_secret: event.target.value }))}
-                      placeholder={provider.has_webhook_secret ? 'Leave blank to keep current secret' : 'Shared webhook secret'}
-                    />
-                  </label>
-                </div>
-                <div className="rounded-md bg-app-surface px-2 py-1 text-xs text-app-muted">
-                  Webhook URL: <span className="font-mono">{provider.webhook_url}</span>
-                </div>
-                <button className="btn-secondary w-full" disabled={busy === provider.id} onClick={() => void saveTrackingMoreConfig(provider)}>
-                  <Save className="h-4 w-4" />
-                  Save TrackingMore config
-                </button>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <CapabilityCard label="Webhooks" enabled={provider.supports_webhooks} />
+                <CapabilityCard label="Refresh" enabled={provider.supports_refresh} />
+                <CapabilityCard label="Register" enabled={provider.supports_register} />
               </div>
-            ) : null}
-            <div className="grid grid-cols-3 gap-2 text-xs text-app-muted">
-              <Capability label="Webhooks" enabled={provider.supports_webhooks} />
-              <Capability label="Refresh" enabled={provider.supports_refresh} />
-              <Capability label="Register" enabled={provider.supports_register} />
-            </div>
-            <button className={provider.enabled ? 'btn-danger w-full' : 'btn-primary w-full'} disabled={busy === provider.id} onClick={() => void update(provider, !provider.enabled)}>
-              {provider.enabled ? 'Disable provider' : 'Enable provider'}
-            </button>
+
+              {provider.id === 'trackingmore' ? (
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(240px,0.9fr)]">
+                  <div className="space-y-4 rounded-2xl border border-slate-200/60 bg-slate-50/40 p-4">
+                    <AdminSectionIntro
+                      eyebrow="Credentials"
+                      title="TrackingMore API Keys"
+                    />
+                    <div className="grid gap-3">
+                      <label className="block space-y-1.5">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Base URL</span>
+                        <input
+                          className="admin-input-premium !py-1.5 text-xs"
+                          value={trackingMoreForm.base_url}
+                          onChange={(event) => setTrackingMoreForm((value) => ({ ...value, base_url: event.target.value }))}
+                          placeholder="https://api.trackingmore.com/v2"
+                        />
+                      </label>
+                      <label className="block space-y-1.5">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">API Key {provider.has_api_key ? '(configured)' : ''}</span>
+                        <input
+                          className="admin-input-premium !py-1.5 text-xs"
+                          value={trackingMoreForm.api_key}
+                          onChange={(event) => setTrackingMoreForm((value) => ({ ...value, api_key: event.target.value }))}
+                          placeholder={provider.has_api_key ? '••••••••••••••••••••••••' : 'TrackingMore API Key'}
+                          type="password"
+                        />
+                      </label>
+                      <label className="block space-y-1.5">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Webhook Secret {provider.has_webhook_secret ? '(configured)' : ''}</span>
+                        <input
+                          className="admin-input-premium !py-1.5 text-xs"
+                          value={trackingMoreForm.webhook_secret}
+                          onChange={(event) => setTrackingMoreForm((value) => ({ ...value, webhook_secret: event.target.value }))}
+                          placeholder={provider.has_webhook_secret ? '••••••••••••••••••••••••' : 'Shared Webhook Secret'}
+                          type="password"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm">
+                    <AdminSectionIntro
+                      eyebrow="Callback"
+                      title="Outbound Webhook"
+                    />
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-[10px] text-slate-500">
+                      <span className="font-mono break-all">{provider.webhook_url}</span>
+                    </div>
+                    <div className="space-y-2">
+                      <ProviderCheck label="API Credential" ready={provider.has_api_key || Boolean(trackingMoreForm.api_key)} />
+                      <ProviderCheck label="Webhook Signature" ready={provider.has_webhook_secret || Boolean(trackingMoreForm.webhook_secret)} />
+                      <ProviderCheck label="Carrier Enabled" ready={provider.enabled} warning={!provider.enabled} />
+                    </div>
+                    <button className="admin-btn-secondary w-full gap-2 rounded-xl text-xs py-2" disabled={busy === provider.id} onClick={() => void saveTrackingMoreConfig(provider)}>
+                      <Save className="h-3.5 w-3.5" />
+                      Save Configurations
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-slate-200/60 bg-slate-50/40 p-5 text-center text-xs text-slate-400">
+                  This provider is managed internally and does not require custom credentials config.
+                </div>
+              )}
+
+              <button className={provider.enabled ? 'btn-danger w-full rounded-xl py-2.5 text-sm' : 'admin-btn-primary w-full rounded-xl py-2.5 text-sm'} disabled={busy === provider.id} onClick={() => void update(provider, !provider.enabled)}>
+                {provider.enabled ? 'Deactivate Carrier' : 'Activate Carrier'}
+              </button>
             </div>
           </AdminPanel>
         ))}
@@ -189,10 +258,61 @@ export default function AdminTrackingProvidersPage() {
   )
 }
 
-function Capability({ label, enabled }: { label: string; enabled: boolean }) {
+function ProviderMetricCard({
+  label,
+  value,
+  hint,
+  icon,
+  tone = 'neutral',
+}: {
+  label: string
+  value: string
+  hint?: string
+  icon?: ReactNode
+  tone?: 'neutral' | 'success'
+}) {
+  const toneClasses = {
+    neutral: 'from-slate-500/5 to-slate-600/5 hover:border-slate-300',
+    success: 'from-emerald-500/5 to-teal-500/5 hover:border-emerald-500/30 text-emerald-950',
+  }
+  const iconColor = {
+    neutral: 'bg-slate-500/10 text-slate-600',
+    success: 'bg-emerald-500/10 text-emerald-600',
+  }
+
   return (
-    <div className={`rounded-md border px-2 py-1 text-center ${enabled ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
-      {label}
+    <div className={`card-admin-glass bg-gradient-to-br ${toneClasses[tone as 'neutral' | 'success']} p-5 hover:-translate-y-1 transition-all duration-300`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</div>
+          <div className="mt-2 font-admin-title text-3xl font-extrabold tracking-tight text-slate-900">{value}</div>
+          {hint ? <div className="mt-2 text-xs font-semibold text-slate-500">{hint}</div> : null}
+        </div>
+        {icon ? <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${iconColor[tone as 'neutral' | 'success']}`}>{icon}</div> : null}
+      </div>
+    </div>
+  )
+}
+
+function CapabilityCard({ label, enabled }: { label: string; enabled: boolean }) {
+  return (
+    <div className={`rounded-xl border p-3 transition-colors ${enabled ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-700' : 'border-slate-200/50 bg-slate-50 text-slate-400'}`}>
+      <div className="text-[10px] font-bold uppercase tracking-wider">{label}</div>
+      <div className="mt-1 text-xs font-semibold">{enabled ? 'Active' : 'Not Supported'}</div>
+    </div>
+  )
+}
+
+function ProviderCheck({ label, ready, warning }: { label: string; ready: boolean; warning?: boolean }) {
+  const tone = ready ? 'text-emerald-600' : warning ? 'text-amber-500' : 'text-slate-400'
+  const dotTone = ready ? 'bg-emerald-500' : warning ? 'bg-amber-500' : 'bg-slate-300'
+  return (
+    <div className="flex items-center justify-between rounded-xl border border-slate-200/60 bg-slate-50/50 px-3.5 py-2.5">
+      <div className="text-xs font-semibold text-slate-700">{label}</div>
+      <div className="flex items-center gap-1.5">
+        <span className={`h-1.5 w-1.5 rounded-full ${dotTone} ${ready ? 'animate-pulse' : ''}`} />
+        <span className={`text-[10px] font-bold uppercase tracking-wider ${tone}`}>{ready ? 'Ready' : warning ? 'Review' : 'Missing'}</span>
+      </div>
     </div>
   )
 }
