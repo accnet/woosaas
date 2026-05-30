@@ -40,6 +40,10 @@ func (h *PlatformAdminHandler) Login(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
+	if _, err := h.db.Exec(c.Request.Context(), `UPDATE platform_admin_users SET last_login_at = NOW() WHERE id = $1`, admin.ID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update admin login timestamp"})
+		return
+	}
 	token, err := h.jwt.GeneratePlatformAdminToken(admin.ID, admin.Email, admin.Role)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
