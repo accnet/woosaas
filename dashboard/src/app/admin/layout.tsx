@@ -4,15 +4,15 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { Activity, Boxes, ClipboardList, LogOut, Settings, ShieldCheck, Users } from 'lucide-react'
+import { Activity, Box, ClipboardList, LogOut, Settings, Shield, Users } from 'lucide-react'
 import { adminApi, clearAdminToken, getAdminToken, type AdminMe } from '@/lib/admin/api'
 
 const nav = [
   { href: '/admin/users', label: 'Users', icon: Users },
-  { href: '/admin/plans', label: 'Plans', icon: Boxes },
-  { href: '/admin/tracking-providers', label: 'Tracking Providers', icon: Activity },
+  { href: '/admin/plans', label: 'Plans', icon: Box },
+  { href: '/admin/tracking-providers', label: 'Providers', icon: Activity },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
-  { href: '/admin/audit', label: 'Audit', icon: ClipboardList },
+  { href: '/admin/audit', label: 'Audit Log', icon: ClipboardList },
 ]
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
@@ -20,25 +20,18 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const router = useRouter()
   const [admin, setAdmin] = useState<AdminMe | null>(null)
   const isLoginPage = pathname === '/admin/login'
-  const currentSection = nav.find((item) => item.href === pathname)?.label || 'Admin'
 
   useEffect(() => {
-    if (isLoginPage) {
-      return
-    }
+    if (isLoginPage) return
     if (!getAdminToken()) {
       router.replace('/admin/login')
       return
     }
     let ignore = false
     void adminApi.me().then((res) => {
-      if (!ignore) {
-        setAdmin(res.data.admin)
-      }
+      if (!ignore) setAdmin(res.data.admin)
     }).catch(() => {})
-    return () => {
-      ignore = true
-    }
+    return () => { ignore = true }
   }, [isLoginPage, router])
 
   const logout = () => {
@@ -50,24 +43,23 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-admin-mesh text-slate-800">
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-72 border-r border-slate-200/20 bg-gradient-to-b from-[#0a0f1d] to-[#070b14] px-5 py-6 text-slate-100 shadow-[18px_0_60px_rgba(2,6,23,0.18)] lg:block">
-        <div className="mb-8 rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+      {/* ── Desktop Sidebar ── */}
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-white/[0.06] bg-[#0b0f1a] lg:flex">
+        {/* Logo */}
+        <div className="px-5 pt-6 pb-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-400 shadow-sm ring-1 ring-inset ring-cyan-400/20">
-              <ShieldCheck className="h-5 w-5" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/20 to-cyan-500/20 text-violet-400 ring-1 ring-inset ring-white/[0.08]">
+              <Shield className="h-5 w-5" />
             </div>
             <div>
-              <div className="font-admin-title text-sm font-bold tracking-tight text-white">Woosaas Console</div>
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-400/80">Platform Ops</div>
+              <div className="font-admin-title text-sm font-bold tracking-tight text-white">Woosaas</div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-violet-400/70">Platform Admin</div>
             </div>
           </div>
-          <div className="mt-4 rounded-xl border border-white/[0.04] bg-slate-950/45 px-3.5 py-3">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{currentSection}</div>
-            <div className="mt-1 truncate text-sm font-semibold text-white">{admin?.full_name || 'Platform Admin'}</div>
-            <div className="truncate text-xs text-slate-400/90">{admin?.email || 'Loading credentials...'}</div>
-          </div>
         </div>
-        <nav className="space-y-1.5">
+
+        {/* Navigation */}
+        <nav className="flex-1 space-y-0.5 px-3">
           {nav.map((item) => {
             const Icon = item.icon
             const active = pathname === item.href
@@ -75,13 +67,17 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`sidebar-glow-item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 ${
+                className={`sidebar-glow-item group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
                   active
-                    ? 'active bg-white/[0.06] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]'
-                    : 'text-slate-400 hover:bg-white/[0.03] hover:text-white'
+                    ? 'text-white'
+                    : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <span className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 ${active ? 'bg-cyan-500/15 text-cyan-300' : 'bg-white/[0.02] text-slate-500'}`}>
+                <span className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200 ${
+                  active
+                    ? 'bg-violet-500/20 text-violet-300 shadow-sm'
+                    : 'bg-white/[0.03] text-slate-500 group-hover:bg-white/[0.06] group-hover:text-slate-300'
+                }`}>
                   <Icon className="h-4 w-4" />
                 </span>
                 {item.label}
@@ -89,41 +85,75 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             )
           })}
         </nav>
-        <button onClick={logout} className="absolute bottom-6 left-5 right-5 inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-sm font-semibold text-slate-300 transition-all hover:bg-white/[0.06] hover:text-white">
-          <LogOut className="h-4 w-4" />
-          Sign out
-        </button>
-      </aside>
-      <div className="sticky top-0 z-20 border-b border-slate-200/50 bg-white/75 px-4 py-3.5 shadow-sm backdrop-blur-md lg:hidden">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-cyan-600 animate-pulse" />
-            <span className="font-admin-title text-sm font-bold text-slate-900">Woosaas Admin</span>
+
+        {/* Admin Profile Card */}
+        <div className="mx-4 mb-3 rounded-2xl border border-white/[0.05] bg-white/[0.03] p-4 backdrop-blur-sm">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 text-xs font-bold text-white">
+              {admin?.full_name?.charAt(0) || 'A'}
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-white">{admin?.full_name || 'Admin'}</div>
+              <div className="text-[11px] text-slate-400 truncate max-w-[140px]">{admin?.email || '...'}</div>
+            </div>
           </div>
-          <button onClick={logout} className="admin-btn-secondary gap-2 px-3 py-1.5 text-xs">
-            <LogOut className="h-3.5 w-3.5" />
+          <div className="mt-3 flex items-center gap-2 rounded-lg bg-violet-500/[0.06] px-2.5 py-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Active Session</span>
+          </div>
+        </div>
+
+        {/* Logout */}
+        <div className="px-4 pb-6 pt-2">
+          <button
+            onClick={logout}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.05] bg-white/[0.02] px-4 py-2.5 text-sm font-medium text-slate-400 transition-all hover:border-red-500/20 hover:bg-red-500/[0.06] hover:text-red-400"
+          >
+            <LogOut className="h-4 w-4" />
             Sign out
           </button>
         </div>
-        <div className="mt-3 rounded-xl border border-slate-200/60 bg-slate-50/50 px-3.5 py-2.5 text-xs text-slate-600">
-          <div className="font-semibold text-slate-900">{admin?.full_name || 'Platform Admin'}</div>
-          <div className="truncate text-slate-500">{admin?.email || 'Loading...'}</div>
+      </aside>
+
+      {/* ── Mobile Header ── */}
+      <div className="sticky top-0 z-20 border-b border-slate-200/50 bg-white/80 px-4 py-3 backdrop-blur-xl lg:hidden">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500/20 to-cyan-500/20">
+              <Shield className="h-4 w-4 text-violet-500" />
+            </div>
+            <span className="font-admin-title text-sm font-bold text-slate-900">Woosaas Admin</span>
+          </div>
+          <button onClick={logout} className="admin-btn-secondary gap-1.5 px-3 py-1.5 text-xs">
+            <LogOut className="h-3 w-3" />
+            Sign out
+          </button>
         </div>
         <nav className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
           {nav.map((item) => {
             const Icon = item.icon
             const active = pathname === item.href
             return (
-              <Link key={item.href} href={item.href} className={`inline-flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition ${active ? 'border-cyan-600 bg-cyan-600 text-white' : 'border-slate-200 bg-white text-slate-600'}`}>
-                <Icon className="h-3.5 w-3.5" />
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                  active
+                    ? 'border-violet-500 bg-violet-500 text-white'
+                    : 'border-slate-200 bg-white text-slate-600'
+                }`}
+              >
+                <Icon className="h-3 w-3" />
                 {item.label}
               </Link>
             )
           })}
         </nav>
       </div>
-      <main className="lg:pl-72 animate-fade-in">
-        <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+
+      {/* ── Main Content ── */}
+      <main className="lg:pl-64">
+        <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           {children}
         </div>
       </main>

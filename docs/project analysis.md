@@ -74,6 +74,8 @@ graph TD
 > [!IMPORTANT]
 > **3. Hiệu Năng ClickHouse Truy Vấn Thô Khi Quy Mô Lớn**
 > Hiện các endpoint thống kê overview và trend đang đọc trực tiếp từ bảng thô `analytics_events`. Khi số lượng sự kiện tăng lên hàng chục triệu bản ghi, việc truy vấn trực tiếp trên bảng thô sẽ làm tăng CPU của ClickHouse và giảm tốc độ phản hồi trên Dashboard Next.js.
+> 
+> *Xem phân tích chi tiết kỹ thuật và giải pháp tối ưu tại:* [Báo Cáo Phân Tích Rủi Ro Hiệu Năng ClickHouse](file:///home/accnet/woosaas/docs/clickhouse_performance_risk_analysis.md)
 
 ---
 
